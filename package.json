@@ -4,18 +4,41 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "android:aab": "eas build --platform android --profile production",
+    "android:apk": "eas build --platform android --profile preview",
+    "ios": "expo run:ios",
+    "compile": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "local:apk": "cd android && ./gradlew assembleRelease",
+    "local:aab": "cd android && ./gradlew bundleRelease",
+    "postversion": "node scripts/sync-version.js"
   },
   "dependencies": {
+    "@react-navigation/native": "^7.2.2",
+    "@react-navigation/native-stack": "^7.14.10",
     "expo": "~54.0.33",
+    "expo-document-picker": "^55.0.12",
+    "expo-file-system": "^55.0.15",
+    "expo-sharing": "^55.0.17",
+    "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
+    "lucide-react-native": "^1.7.0",
+    "nativewind": "^4.2.3",
     "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-native": "0.81.5",
+    "react-native-reanimated": "^4.3.0",
+    "react-native-safe-area-context": "^5.7.0",
+    "react-native-screens": "^4.24.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "babel-preset-expo": "~54.0.9",
+    "@expo/metro-config": "~54.0.12",
     "@types/react": "~19.1.0",
+    "tailwindcss": "^3.4.19",
     "typescript": "~5.9.2"
   },
   "private": true
