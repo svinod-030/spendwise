@@ -7,7 +7,7 @@ import { signInWithGoogle, signOutGoogle } from "../utils/googleAuth";
 import { backupToDrive, restoreFromDrive } from "../utils/backupService";
 import { 
   ArrowLeft, Download, Upload, Shield, Trash2, 
-  Cloud, LogIn, LogOut, RefreshCcw, CheckCircle2 
+  Cloud, LogIn, LogOut, RefreshCcw, MessageSquare 
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
@@ -15,7 +15,7 @@ import * as FileSystem from "expo-file-system";
 
 const Settings = () => {
   const navigation = useNavigation();
-  const { exportData, importData } = useExpenseStore();
+  const { exportData, importData, importTransactionsFromSms } = useExpenseStore();
   const { user, isAuthenticated, setUser, signOut, isLoading } = useAuthStore();
   const [isSyncing, setIsSyncing] = React.useState(false);
 
@@ -129,6 +129,24 @@ const Settings = () => {
     }
   };
 
+  const handleSmsImport = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await importTransactionsFromSms();
+      Alert.alert(
+        "SMS import complete",
+        `Imported ${result.imported} transaction(s).\nSkipped ${result.skipped} message(s).`
+      );
+    } catch (error) {
+      Alert.alert(
+        "SMS import failed",
+        "Please grant SMS permission and run on Android device."
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-slate-950">
       <View className="px-6 py-4 flex-row items-center border-b border-slate-900">
@@ -214,6 +232,20 @@ const Settings = () => {
         )}
 
         <Text className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-4 ml-2">Local Data</Text>
+
+        <TouchableOpacity
+          onPress={handleSmsImport}
+          disabled={isSyncing}
+          className="flex-row items-center bg-violet-500/10 p-5 rounded-2xl border border-violet-500/20 mb-4"
+        >
+          <View className="w-12 h-12 bg-violet-500/20 rounded-xl items-center justify-center">
+            <MessageSquare size={24} color="#8b5cf6" />
+          </View>
+          <View className="ml-4 flex-1">
+            <Text className="text-white font-bold text-lg">Import SMS Transactions</Text>
+            <Text className="text-slate-400 text-sm">Scan inbox and auto-create transactions</Text>
+          </View>
+        </TouchableOpacity>
         
         <TouchableOpacity 
           onPress={handleExport}

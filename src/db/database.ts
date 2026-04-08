@@ -30,7 +30,30 @@ export async function initDatabase() {
       note TEXT,
       FOREIGN KEY (category_id) REFERENCES categories (id)
     );
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender TEXT NOT NULL,
+      body TEXT NOT NULL,
+      received_at TEXT NOT NULL,
+      hash TEXT NOT NULL UNIQUE,
+      parse_confidence REAL DEFAULT 0,
+      processed_status TEXT DEFAULT 'pending'
+    );
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_messages_hash ON messages (hash);
+    CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
+    CREATE INDEX IF NOT EXISTS idx_transactions_category_date ON transactions (category_id, date);
   `);
+
+  await ensureColumn(db, "transactions", "source_message_id", "INTEGER");
+  await ensureColumn(db, "transactions", "merchant", "TEXT");
+  await ensureColumn(db, "transactions", "currency", "TEXT DEFAULT 'INR'");
+  await ensureColumn(db, "transactions", "account_ref", "TEXT");
+  await ensureColumn(db, "transactions", "reference_id", "TEXT");
+  await ensureColumn(db, "transactions", "raw_sender", "TEXT");
 
   // Seed default categories if none exist
   const categories = await db.getAllAsync("SELECT * FROM categories");
@@ -45,5 +68,18 @@ export async function initDatabase() {
       ('Entertainment', 'film', '#957DAD'),
       ('Salary', 'banknote', '#1A535C');
     `);
+  }
+}
+
+async function ensureColumn(
+  db: SQLite.SQLiteDatabase,
+  tableName: string,
+  columnName: string,
+  definition: string
+) {
+  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${tableName});`);
+  const exists = columns.some((col) => col.name === columnName);
+  if (!exists) {
+    await db.execAsync(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition};`);
   }
 }

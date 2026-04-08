@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { getDb } from "../db/database";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import { parseSmsForTransaction } from "../utils/smsParser";
+import { readInboxMessages, requestSmsPermission } from "../utils/smsReader";
 
 export interface Category {
   id: number;
@@ -17,6 +19,12 @@ export interface Transaction {
   type: "expense" | "income";
   date: string;
   note: string;
+  source_message_id?: number;
+  merchant?: string;
+  currency?: string;
+  account_ref?: string;
+  reference_id?: string;
+  raw_sender?: string;
   category_name?: string;
   category_color?: string;
   category_icon?: string;
@@ -30,6 +38,8 @@ interface ExpenseState {
   fetchTransactions: () => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
   deleteTransaction: (id: number) => Promise<void>;
+  importTransactionsFromSms: () => Promise<{ imported: number; skipped: number }>;
+  runInitialSmsImportIfNeeded: () => Promise<{ ran: boolean; imported: number; skipped: number }>;
   exportData: () => Promise<void>;
   importData: (jsonData: string) => Promise<void>;
 }
@@ -70,6 +80,90 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const db = await getDb();
     await db.runAsync("DELETE FROM transactions WHERE id = ?", [id]);
     await get().fetchTransactions();
+  },
+
+  importTransactionsFromSms: async () => {
+    const hasPermission = await requestSmsPermission();
+    if (!hasPermission) {
+      throw new Error("SMS permission denied");
+    }
+
+    const db = await getDb();
+    const messages = await readInboxMessages();
+    let imported = 0;
+    let skipped = 0;
+
+    for (const message of messages) {
+      const parsed = parseSmsForTransaction(message);
+      if (!parsed) {
+        skipped += 1;
+        continue;
+      }
+
+      const existing = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM messages WHERE hash = ?",
+        [parsed.hash]
+      );
+
+      if (existing) {
+        skipped += 1;
+        continue;
+      }
+
+      const messageInsert = await db.runAsync(
+        `INSERT INTO messages (sender, body, received_at, hash, parse_confidence, processed_status)
+         VALUES (?, ?, ?, ?, ?, 'processed')`,
+        [parsed.sender, parsed.body, parsed.receivedAt, parsed.hash, parsed.confidence]
+      );
+
+      const categoryId = await getCategoryIdForMessage(db, parsed.body, parsed.type);
+      await db.runAsync(
+        `INSERT INTO transactions
+          (category_id, amount, type, date, note, source_message_id, merchant, currency, account_ref, reference_id, raw_sender)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          categoryId,
+          parsed.amount,
+          parsed.type,
+          parsed.receivedAt,
+          parsed.merchant || parsed.body.slice(0, 80),
+          messageInsert.lastInsertRowId,
+          parsed.merchant || null,
+          "INR",
+          parsed.accountRef || null,
+          parsed.referenceId || null,
+          parsed.sender,
+        ]
+      );
+      imported += 1;
+    }
+
+    await get().fetchTransactions();
+    return { imported, skipped };
+  },
+
+  runInitialSmsImportIfNeeded: async () => {
+    const db = await getDb();
+    const importMetaKey = "sms_initial_import_done";
+    const existing = await db.getFirstAsync<{ value: string }>(
+      "SELECT value FROM app_meta WHERE key = ? LIMIT 1",
+      [importMetaKey]
+    );
+
+    if (existing?.value === "true") {
+      return { ran: false, imported: 0, skipped: 0 };
+    }
+
+    try {
+      const result = await get().importTransactionsFromSms();
+      await db.runAsync(
+        "INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)",
+        [importMetaKey, "true"]
+      );
+      return { ran: true, imported: result.imported, skipped: result.skipped };
+    } catch {
+      return { ran: false, imported: 0, skipped: 0 };
+    }
   },
 
   exportData: async () => {
@@ -118,3 +212,38 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     await get().fetchTransactions();
   },
 }));
+
+async function getCategoryIdForMessage(
+  db: Awaited<ReturnType<typeof getDb>>,
+  body: string,
+  type: "expense" | "income"
+) {
+  if (type === "income") {
+    const salary = await db.getFirstAsync<{ id: number }>(
+      "SELECT id FROM categories WHERE LOWER(name) = 'salary' LIMIT 1"
+    );
+    return salary?.id ?? null;
+  }
+
+  const normalized = body.toLowerCase();
+  const categoryKeywords: Record<string, string[]> = {
+    Food: ["swiggy", "zomato", "restaurant", "food", "cafe"],
+    Transport: ["uber", "ola", "metro", "fuel", "petrol"],
+    Bills: ["electricity", "broadband", "recharge", "bill", "emi"],
+    Shopping: ["amazon", "flipkart", "mall", "shopping"],
+    Health: ["pharmacy", "hospital", "health", "medic"],
+    Entertainment: ["netflix", "movie", "spotify", "bookmyshow"],
+  };
+
+  for (const [categoryName, words] of Object.entries(categoryKeywords)) {
+    if (words.some((word) => normalized.includes(word))) {
+      const category = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM categories WHERE LOWER(name) = LOWER(?) LIMIT 1",
+        [categoryName]
+      );
+      return category?.id ?? null;
+    }
+  }
+
+  return null;
+}

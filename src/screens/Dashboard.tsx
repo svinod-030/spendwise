@@ -10,6 +10,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 type RootStackParamList = {
   Dashboard: undefined;
+  Transactions: undefined;
   AddTransaction: undefined;
   Settings: undefined;
 };
@@ -101,7 +102,7 @@ const Dashboard = () => {
 
         <View className="flex-row justify-between items-end mb-4">
           <Text className="text-white text-xl font-bold">Recent Activity</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate("Transactions")}>
             <Text className="text-blue-400 font-medium">See All</Text>
           </TouchableOpacity>
         </View>
@@ -124,6 +125,7 @@ const Dashboard = () => {
       <TouchableOpacity
         className="absolute bottom-8 right-8 w-16 h-16 bg-blue-500 rounded-full items-center justify-center shadow-lg shadow-blue-500/50"
         activeOpacity={0.8}
+        onPress={() => navigation.navigate("AddTransaction")}
       >
         <Plus size={32} color="white" />
       </TouchableOpacity>

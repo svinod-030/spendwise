@@ -3,18 +3,24 @@ import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Alert, Linking, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { initDatabase } from "./src/db/database";
+import { useExpenseStore } from "./src/store/useExpenseStore";
+import { checkSmsPermission, requestSmsPermissionWithStatus } from "./src/utils/smsReader";
 import Dashboard from "./src/screens/Dashboard";
 import Settings from "./src/screens/Settings";
+import AddTransaction from "./src/screens/AddTransaction";
+import Transactions from "./src/screens/Transactions";
 import UpdateModal from './src/components/UpdateModal';
 import { checkVersion, VersionCheckResult } from './src/utils/versionCheckService';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  const runInitialSmsImportIfNeeded = useExpenseStore((state) => state.runInitialSmsImportIfNeeded);
   const [isReady, setIsReady] = useState(false);
+  const [didRunLaunchImport, setDidRunLaunchImport] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<VersionCheckResult | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 
@@ -37,6 +43,48 @@ export default function App() {
     setup();
   }, []);
 
+  useEffect(() => {
+    async function runLaunchImport() {
+      if (!isReady || didRunLaunchImport) return;
+      setDidRunLaunchImport(true);
+      if (Platform.OS === "android") {
+        const hasPermission = await checkSmsPermission();
+        if (!hasPermission) {
+          Alert.alert(
+            "Allow SMS permission",
+            "Enable SMS access to automatically import transactions from your bank and UPI messages.",
+            [
+              { text: "Not now", style: "cancel" },
+              {
+                text: "Grant Permission",
+                onPress: async () => {
+                  const status = await requestSmsPermissionWithStatus();
+                  if (status === "blocked") {
+                    Alert.alert(
+                      "Permission blocked",
+                      "SMS permission is blocked. Please enable it from app settings.",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Open Settings", onPress: () => Linking.openSettings() },
+                      ]
+                    );
+                  } else if (status === "granted") {
+                    await runInitialSmsImportIfNeeded();
+                  }
+                },
+              },
+            ]
+          );
+          return;
+        }
+      }
+
+      await runInitialSmsImportIfNeeded();
+    }
+
+    runLaunchImport();
+  }, [isReady, didRunLaunchImport, runInitialSmsImportIfNeeded]);
+
   return (
     <SafeAreaProvider>
       <NavigationContainer>
@@ -55,6 +103,8 @@ export default function App() {
               }}
             >
               <Stack.Screen name="Dashboard" component={Dashboard} />
+              <Stack.Screen name="Transactions" component={Transactions} />
+              <Stack.Screen name="AddTransaction" component={AddTransaction} />
               <Stack.Screen name="Settings" component={Settings} />
             </Stack.Navigator>
             <StatusBar style="light" />
