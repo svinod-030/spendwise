@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo } from "react";
-import { View, Text, TouchableOpacity, FlatList } from "react-native";
+import { View, Text, TouchableOpacity, FlatList, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore, Transaction } from "../store/useExpenseStore";
-import { Plus, Wallet, ArrowUpCircle, ArrowDownCircle } from "lucide-react-native";
+import { useAuthStore } from "../store/useAuthStore";
+import { Plus, Settings as SettingsIcon, ArrowUpCircle, ArrowDownCircle } from "lucide-react-native";
 import Animated, { FadeInRight } from "react-native-reanimated";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -16,6 +17,7 @@ type RootStackParamList = {
 const Dashboard = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { transactions, fetchTransactions } = useExpenseStore();
+  const { user, isAuthenticated } = useAuthStore();
 
   useEffect(() => {
     fetchTransactions();
@@ -68,9 +70,19 @@ const Dashboard = () => {
           </View>
           <TouchableOpacity
             onPress={() => navigation.navigate("Settings")}
-            className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 items-center justify-center"
+            className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 items-center justify-center overflow-hidden"
           >
-            <Wallet size={24} color="#94a3b8" />
+            {isAuthenticated && user ? (
+              user.picture ? (
+                <Image source={{ uri: user.picture }} className="w-full h-full" />
+              ) : (
+                <View className="w-full h-full bg-blue-500 items-center justify-center">
+                  <Text className="text-white font-bold text-lg">{user.name?.charAt(0) || 'U'}</Text>
+                </View>
+              )
+            ) : (
+              <SettingsIcon size={24} color="#94a3b8" />
+            )}
           </TouchableOpacity>
         </View>
 

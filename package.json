@@ -17,6 +17,8 @@
     "postversion": "node scripts/sync-version.js"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-navigation/native": "^7.2.2",
     "@react-navigation/native-stack": "^7.14.10",
     "expo": "~54.0.33",
@@ -25,6 +27,7 @@
     "expo-sharing": "^55.0.17",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
+    "firebase": "^12.11.0",
     "lucide-react-native": "^1.7.0",
     "nativewind": "^4.2.3",
     "react": "19.1.0",
@@ -32,12 +35,13 @@
     "react-native-reanimated": "^4.3.0",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.24.0",
+    "react-native-version-check-expo": "^3.5.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "babel-preset-expo": "~54.0.9",
     "@expo/metro-config": "~54.0.12",
     "@types/react": "~19.1.0",
+    "babel-preset-expo": "~54.0.9",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.2"
   },

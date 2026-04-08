@@ -8,17 +8,28 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { initDatabase } from "./src/db/database";
 import Dashboard from "./src/screens/Dashboard";
 import Settings from "./src/screens/Settings";
+import UpdateModal from './src/components/UpdateModal';
+import { checkVersion, VersionCheckResult } from './src/utils/versionCheckService';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<VersionCheckResult | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   useEffect(() => {
     async function setup() {
       try {
         await initDatabase();
         setIsReady(true);
+        
+        // App auto-update check
+        const result = await checkVersion();
+        if (result.isUpdateAvailable) {
+          setUpdateInfo(result);
+          setShowUpdateModal(true);
+        }
       } catch (error) {
         console.error("Failed to initialize database:", error);
       }
@@ -47,6 +58,14 @@ export default function App() {
               <Stack.Screen name="Settings" component={Settings} />
             </Stack.Navigator>
             <StatusBar style="light" />
+            {updateInfo && (
+              <UpdateModal
+                visible={showUpdateModal}
+                onClose={() => setShowUpdateModal(false)}
+                latestVersion={updateInfo.latestVersion}
+                storeUrl={updateInfo.storeUrl}
+              />
+            )}
           </>
         )}
       </NavigationContainer>

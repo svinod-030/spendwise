@@ -2,7 +2,13 @@ import React from "react";
 import { View, Text, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore } from "../store/useExpenseStore";
-import { ArrowLeft, Download, Upload, Shield, Trash2 } from "lucide-react-native";
+import { useAuthStore } from "../store/useAuthStore";
+import { signInWithGoogle, signOutGoogle } from "../utils/googleAuth";
+import { backupToDrive, restoreFromDrive } from "../utils/backupService";
+import { 
+  ArrowLeft, Download, Upload, Shield, Trash2, 
+  Cloud, LogIn, LogOut, RefreshCcw, CheckCircle2 
+} from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
@@ -10,6 +16,80 @@ import * as FileSystem from "expo-file-system";
 const Settings = () => {
   const navigation = useNavigation();
   const { exportData, importData } = useExpenseStore();
+  const { user, isAuthenticated, setUser, signOut, isLoading } = useAuthStore();
+  const [isSyncing, setIsSyncing] = React.useState(false);
+
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signInWithGoogle();
+      if (result) {
+        setUser(result.user, result.accessToken);
+        Alert.alert("Success", `Signed in as ${result.user.name}`);
+      }
+    } catch (error) {
+      console.error("Login failed", error);
+      Alert.alert("Error", "Google Sign-in failed. Please try again.");
+    }
+  };
+
+  const handleGoogleLogout = async () => {
+    try {
+      await signOutGoogle();
+      signOut();
+      Alert.alert("Signed Out", "You have been signed out from Google.");
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+  };
+
+  const handleDriveBackup = async () => {
+    if (!isAuthenticated) return;
+    setIsSyncing(true);
+    try {
+      const success = await backupToDrive();
+      if (success) {
+        Alert.alert("Success", "Data backed up to Google Drive successfully.");
+      } else {
+        throw new Error("Backup failed");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to backup data to Google Drive.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleDriveRestore = async () => {
+    if (!isAuthenticated) return;
+    
+    Alert.alert(
+      "Restore from Drive",
+      "This will overwrite all local data. Are you sure?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Restore", 
+          style: "destructive",
+          onPress: async () => {
+            setIsSyncing(true);
+            try {
+              const data = await restoreFromDrive();
+              if (data) {
+                await importData(data);
+                Alert.alert("Success", "Data restored from Google Drive successfully.");
+              } else {
+                Alert.alert("Error", "No backup found or failed to download.");
+              }
+            } catch (error) {
+              Alert.alert("Error", "Failed to restore data.");
+            } finally {
+              setIsSyncing(false);
+            }
+          }
+        },
+      ]
+    );
+  };
 
   const handleExport = async () => {
     try {
@@ -71,7 +151,69 @@ const Settings = () => {
           </Text>
         </View>
 
-        <Text className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-4 ml-2">Data Management</Text>
+        <Text className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-4 ml-2">Cloud Sync</Text>
+
+        {!isAuthenticated ? (
+          <TouchableOpacity 
+            onPress={handleGoogleLogin}
+            className="flex-row items-center bg-slate-900 p-5 rounded-2xl border border-slate-800 mb-8"
+          >
+            <View className="w-12 h-12 bg-blue-500/20 rounded-xl items-center justify-center">
+              <LogIn size={24} color="#3b82f6" />
+            </View>
+            <View className="ml-4">
+              <Text className="text-white font-bold text-lg">Sign in with Google</Text>
+              <Text className="text-slate-500 text-sm">Enable cloud backup & restore</Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View className="mb-8">
+            <View className="flex-row items-center bg-blue-500/10 p-4 rounded-2xl border border-blue-500/20 mb-4">
+              <View className="w-10 h-10 bg-blue-500 rounded-full items-center justify-center">
+                <Text className="text-white font-bold">{user?.name?.charAt(0) || 'U'}</Text>
+              </View>
+              <View className="ml-3 flex-1">
+                <Text className="text-white font-bold">{user?.name}</Text>
+                <Text className="text-slate-500 text-xs">{user?.email}</Text>
+              </View>
+              <TouchableOpacity onPress={handleGoogleLogout} className="p-2">
+                <LogOut size={20} color="#f43f5e" />
+              </TouchableOpacity>
+            </View>
+
+            <View className="flex-row space-x-4">
+              <TouchableOpacity 
+                onPress={handleDriveBackup}
+                disabled={isSyncing}
+                className="flex-1 flex-row items-center bg-slate-900 p-4 rounded-2xl border border-slate-800"
+              >
+                <View className="w-10 h-10 bg-emerald-500/20 rounded-xl items-center justify-center">
+                  {isSyncing ? <RefreshCcw size={20} color="#10b981" /> : <Cloud size={20} color="#10b981" />}
+                </View>
+                <View className="ml-3">
+                  <Text className="text-white font-bold">Backup</Text>
+                  <Text className="text-slate-500 text-[10px]">Cloud</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                onPress={handleDriveRestore}
+                disabled={isSyncing}
+                className="flex-1 flex-row items-center bg-slate-900 p-4 rounded-2xl border border-slate-800"
+              >
+                <View className="w-10 h-10 bg-amber-500/20 rounded-xl items-center justify-center">
+                  <RefreshCcw size={20} color="#f59e0b" />
+                </View>
+                <View className="ml-3">
+                  <Text className="text-white font-bold">Restore</Text>
+                  <Text className="text-slate-500 text-[10px]">Cloud</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        <Text className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-4 ml-2">Local Data</Text>
         
         <TouchableOpacity 
           onPress={handleExport}
@@ -81,26 +223,26 @@ const Settings = () => {
             <Download size={24} color="#10b981" />
           </View>
           <View className="ml-4">
-            <Text className="text-white font-bold text-lg">Export Data</Text>
-            <Text className="text-slate-500 text-sm">Save your data to a JSON file</Text>
+            <Text className="text-white font-bold text-lg">Export JSON</Text>
+            <Text className="text-slate-500 text-sm">Save to local device</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity 
           onPress={handleImport}
-          className="flex-row items-center bg-slate-900 p-5 rounded-2xl border border-slate-800 mb-4"
+          className="flex-row items-center bg-slate-900 p-5 rounded-2xl border border-slate-800 mb-8"
         >
           <View className="w-12 h-12 bg-blue-500/20 rounded-xl items-center justify-center">
             <Upload size={24} color="#3b82f6" />
           </View>
           <View className="ml-4">
-            <Text className="text-white font-bold text-lg">Import Data</Text>
-            <Text className="text-slate-500 text-sm">Restore from a previous backup</Text>
+            <Text className="text-white font-bold text-lg">Import JSON</Text>
+            <Text className="text-slate-500 text-sm">Restore from local file</Text>
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          className="flex-row items-center bg-slate-900 p-5 rounded-2xl border border-slate-800"
+          className="flex-row items-center bg-rose-500/5 p-5 rounded-2xl border border-rose-500/10"
         >
           <View className="w-12 h-12 bg-rose-500/20 rounded-xl items-center justify-center">
             <Trash2 size={24} color="#f43f5e" />
