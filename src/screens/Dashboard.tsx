@@ -12,17 +12,44 @@ type RootStackParamList = {
   Dashboard: undefined;
   Transactions: undefined;
   AddTransaction: undefined;
+  BudgetAndReports: undefined;
   Settings: undefined;
 };
 
 const Dashboard = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { transactions, fetchTransactions } = useExpenseStore();
+  const {
+    transactions,
+    budgets,
+    fetchTransactions,
+    fetchBudgets,
+    getCurrentMonthExpenseTotal,
+    getCurrentMonthCategorySpending,
+  } = useExpenseStore();
   const { user, isAuthenticated } = useAuthStore();
+  const [currentMonthExpense, setCurrentMonthExpense] = React.useState(0);
+  const [topCategories, setTopCategories] = React.useState<{ name: string; total: number }[]>([]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    const load = async () => {
+      await fetchTransactions();
+      await fetchBudgets();
+      const monthExpense = await getCurrentMonthExpenseTotal();
+      const categorySpending = await getCurrentMonthCategorySpending();
+      setCurrentMonthExpense(monthExpense);
+      setTopCategories(categorySpending.slice(0, 3).map((item) => ({ name: item.category_name, total: item.total })));
+    };
+    load();
+  }, [fetchTransactions, fetchBudgets, getCurrentMonthExpenseTotal, getCurrentMonthCategorySpending]);
+
+  const overallMonthlyBudget = useMemo(() => {
+    return budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly");
+  }, [budgets]);
+
+  const budgetProgress = useMemo(() => {
+    if (!overallMonthlyBudget || overallMonthlyBudget.limit_amount <= 0) return 0;
+    return Math.min((currentMonthExpense / overallMonthlyBudget.limit_amount) * 100, 100);
+  }, [overallMonthlyBudget, currentMonthExpense]);
 
   const { totalIncome, totalExpenses, balance } = useMemo(() => {
     let income = 0;
@@ -99,6 +126,44 @@ const Dashboard = () => {
             <Text className="text-rose-400 text-xl font-bold">${totalExpenses.toFixed(2)}</Text>
           </View>
         </View>
+
+        <View className="bg-slate-900 p-4 rounded-2xl border border-slate-800 mb-6">
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-white font-semibold text-base">Monthly Budget</Text>
+            <TouchableOpacity onPress={() => navigation.navigate("BudgetAndReports")}>
+              <Text className="text-blue-400 text-xs font-semibold">Manage</Text>
+            </TouchableOpacity>
+          </View>
+          {overallMonthlyBudget ? (
+            <>
+              <Text className="text-slate-300 text-sm mb-2">
+                ${currentMonthExpense.toFixed(2)} of ${overallMonthlyBudget.limit_amount.toFixed(2)}
+              </Text>
+              <View className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <View
+                  className={`${budgetProgress > 90 ? "bg-rose-500" : "bg-blue-500"} h-2`}
+                  style={{ width: `${budgetProgress}%` }}
+                />
+              </View>
+            </>
+          ) : (
+            <Text className="text-slate-400 text-sm">
+              Set a monthly budget to track spending progress.
+            </Text>
+          )}
+        </View>
+
+        {topCategories.length > 0 && (
+          <View className="bg-slate-900 p-4 rounded-2xl border border-slate-800 mb-6">
+            <Text className="text-white font-semibold text-base mb-3">Top Categories This Month</Text>
+            {topCategories.map((category) => (
+              <View key={category.name} className="flex-row justify-between mb-2">
+                <Text className="text-slate-300">{category.name}</Text>
+                <Text className="text-white font-semibold">${category.total.toFixed(2)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View className="flex-row justify-between items-end mb-4">
           <Text className="text-white text-xl font-bold">Recent Activity</Text>

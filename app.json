@@ -22,7 +22,8 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
-        "android.permission.READ_SMS"
+        "android.permission.READ_SMS",
+        "android.permission.RECEIVE_SMS"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

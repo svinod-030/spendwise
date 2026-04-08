@@ -7,7 +7,7 @@ import { signInWithGoogle, signOutGoogle } from "../utils/googleAuth";
 import { backupToDrive, restoreFromDrive } from "../utils/backupService";
 import { 
   ArrowLeft, Download, Upload, Shield, Trash2, 
-  Cloud, LogIn, LogOut, RefreshCcw, MessageSquare 
+  Cloud, LogIn, LogOut, RefreshCcw, MessageSquare, CheckCircle2
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
@@ -232,6 +232,19 @@ const Settings = () => {
         )}
 
         <Text className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-4 ml-2">Local Data</Text>
+
+        <TouchableOpacity
+          onPress={() => (navigation as any).navigate("BudgetAndReports")}
+          className="flex-row items-center bg-amber-500/10 p-5 rounded-2xl border border-amber-500/20 mb-4"
+        >
+          <View className="w-12 h-12 bg-amber-500/20 rounded-xl items-center justify-center">
+            <CheckCircle2 size={24} color="#f59e0b" />
+          </View>
+          <View className="ml-4">
+            <Text className="text-white font-bold text-lg">Budgets & Reports</Text>
+            <Text className="text-slate-500 text-sm">Manage categories and monthly budget</Text>
+          </View>
+        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={handleSmsImport}

@@ -3,7 +3,7 @@ import { getDb } from "../db/database";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { parseSmsForTransaction } from "../utils/smsParser";
-import { readInboxMessages, requestSmsPermission } from "../utils/smsReader";
+import { checkSmsPermission, readInboxMessages, requestSmsPermission } from "../utils/smsReader";
 
 export interface Category {
   id: number;
@@ -30,15 +30,37 @@ export interface Transaction {
   category_icon?: string;
 }
 
+export interface Budget {
+  id: number;
+  category_id: number | null;
+  period_type: "monthly" | "weekly";
+  limit_amount: number;
+  start_date: string;
+}
+
+export interface CategorySpending {
+  category_id: number | null;
+  category_name: string;
+  total: number;
+}
+
 interface ExpenseState {
   transactions: Transaction[];
   categories: Category[];
+  budgets: Budget[];
   isLoading: boolean;
   fetchCategories: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
   deleteTransaction: (id: number) => Promise<void>;
+  addCategory: (category: Omit<Category, "id">) => Promise<void>;
+  fetchBudgets: () => Promise<void>;
+  upsertMonthlyBudget: (limitAmount: number) => Promise<void>;
+  getCurrentMonthExpenseTotal: () => Promise<number>;
+  getCurrentMonthCategorySpending: () => Promise<CategorySpending[]>;
   importTransactionsFromSms: () => Promise<{ imported: number; skipped: number }>;
+  syncRecentSmsTransactions: () => Promise<{ imported: number; skipped: number }>;
+  processIncomingSmsMessage: (message: { address: string; body: string; date: number }) => Promise<boolean>;
   runInitialSmsImportIfNeeded: () => Promise<{ ran: boolean; imported: number; skipped: number }>;
   exportData: () => Promise<void>;
   importData: (jsonData: string) => Promise<void>;
@@ -47,6 +69,7 @@ interface ExpenseState {
 export const useExpenseStore = create<ExpenseState>((set, get) => ({
   transactions: [],
   categories: [],
+  budgets: [],
   isLoading: false,
 
   fetchCategories: async () => {
@@ -82,6 +105,62 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     await get().fetchTransactions();
   },
 
+  addCategory: async (category) => {
+    const db = await getDb();
+    await db.runAsync("INSERT INTO categories (name, icon, color) VALUES (?, ?, ?)", [
+      category.name,
+      category.icon,
+      category.color,
+    ]);
+    await get().fetchCategories();
+  },
+
+  fetchBudgets: async () => {
+    const db = await getDb();
+    const budgets = await db.getAllAsync<Budget>(
+      "SELECT * FROM budgets ORDER BY category_id ASC, id ASC"
+    );
+    set({ budgets });
+  },
+
+  upsertMonthlyBudget: async (limitAmount) => {
+    const db = await getDb();
+    await db.runAsync(
+      `INSERT INTO budgets (category_id, period_type, limit_amount, start_date)
+       VALUES (NULL, 'monthly', ?, ?)
+       ON CONFLICT(category_id, period_type) DO UPDATE SET
+         limit_amount = excluded.limit_amount,
+         start_date = excluded.start_date`,
+      [limitAmount, new Date().toISOString()]
+    );
+    await get().fetchBudgets();
+  },
+
+  getCurrentMonthExpenseTotal: async () => {
+    const db = await getDb();
+    const row = await db.getFirstAsync<{ total: number }>(
+      `SELECT COALESCE(SUM(amount), 0) as total
+       FROM transactions
+       WHERE type = 'expense'
+       AND date >= date('now', 'start of month')`
+    );
+    return row?.total ?? 0;
+  },
+
+  getCurrentMonthCategorySpending: async () => {
+    const db = await getDb();
+    const rows = await db.getAllAsync<CategorySpending>(
+      `SELECT t.category_id, COALESCE(c.name, 'Uncategorized') as category_name, COALESCE(SUM(t.amount), 0) as total
+       FROM transactions t
+       LEFT JOIN categories c ON c.id = t.category_id
+       WHERE t.type = 'expense'
+       AND t.date >= date('now', 'start of month')
+       GROUP BY t.category_id, c.name
+       ORDER BY total DESC`
+    );
+    return rows;
+  },
+
   importTransactionsFromSms: async () => {
     const hasPermission = await requestSmsPermission();
     if (!hasPermission) {
@@ -90,56 +169,33 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
     const db = await getDb();
     const messages = await readInboxMessages();
-    let imported = 0;
-    let skipped = 0;
-
-    for (const message of messages) {
-      const parsed = parseSmsForTransaction(message);
-      if (!parsed) {
-        skipped += 1;
-        continue;
-      }
-
-      const existing = await db.getFirstAsync<{ id: number }>(
-        "SELECT id FROM messages WHERE hash = ?",
-        [parsed.hash]
-      );
-
-      if (existing) {
-        skipped += 1;
-        continue;
-      }
-
-      const messageInsert = await db.runAsync(
-        `INSERT INTO messages (sender, body, received_at, hash, parse_confidence, processed_status)
-         VALUES (?, ?, ?, ?, ?, 'processed')`,
-        [parsed.sender, parsed.body, parsed.receivedAt, parsed.hash, parsed.confidence]
-      );
-
-      const categoryId = await getCategoryIdForMessage(db, parsed.body, parsed.type);
-      await db.runAsync(
-        `INSERT INTO transactions
-          (category_id, amount, type, date, note, source_message_id, merchant, currency, account_ref, reference_id, raw_sender)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          categoryId,
-          parsed.amount,
-          parsed.type,
-          parsed.receivedAt,
-          parsed.merchant || parsed.body.slice(0, 80),
-          messageInsert.lastInsertRowId,
-          parsed.merchant || null,
-          "INR",
-          parsed.accountRef || null,
-          parsed.referenceId || null,
-          parsed.sender,
-        ]
-      );
-      imported += 1;
-    }
+    const { imported, skipped } = await ingestSmsMessages(db, messages);
 
     await get().fetchTransactions();
     return { imported, skipped };
+  },
+
+  syncRecentSmsTransactions: async () => {
+    const hasPermission = await checkSmsPermission();
+    if (!hasPermission) return { imported: 0, skipped: 0 };
+
+    const db = await getDb();
+    const messages = await readInboxMessages(30);
+    const result = await ingestSmsMessages(db, messages);
+    if (result.imported > 0) {
+      await get().fetchTransactions();
+    }
+    return result;
+  },
+
+  processIncomingSmsMessage: async (message) => {
+    const db = await getDb();
+    const result = await ingestSmsMessages(db, [message]);
+    if (result.imported > 0) {
+      await get().fetchTransactions();
+      return true;
+    }
+    return false;
   },
 
   runInitialSmsImportIfNeeded: async () => {
@@ -212,6 +268,61 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     await get().fetchTransactions();
   },
 }));
+
+async function ingestSmsMessages(
+  db: Awaited<ReturnType<typeof getDb>>,
+  messages: Awaited<ReturnType<typeof readInboxMessages>>
+) {
+  let imported = 0;
+  let skipped = 0;
+
+  for (const message of messages) {
+    const parsed = parseSmsForTransaction(message);
+    if (!parsed) {
+      skipped += 1;
+      continue;
+    }
+
+    const existing = await db.getFirstAsync<{ id: number }>(
+      "SELECT id FROM messages WHERE hash = ?",
+      [parsed.hash]
+    );
+
+    if (existing) {
+      skipped += 1;
+      continue;
+    }
+
+    const messageInsert = await db.runAsync(
+      `INSERT INTO messages (sender, body, received_at, hash, parse_confidence, processed_status)
+       VALUES (?, ?, ?, ?, ?, 'processed')`,
+      [parsed.sender, parsed.body, parsed.receivedAt, parsed.hash, parsed.confidence]
+    );
+
+    const categoryId = await getCategoryIdForMessage(db, parsed.body, parsed.type);
+    await db.runAsync(
+      `INSERT INTO transactions
+        (category_id, amount, type, date, note, source_message_id, merchant, currency, account_ref, reference_id, raw_sender)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        categoryId,
+        parsed.amount,
+        parsed.type,
+        parsed.receivedAt,
+        parsed.merchant || parsed.body.slice(0, 80),
+        messageInsert.lastInsertRowId,
+        parsed.merchant || null,
+        "INR",
+        parsed.accountRef || null,
+        parsed.referenceId || null,
+        parsed.sender,
+      ]
+    );
+    imported += 1;
+  }
+
+  return { imported, skipped };
+}
 
 async function getCategoryIdForMessage(
   db: Awaited<ReturnType<typeof getDb>>,

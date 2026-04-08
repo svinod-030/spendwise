@@ -43,6 +43,14 @@ export async function initDatabase() {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+    CREATE TABLE IF NOT EXISTS budgets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id INTEGER,
+      period_type TEXT NOT NULL DEFAULT 'monthly',
+      limit_amount REAL NOT NULL,
+      start_date TEXT NOT NULL,
+      UNIQUE(category_id, period_type)
+    );
     CREATE INDEX IF NOT EXISTS idx_messages_hash ON messages (hash);
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
     CREATE INDEX IF NOT EXISTS idx_transactions_category_date ON transactions (category_id, date);

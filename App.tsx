@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator, Alert, Linking, Platform } from "react-native";
+import { View, ActivityIndicator, Alert, Linking, Platform, AppState } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { initDatabase } from "./src/db/database";
 import { useExpenseStore } from "./src/store/useExpenseStore";
@@ -12,6 +12,7 @@ import Dashboard from "./src/screens/Dashboard";
 import Settings from "./src/screens/Settings";
 import AddTransaction from "./src/screens/AddTransaction";
 import Transactions from "./src/screens/Transactions";
+import BudgetAndReports from "./src/screens/BudgetAndReports";
 import UpdateModal from './src/components/UpdateModal';
 import { checkVersion, VersionCheckResult } from './src/utils/versionCheckService';
 
@@ -19,6 +20,7 @@ const Stack = createNativeStackNavigator();
 
 export default function App() {
   const runInitialSmsImportIfNeeded = useExpenseStore((state) => state.runInitialSmsImportIfNeeded);
+  const syncRecentSmsTransactions = useExpenseStore((state) => state.syncRecentSmsTransactions);
   const [isReady, setIsReady] = useState(false);
   const [didRunLaunchImport, setDidRunLaunchImport] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<VersionCheckResult | null>(null);
@@ -85,6 +87,56 @@ export default function App() {
     runLaunchImport();
   }, [isReady, didRunLaunchImport, runInitialSmsImportIfNeeded]);
 
+  useEffect(() => {
+    if (!isReady || Platform.OS !== "android") return;
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let isSyncing = false;
+
+    const runSync = async () => {
+      if (isSyncing) return;
+      isSyncing = true;
+      try {
+        await syncRecentSmsTransactions();
+      } catch {
+        // Intentionally ignore; next cycle retries.
+      } finally {
+        isSyncing = false;
+      }
+    };
+
+    const startPolling = () => {
+      if (intervalId) return;
+      intervalId = setInterval(() => {
+        runSync();
+      }, 15000);
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    runSync();
+    startPolling();
+
+    const appStateSubscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        runSync();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    });
+
+    return () => {
+      appStateSubscription.remove();
+      stopPolling();
+    };
+  }, [isReady, syncRecentSmsTransactions]);
+
   return (
     <SafeAreaProvider>
       <NavigationContainer>
@@ -105,6 +157,7 @@ export default function App() {
               <Stack.Screen name="Dashboard" component={Dashboard} />
               <Stack.Screen name="Transactions" component={Transactions} />
               <Stack.Screen name="AddTransaction" component={AddTransaction} />
+              <Stack.Screen name="BudgetAndReports" component={BudgetAndReports} />
               <Stack.Screen name="Settings" component={Settings} />
             </Stack.Navigator>
             <StatusBar style="light" />
