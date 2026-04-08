@@ -1,4 +1,4 @@
-import VersionCheck from 'react-native-version-check-expo';
+import VersionCheck from 'react-native-version-check';
 import { APP_CONFIG } from './constants';
 import { Platform } from 'react-native';
 
