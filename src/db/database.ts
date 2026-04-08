@@ -57,11 +57,20 @@ export async function initDatabase() {
   `);
 
   await ensureColumn(db, "transactions", "source_message_id", "INTEGER");
+  await ensureColumn(db, "transactions", "kind", "TEXT DEFAULT 'expense'");
   await ensureColumn(db, "transactions", "merchant", "TEXT");
   await ensureColumn(db, "transactions", "currency", "TEXT DEFAULT 'INR'");
   await ensureColumn(db, "transactions", "account_ref", "TEXT");
   await ensureColumn(db, "transactions", "reference_id", "TEXT");
   await ensureColumn(db, "transactions", "raw_sender", "TEXT");
+  await db.execAsync(`
+    UPDATE transactions
+    SET kind = CASE
+      WHEN type = 'income' THEN 'income'
+      ELSE 'expense'
+    END
+    WHERE kind IS NULL OR kind = '';
+  `);
 
   // Seed default categories if none exist
   const categories = await db.getAllAsync("SELECT * FROM categories");

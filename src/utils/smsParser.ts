@@ -1,4 +1,5 @@
 export type ParsedTransactionType = "expense" | "income";
+export type TransactionKind = "expense" | "income" | "refund" | "transfer";
 
 export interface SmsMessage {
   address: string;
@@ -13,6 +14,7 @@ export interface ParsedSmsTransaction {
   hash: string;
   amount: number;
   type: ParsedTransactionType;
+  kind: TransactionKind;
   merchant?: string;
   referenceId?: string;
   accountRef?: string;
@@ -43,7 +45,16 @@ function detectType(body: string): ParsedTransactionType | null {
   const lower = body.toLowerCase();
   if (/(debited|spent|paid|purchase|withdrawn)/.test(lower)) return "expense";
   if (/(credited|received|deposited|refund)/.test(lower)) return "income";
+  if (/(transfer|neft|imps|rtgs)/.test(lower)) return "expense";
   return null;
+}
+
+function detectKind(body: string): TransactionKind {
+  const lower = body.toLowerCase();
+  if (/(refund|reversed|chargeback)/.test(lower)) return "refund";
+  if (/(transfer|self transfer|neft|imps|rtgs)/.test(lower)) return "transfer";
+  if (/(credited|received|deposited)/.test(lower)) return "income";
+  return "expense";
 }
 
 function buildHash(sender: string, body: string, date: number): string {
@@ -83,6 +94,7 @@ export function parseSmsForTransaction(message: SmsMessage): ParsedSmsTransactio
     hash: buildHash(sender, body, message.date),
     amount,
     type,
+    kind: detectKind(body),
     merchant: merchantMatch?.[1]?.trim(),
     referenceId: refMatch?.[1]?.trim(),
     accountRef: accountMatch?.[1]?.trim(),

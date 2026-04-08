@@ -4,13 +4,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { ArrowLeft } from "lucide-react-native";
 import { useExpenseStore } from "../store/useExpenseStore";
+import { TransactionKind } from "../utils/smsParser";
 
 const AddTransaction = () => {
   const navigation = useNavigation();
   const { categories, fetchCategories, addTransaction } = useExpenseStore();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [selectedType, setSelectedType] = useState<"expense" | "income">("expense");
+  const [selectedKind, setSelectedKind] = useState<TransactionKind>("expense");
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -27,10 +28,12 @@ const AddTransaction = () => {
     }
 
     try {
+      const type = selectedKind === "expense" || selectedKind === "transfer" ? "expense" : "income";
       await addTransaction({
-        category_id: selectedCategoryId ?? 0,
+        category_id: selectedCategoryId,
         amount: parsedAmount,
-        type: selectedType,
+        type,
+        kind: selectedKind,
         date: new Date().toISOString(),
         note: note.trim(),
       });
@@ -70,18 +73,30 @@ const AddTransaction = () => {
         />
 
         <Text className="text-slate-400 mb-2">Type</Text>
-        <View className="flex-row mb-4">
+        <View className="flex-row flex-wrap mb-4">
           <TouchableOpacity
-            onPress={() => setSelectedType("expense")}
-            className={`flex-1 mr-2 p-4 rounded-2xl border ${selectedType === "expense" ? "bg-rose-500/20 border-rose-500/40" : "bg-slate-900 border-slate-800"}`}
+            onPress={() => setSelectedKind("expense")}
+            className={`w-[48%] mr-[4%] mb-2 p-4 rounded-2xl border ${selectedKind === "expense" ? "bg-rose-500/20 border-rose-500/40" : "bg-slate-900 border-slate-800"}`}
           >
             <Text className="text-center text-white font-semibold">Expense</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setSelectedType("income")}
-            className={`flex-1 ml-2 p-4 rounded-2xl border ${selectedType === "income" ? "bg-emerald-500/20 border-emerald-500/40" : "bg-slate-900 border-slate-800"}`}
+            onPress={() => setSelectedKind("income")}
+            className={`w-[48%] mb-2 p-4 rounded-2xl border ${selectedKind === "income" ? "bg-emerald-500/20 border-emerald-500/40" : "bg-slate-900 border-slate-800"}`}
           >
             <Text className="text-center text-white font-semibold">Income</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setSelectedKind("refund")}
+            className={`w-[48%] mr-[4%] p-4 rounded-2xl border ${selectedKind === "refund" ? "bg-cyan-500/20 border-cyan-500/40" : "bg-slate-900 border-slate-800"}`}
+          >
+            <Text className="text-center text-white font-semibold">Refund</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setSelectedKind("transfer")}
+            className={`w-[48%] p-4 rounded-2xl border ${selectedKind === "transfer" ? "bg-amber-500/20 border-amber-500/40" : "bg-slate-900 border-slate-800"}`}
+          >
+            <Text className="text-center text-white font-semibold">Transfer</Text>
           </TouchableOpacity>
         </View>
 

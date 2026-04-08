@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { getDb } from "../db/database";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import { parseSmsForTransaction } from "../utils/smsParser";
+import { parseSmsForTransaction, TransactionKind } from "../utils/smsParser";
 import { checkSmsPermission, readInboxMessages, requestSmsPermission } from "../utils/smsReader";
 
 export interface Category {
@@ -14,9 +14,10 @@ export interface Category {
 
 export interface Transaction {
   id: number;
-  category_id: number;
+  category_id: number | null;
   amount: number;
   type: "expense" | "income";
+  kind?: TransactionKind;
   date: string;
   note: string;
   source_message_id?: number;
@@ -92,9 +93,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   addTransaction: async (transaction) => {
     const db = await getDb();
+    const kind = transaction.kind ?? (transaction.type === "income" ? "income" : "expense");
     await db.runAsync(
-      "INSERT INTO transactions (category_id, amount, type, date, note) VALUES (?, ?, ?, ?, ?)",
-      [transaction.category_id, transaction.amount, transaction.type, transaction.date, transaction.note]
+      "INSERT INTO transactions (category_id, amount, type, kind, date, note) VALUES (?, ?, ?, ?, ?, ?)",
+      [transaction.category_id, transaction.amount, transaction.type, kind, transaction.date, transaction.note]
     );
     await get().fetchTransactions();
   },
@@ -141,7 +143,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const row = await db.getFirstAsync<{ total: number }>(
       `SELECT COALESCE(SUM(amount), 0) as total
        FROM transactions
-       WHERE type = 'expense'
+       WHERE kind = 'expense'
        AND date >= date('now', 'start of month')`
     );
     return row?.total ?? 0;
@@ -153,7 +155,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       `SELECT t.category_id, COALESCE(c.name, 'Uncategorized') as category_name, COALESCE(SUM(t.amount), 0) as total
        FROM transactions t
        LEFT JOIN categories c ON c.id = t.category_id
-       WHERE t.type = 'expense'
+       WHERE t.kind = 'expense'
        AND t.date >= date('now', 'start of month')
        GROUP BY t.category_id, c.name
        ORDER BY total DESC`
@@ -258,9 +260,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     
     // Insert transactions
     for (const t of transactions) {
+      const kind = t.kind ?? (t.type === "income" ? "income" : "expense");
       await db.runAsync(
-        "INSERT INTO transactions (category_id, amount, type, date, note) VALUES (?, ?, ?, ?, ?)",
-        [t.category_id, t.amount, t.type, t.date, t.note]
+        "INSERT INTO transactions (category_id, amount, type, kind, date, note) VALUES (?, ?, ?, ?, ?, ?)",
+        [t.category_id, t.amount, t.type, kind, t.date, t.note]
       );
     }
     
@@ -302,12 +305,13 @@ async function ingestSmsMessages(
     const categoryId = await getCategoryIdForMessage(db, parsed.body, parsed.type);
     await db.runAsync(
       `INSERT INTO transactions
-        (category_id, amount, type, date, note, source_message_id, merchant, currency, account_ref, reference_id, raw_sender)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (category_id, amount, type, kind, date, note, source_message_id, merchant, currency, account_ref, reference_id, raw_sender)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         categoryId,
         parsed.amount,
         parsed.type,
+        parsed.kind,
         parsed.receivedAt,
         parsed.merchant || parsed.body.slice(0, 80),
         messageInsert.lastInsertRowId,
@@ -357,4 +361,12 @@ async function getCategoryIdForMessage(
   }
 
   return null;
+}
+
+export function getTransactionDisplay(transaction: Pick<Transaction, "kind" | "type">) {
+  const kind = transaction.kind ?? (transaction.type === "income" ? "income" : "expense");
+  if (kind === "transfer") return { sign: "", colorClass: "text-amber-400", label: "Transfer" };
+  if (kind === "refund") return { sign: "+", colorClass: "text-cyan-400", label: "Refund" };
+  if (kind === "income") return { sign: "+", colorClass: "text-emerald-400", label: "Income" };
+  return { sign: "-", colorClass: "text-rose-500", label: "Expense" };
 }
