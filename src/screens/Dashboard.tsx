@@ -3,7 +3,11 @@ import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, TextInput,
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getTransactionDisplay, useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Plus, Settings as SettingsIcon, ChevronRight, Calendar, Landmark, TrendingUp, TrendingDown, Wallet, Pencil, Check, X } from "lucide-react-native";
+import { 
+  Plus, Settings as SettingsIcon, ChevronRight, Calendar, Landmark, 
+  TrendingUp, TrendingDown, Wallet, Pencil, Check, X,
+  Activity, Briefcase, Car, Play, RefreshCw, ShoppingBag, Utensils, Zap, Package
+} from "lucide-react-native";
 import Animated, { FadeInUp, FadeInRight, useAnimatedStyle, withSpring, withTiming, interpolateColor } from "react-native-reanimated";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 
@@ -16,6 +20,14 @@ type RootStackParamList = {
 };
 
 const screenWidth = Dimensions.get("window").width;
+
+const IconLoader = ({ name, size, color }: { name: string, size: number, color: string }) => {
+  const Icons: any = {
+    Activity, Briefcase, Car, Play, RefreshCw, ShoppingBag, Utensils, Zap, Package
+  };
+  const IconComponent = Icons[name] || Icons.Package;
+  return <IconComponent size={size} color={color} />;
+};
 
 // Reusable animated progress bar component
 const ComparisonBar = ({
@@ -44,23 +56,24 @@ const ComparisonBar = ({
     width: withSpring(`${percentage}%`, { damping: 20 })
   }));
 
-  const barColor = statusColor ? (isOver ? "#f43f5e" : "#10b981") : color;
+  // Neutral brand blue for regular spending, Rose for over-budget
+  const barColor = statusColor ? (isOver ? "#fb7185" : "#3b82f6") : color;
 
   return (
-    <View className="mb-8 last:mb-0">
-      <View className="flex-row justify-between items-end mb-3">
+    <View className="mb-6 last:mb-0">
+      <View className="flex-row justify-between items-end mb-2.5">
         <View>
-          <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">{label}</Text>
+          <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest mb-1">{label}</Text>
           <Text className="text-white font-black text-2xl tracking-tight">{prefix}{Math.round(value)}{suffix}</Text>
         </View>
         <View className="items-end">
-          {subLabel && <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-0.5">{subLabel}</Text>}
-          <Text className={`font-black text-sm ${isOver ? 'text-rose-500' : 'text-slate-400'}`}>
+          {subLabel && <Text className="text-slate-400 text-[9px] font-bold uppercase tracking-widest mb-0.5">{subLabel}</Text>}
+          <Text className={`font-black text-xs ${isOver ? 'text-rose-400' : 'text-slate-500'}`}>
             {Math.round(percentage)}%
           </Text>
         </View>
       </View>
-      <View className="h-3.5 bg-slate-800/50 rounded-full overflow-hidden border border-slate-800/20">
+      <View className="h-3 bg-slate-800/50 rounded-full overflow-hidden border border-slate-800/10">
         <Animated.View
           className="h-full rounded-full"
           style={[animatedWidth, { backgroundColor: barColor }]}
@@ -161,44 +174,47 @@ const Dashboard = () => {
     return result;
   }, []);
 
-  const renderTransactionItem = (item: Transaction, index: number) => (
-    <Animated.View
-      key={item.id}
-      entering={FadeInRight.delay(index * 50)}
-      className="flex-row items-center justify-between bg-slate-900/40 p-4 rounded-3xl mb-3 border border-slate-800 shadow-sm"
-    >
-      <View className="flex-row items-center flex-1">
-        <View
-          className="w-12 h-12 rounded-2xl items-center justify-center border border-slate-800"
-          style={{ backgroundColor: `${item.category_color ?? "#3b82f6"}15` }}
-        >
-          <Text className="text-xl">{item.category_icon === "utensils" ? "🍴" : "📦"}</Text>
+  const renderTransactionItem = (item: Transaction, index: number) => {
+    const display = getTransactionDisplay(item);
+    return (
+      <Animated.View
+        key={item.id}
+        entering={FadeInRight.delay(index * 50)}
+        className="flex-row items-center justify-between py-4 border-b border-slate-900/50"
+      >
+        <View className="flex-row items-center flex-1">
+          <View
+            className="w-12 h-12 rounded-2xl items-center justify-center border border-slate-800"
+            style={{ backgroundColor: `${item.category_color ?? "#3b82f6"}15` }}
+          >
+            <IconLoader name={display.icon} size={20} color={item.category_color ?? "#3b82f6"} />
+          </View>
+          <View className="ml-4 flex-1">
+            <Text className="text-slate-100 font-bold text-base leading-5">{item.note || item.category_name || "Transaction"}</Text>
+            <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">{new Date(item.date).toLocaleDateString()}</Text>
+          </View>
         </View>
-        <View className="ml-4 flex-1">
-          <Text className="text-white font-bold text-base">{item.note || item.category_name || "Transaction"}</Text>
-          <Text className="text-slate-400 text-xs font-medium">{new Date(item.date).toLocaleDateString()}</Text>
+        <View className="items-end">
+          <Text className={`font-black text-base ${display.colorClass}`}>
+            {display.sign}${item.amount.toFixed(2)}
+          </Text>
+          <Text className="text-[9px] uppercase font-bold tracking-widest text-slate-600 mt-0.5">{display.label}</Text>
         </View>
-      </View>
-      <View className="items-end">
-        <Text className={`font-black text-base ${getTransactionDisplay(item).colorClass}`}>
-          {getTransactionDisplay(item).sign}${item.amount.toFixed(2)}
-        </Text>
-        <Text className="text-[10px] uppercase font-bold tracking-wider text-slate-500">{getTransactionDisplay(item).label}</Text>
-      </View>
-    </Animated.View>
-  );
+      </Animated.View>
+    );
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-slate-950">
-      <View className="px-6 pt-6 pb-2 pb-2 bg-slate-950">
+      <View className="px-6 pt-8 pb-4 bg-slate-950">
         <View className="flex-row items-center mb-1">
-          <View className="w-8 h-8 bg-blue-500 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/30">
-            <Landmark size={18} color="white" />
+          <View className="w-9 h-9 bg-blue-600 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/40">
+            <Landmark size={20} color="white" />
           </View>
-          <Text className="text-white text-xl font-black tracking-tighter">SpendWise</Text>
+          <Text className="text-white text-2xl font-black tracking-tighter">SpendWise</Text>
         </View>
-        <View className="flex-row justify-between items-center mt-2">
-          <Text className="text-slate-500 text-xs font-bold uppercase tracking-widest">Dashboard</Text>
+        <View className="flex-row justify-between items-center mt-3">
+          <Text className="text-slate-600 text-[10px] font-black uppercase tracking-[2px]">Dashboard</Text>
         </View>
       </View>
 
@@ -300,7 +316,7 @@ const Dashboard = () => {
                   <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest ml-2">Income</Text>
                 </View>
                 <Text className="text-white font-black text-xl tracking-tight">${Math.round(currentMonthIncome)}</Text>
-                <Text className="text-slate-600 text-[8px] font-bold uppercase tracking-widest mt-1">Cash Flow</Text>
+                <Text className="text-slate-500 text-[8px] font-bold uppercase tracking-widest mt-1">Cash Flow</Text>
               </View>
 
               {/* Safe to Spend Card */}
@@ -313,7 +329,7 @@ const Dashboard = () => {
                     <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest ml-2">Daily</Text>
                   </View>
                   <Text className="text-white font-black text-xl tracking-tight">${Math.round(safeToSpend)}</Text>
-                  <Text className="text-slate-600 text-[8px] font-bold uppercase tracking-widest mt-1">Safe to Spend</Text>
+                  <Text className="text-slate-500 text-[8px] font-bold uppercase tracking-widest mt-1">Safe to Spend</Text>
                 </View>
               ) : (
                 <View className="flex-1 bg-slate-800/40 p-4 rounded-3xl border border-slate-800/50 justify-center">
@@ -335,22 +351,23 @@ const Dashboard = () => {
             )}
           </View>
 
-          {/* SECTION 2: Recent Activity */}
-          <View className="mb-6">
-            <View className="flex-row items-end justify-between mb-4 px-1">
-              <Text className="text-white text-lg font-black">Recent Activity</Text>
-              <TouchableOpacity onPress={() => navigation.navigate("Transactions")} className="flex-row items-center">
-                <Text className="text-blue-400 font-bold text-xs mr-1 uppercase tracking-wider">View All</Text>
-                <ChevronRight size={14} color="#60a5fa" />
+          <View className="mb-6 bg-slate-900/30 rounded-[32px] p-2">
+            <View className="flex-row items-end justify-between mb-2 px-3 pt-4">
+              <Text className="text-white text-lg font-black tracking-tight">Recent Activity</Text>
+              <TouchableOpacity onPress={() => navigation.navigate("Transactions")} className="flex-row items-center bg-slate-800/50 px-3 py-1.5 rounded-full">
+                <Text className="text-blue-400 font-bold text-[10px] mr-1 uppercase tracking-widest">View All</Text>
+                <ChevronRight size={12} color="#60a5fa" />
               </TouchableOpacity>
             </View>
-            {recentTransactions.length > 0 ? (
-              recentTransactions.map(renderTransactionItem)
-            ) : (
-              <View className="bg-slate-900/40 p-10 rounded-3xl border border-slate-800 border-dashed items-center justify-center">
-                <Text className="text-slate-500 font-medium text-center">No transactions recorded in this period.</Text>
-              </View>
-            )}
+            <View className="px-3 pb-4">
+              {recentTransactions.length > 0 ? (
+                recentTransactions.map(renderTransactionItem)
+              ) : (
+                <View className="py-10 items-center justify-center">
+                  <Text className="text-slate-600 font-bold text-[10px] uppercase tracking-widest">No activity recorded</Text>
+                </View>
+              )}
+            </View>
           </View>
 
 

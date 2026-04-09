@@ -293,15 +293,15 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const transactions = await db.getAllAsync("SELECT * FROM transactions");
     const categories = await db.getAllAsync("SELECT * FROM categories");
     const data = JSON.stringify({ transactions, categories }, null, 2);
-    
+
     // Casting to any to avoid library-specific type mismatches in this environment
     const FS = FileSystem as any;
     const dir = FS.documentDirectory || FS.cacheDirectory;
     if (!dir) throw new Error("No storage directory available");
-    
+
     const fileUri = dir + "expense_backup.json";
     await FileSystem.writeAsStringAsync(fileUri, data);
-    
+
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(fileUri);
     }
@@ -310,10 +310,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   importData: async (jsonData) => {
     const db = await getDb();
     const { transactions, categories } = JSON.parse(jsonData);
-    
+
     // Clear existing data
     await db.execAsync("DELETE FROM transactions; DELETE FROM categories;");
-    
+
     // Insert categories
     for (const cat of categories) {
       await db.runAsync(
@@ -321,7 +321,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         [cat.id, cat.name, cat.icon, cat.color]
       );
     }
-    
+
     // Insert transactions
     for (const t of transactions) {
       const kind = t.kind ?? (t.type === "income" ? "income" : "expense");
@@ -330,7 +330,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         [t.category_id, t.amount, t.type, kind, t.date, t.note]
       );
     }
-    
+
     await get().fetchCategories();
     await get().fetchTransactions();
   },
@@ -427,10 +427,25 @@ async function getCategoryIdForMessage(
   return null;
 }
 
-export function getTransactionDisplay(transaction: Pick<Transaction, "kind" | "type">) {
+export function getCategoryIcon(categoryName?: string) {
+  const name = (categoryName || "").toLowerCase();
+  if (name.includes("food") || name.includes("dining")) return "Utensils";
+  if (name.includes("transport") || name.includes("car") || name.includes("fuel")) return "Car";
+  if (name.includes("bill") || name.includes("recharge") || name.includes("electricity")) return "Zap";
+  if (name.includes("shopping") || name.includes("amazon")) return "ShoppingBag";
+  if (name.includes("health") || name.includes("med")) return "Activity";
+  if (name.includes("entertainment") || name.includes("movie")) return "Play";
+  if (name.includes("salary") || name.includes("income")) return "Briefcase";
+  if (name.includes("transfer")) return "RefreshCw";
+  return "Package"; // Default
+}
+
+export function getTransactionDisplay(transaction: Pick<Transaction, "kind" | "type" | "category_name">) {
   const kind = transaction.kind ?? (transaction.type === "income" ? "income" : "expense");
-  if (kind === "transfer") return { sign: "", colorClass: "text-amber-400", label: "Transfer" };
-  if (kind === "refund") return { sign: "+", colorClass: "text-cyan-400", label: "Refund" };
-  if (kind === "income") return { sign: "+", colorClass: "text-emerald-400", label: "Income" };
-  return { sign: "-", colorClass: "text-rose-500", label: "Expense" };
+  const icon = getCategoryIcon(transaction.category_name);
+  
+  if (kind === "transfer") return { sign: "", colorClass: "text-amber-400", label: "Transfer", icon };
+  if (kind === "refund") return { sign: "+", colorClass: "text-cyan-400", label: "Refund", icon };
+  if (kind === "income") return { sign: "+", colorClass: "text-emerald-400", label: "Income", icon };
+  return { sign: "-", colorClass: "text-rose-400", label: "Expense", icon };
 }
