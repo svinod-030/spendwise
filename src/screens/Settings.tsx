@@ -1,12 +1,12 @@
 import React from "react";
-import { View, Text, TouchableOpacity, Alert } from "react-native";
+import { View, Text, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore } from "../store/useExpenseStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { signInWithGoogle, signOutGoogle } from "../utils/googleAuth";
 import { backupToDrive, restoreFromDrive } from "../utils/backupService";
-import { 
-  ArrowLeft, Download, Upload, Shield, Trash2, 
+import {
+  ArrowLeft, Download, Upload, Shield, Trash2,
   Cloud, LogIn, LogOut, RefreshCcw, MessageSquare, CheckCircle2
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -61,14 +61,14 @@ const Settings = () => {
 
   const handleDriveRestore = async () => {
     if (!isAuthenticated) return;
-    
+
     Alert.alert(
       "Restore from Drive",
       "This will overwrite all local data. Are you sure?",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Restore", 
+        {
+          text: "Restore",
           style: "destructive",
           onPress: async () => {
             setIsSyncing(true);
@@ -113,8 +113,8 @@ const Settings = () => {
           "This will overwrite all existing data. Are you sure?",
           [
             { text: "Cancel", style: "cancel" },
-            { 
-              text: "Import", 
+            {
+              text: "Import",
               style: "destructive",
               onPress: async () => {
                 await importData(content);
@@ -149,22 +149,29 @@ const Settings = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-950">
-      <View className="px-6 py-4 flex-row items-center border-b border-slate-900">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 -ml-2">
-          <ArrowLeft size={24} color="white" />
-        </TouchableOpacity>
-        <Text className="text-white text-xl font-bold ml-4">Settings & Privacy</Text>
+      <View className="px-6 pt-6 pb-2 bg-slate-950 border-b border-slate-900">
+        <View className="flex-row items-center mb-1">
+          <View className="w-8 h-8 bg-slate-800 rounded-xl items-center justify-center mr-3 shadow-lg shadow-slate-900/30">
+            <Shield size={18} color="#94a3b8" />
+          </View>
+          <Text className="text-white text-xl font-black tracking-tighter">SpendWise</Text>
+        </View>
+        <Text className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">App Settings & Profile</Text>
       </View>
 
-      <View className="px-6 pt-10">
+      <ScrollView
+        className="flex-1 px-6"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 40, paddingBottom: 60 }}
+      >
         <View className="bg-blue-500/10 p-6 rounded-3xl border border-blue-500/20 mb-10">
           <View className="flex-row items-center mb-4">
             <Shield size={24} color="#3b82f6" />
             <Text className="text-blue-400 font-bold text-lg ml-3">Privacy First</Text>
           </View>
           <Text className="text-slate-400 leading-relaxed">
-            All your financial data is stored locally on this device. 
-            We do not have access to your data, nor is it uploaded to any servers. 
+            All your financial data is stored locally on this device.
+            We do not have access to your data, nor is it uploaded to any servers.
             Manage your own backups using the options below.
           </Text>
         </View>
@@ -172,7 +179,7 @@ const Settings = () => {
         <Text className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-4 ml-2">Cloud Sync</Text>
 
         {!isAuthenticated ? (
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={handleGoogleLogin}
             className="flex-row items-center bg-slate-900 p-5 rounded-2xl border border-slate-800 mb-8"
           >
@@ -200,7 +207,7 @@ const Settings = () => {
             </View>
 
             <View className="flex-row space-x-4">
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={handleDriveBackup}
                 disabled={isSyncing}
                 className="flex-1 flex-row items-center bg-slate-900 p-4 rounded-2xl border border-slate-800"
@@ -214,7 +221,7 @@ const Settings = () => {
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={handleDriveRestore}
                 disabled={isSyncing}
                 className="flex-1 flex-row items-center bg-slate-900 p-4 rounded-2xl border border-slate-800"
@@ -234,19 +241,6 @@ const Settings = () => {
         <Text className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-4 ml-2">Local Data</Text>
 
         <TouchableOpacity
-          onPress={() => (navigation as any).navigate("BudgetAndReports")}
-          className="flex-row items-center bg-amber-500/10 p-5 rounded-2xl border border-amber-500/20 mb-4"
-        >
-          <View className="w-12 h-12 bg-amber-500/20 rounded-xl items-center justify-center">
-            <CheckCircle2 size={24} color="#f59e0b" />
-          </View>
-          <View className="ml-4">
-            <Text className="text-white font-bold text-lg">Budgets & Reports</Text>
-            <Text className="text-slate-500 text-sm">Manage categories and monthly budget</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           onPress={handleSmsImport}
           disabled={isSyncing}
           className="flex-row items-center bg-violet-500/10 p-5 rounded-2xl border border-violet-500/20 mb-4"
@@ -259,8 +253,8 @@ const Settings = () => {
             <Text className="text-slate-400 text-sm">Scan inbox and auto-create transactions</Text>
           </View>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           onPress={handleExport}
           className="flex-row items-center bg-slate-900 p-5 rounded-2xl border border-slate-800 mb-4"
         >
@@ -273,7 +267,7 @@ const Settings = () => {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleImport}
           className="flex-row items-center bg-slate-900 p-5 rounded-2xl border border-slate-800 mb-8"
         >
@@ -286,7 +280,7 @@ const Settings = () => {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           className="flex-row items-center bg-rose-500/5 p-5 rounded-2xl border border-rose-500/10"
         >
           <View className="w-12 h-12 bg-rose-500/20 rounded-xl items-center justify-center">
@@ -297,7 +291,7 @@ const Settings = () => {
             <Text className="text-slate-500 text-sm">Permanently delete all records</Text>
           </View>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };

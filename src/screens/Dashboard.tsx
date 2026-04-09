@@ -1,27 +1,77 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions } from "react-native";
+import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getTransactionDisplay, useExpenseStore, Transaction, MonthlyTrend, MerchantSpending } from "../store/useExpenseStore";
+import { getTransactionDisplay, useExpenseStore, Transaction, MerchantSpending } from "../store/useExpenseStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Plus, Settings as SettingsIcon, ChevronRight } from "lucide-react-native";
-import Animated, { FadeInUp, FadeInRight } from "react-native-reanimated";
+import { Plus, Settings as SettingsIcon, ChevronRight, Calendar, Landmark, TrendingUp, TrendingDown, Wallet, Pencil, Check, X } from "lucide-react-native";
+import Animated, { FadeInUp, FadeInRight, useAnimatedStyle, withSpring, withTiming, interpolateColor } from "react-native-reanimated";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { PieChart, LineChart } from "react-native-gifted-charts";
 
 type RootStackParamList = {
-  Dashboard: undefined;
+  Overview: undefined;
   Transactions: undefined;
   AddTransaction: undefined;
-  BudgetAndReports: undefined;
+  Analysis: undefined;
   Settings: undefined;
 };
 
 const screenWidth = Dimensions.get("window").width;
-const fallbackColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4"];
+
+// Reusable animated progress bar component
+const ComparisonBar = ({
+  label,
+  value,
+  maxValue,
+  color,
+  subLabel,
+  prefix = "$",
+  suffix = "",
+  statusColor = false
+}: {
+  label: string;
+  value: number;
+  maxValue: number;
+  color: string;
+  subLabel?: string;
+  prefix?: string;
+  suffix?: string;
+  statusColor?: boolean;
+}) => {
+  const percentage = Math.min(100, (value / Math.max(1, maxValue)) * 100);
+  const isOver = value > maxValue && maxValue > 0;
+
+  const animatedWidth = useAnimatedStyle(() => ({
+    width: withSpring(`${percentage}%`, { damping: 20 })
+  }));
+
+  const barColor = statusColor ? (isOver ? "#f43f5e" : "#10b981") : color;
+
+  return (
+    <View className="mb-8 last:mb-0">
+      <View className="flex-row justify-between items-end mb-3">
+        <View>
+          <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">{label}</Text>
+          <Text className="text-white font-black text-2xl tracking-tight">{prefix}{Math.round(value)}{suffix}</Text>
+        </View>
+        <View className="items-end">
+          {subLabel && <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-0.5">{subLabel}</Text>}
+          <Text className={`font-black text-sm ${isOver ? 'text-rose-500' : 'text-slate-400'}`}>
+            {Math.round(percentage)}%
+          </Text>
+        </View>
+      </View>
+      <View className="h-3.5 bg-slate-800/50 rounded-full overflow-hidden border border-slate-800/20">
+        <Animated.View
+          className="h-full rounded-full"
+          style={[animatedWidth, { backgroundColor: barColor }]}
+        />
+      </View>
+    </View>
+  );
+};
 
 const Dashboard = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
   const {
     transactions,
@@ -30,37 +80,57 @@ const Dashboard = () => {
     fetchBudgets,
     getCurrentMonthExpenseTotal,
     getCurrentMonthIncomeTotal,
-    getCurrentMonthCategorySpending,
-    getMonthlyTrends,
     getMerchantSpending,
   } = useExpenseStore();
-  
+
   const { user, isAuthenticated } = useAuthStore();
-  
+
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
   const [currentMonthExpense, setCurrentMonthExpense] = useState(0);
   const [currentMonthIncome, setCurrentMonthIncome] = useState(0);
-  const [topCategories, setTopCategories] = useState<{ name: string; total: number; color?: string }[]>([]);
-  const [trendData, setTrendData] = useState<MonthlyTrend[]>([]);
   const [merchantData, setMerchantData] = useState<MerchantSpending[]>([]);
+
+  // Budget Editing States
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [budgetInput, setBudgetInput] = useState("");
+
+  const { upsertMonthlyBudget } = useExpenseStore();
+
+  const handleSaveBudget = async () => {
+    const amount = Number(budgetInput);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      Alert.alert("Invalid budget", "Please enter a valid monthly budget amount.");
+      return;
+    }
+    await upsertMonthlyBudget(amount);
+    setIsEditingBudget(false);
+    setBudgetInput("");
+  };
+
+  const isCurrentMonth = useMemo(() => {
+    const now = new Date();
+    const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return selectedMonth === current;
+  }, [selectedMonth]);
 
   useEffect(() => {
     const load = async () => {
       await fetchTransactions();
       await fetchBudgets();
-      const expense = await getCurrentMonthExpenseTotal();
-      const income = await getCurrentMonthIncomeTotal();
-      const categorySpending = await getCurrentMonthCategorySpending();
-      const trends = await getMonthlyTrends();
+      const expense = await getCurrentMonthExpenseTotal(selectedMonth);
+      const income = await getCurrentMonthIncomeTotal(selectedMonth);
       const merchants = await getMerchantSpending();
-      
+
       setCurrentMonthExpense(expense);
       setCurrentMonthIncome(income);
-      setTopCategories(categorySpending.slice(0, 5).map((item) => ({ name: item.category_name, total: item.total, color: item.category_color })));
-      setTrendData(trends);
       setMerchantData(merchants);
     };
     if (isFocused) load();
-  }, [fetchTransactions, fetchBudgets, getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, getCurrentMonthCategorySpending, getMonthlyTrends, getMerchantSpending, isFocused]);
+  }, [fetchTransactions, fetchBudgets, getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, getMerchantSpending, isFocused, selectedMonth]);
 
   const overallMonthlyBudget = useMemo(() => {
     return budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly");
@@ -70,26 +140,29 @@ const Dashboard = () => {
   const remainingBudget = Math.max(0, limitAmount - currentMonthExpense);
 
   const safeToSpend = useMemo(() => {
-    if (limitAmount <= 0) return 0;
+    if (!isCurrentMonth || limitAmount <= 0) return 0;
     const now = new Date();
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const daysRemaining = Math.max(1, lastDay.getDate() - now.getDate() + 1);
     return Math.max(0, remainingBudget / daysRemaining);
-  }, [limitAmount, remainingBudget]);
+  }, [limitAmount, remainingBudget, isCurrentMonth]);
 
   const recentTransactions = useMemo(() => {
-    return transactions.slice(0, 5);
-  }, [transactions]);
+    return transactions.filter(t => t.date.startsWith(selectedMonth)).slice(0, 5);
+  }, [transactions, selectedMonth]);
 
-  const lineChartData = useMemo(() => {
-    if (trendData.length === 0) return [];
-    return trendData.map((t) => {
-      // Format 2026-04 -> Apr
-      const date = new Date(t.month + "-01");
-      const label = date.toLocaleString('default', { month: 'short' });
-      return { value: t.total, label };
-    });
-  }, [trendData]);
+  const months = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString('default', { month: 'short' });
+      const year = d.getFullYear();
+      result.push({ key, label, year });
+    }
+    return result;
+  }, []);
 
   const renderTransactionItem = (item: Transaction, index: number) => (
     <Animated.View
@@ -120,101 +193,135 @@ const Dashboard = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-950">
-      <View className="px-6 py-4 flex-row justify-between items-center bg-slate-950 z-10">
-        <Text className="text-white text-2xl font-black tracking-wide">Overview</Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Settings")}
-          className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 items-center justify-center overflow-hidden"
-        >
-          {isAuthenticated && user ? (
-             user.picture ? <Image source={{ uri: user.picture }} className="w-full h-full" /> : <Text className="text-white font-bold">{user.name?.charAt(0) || "U"}</Text>
-          ) : (
-            <SettingsIcon size={20} color="#94a3b8" />
-          )}
-        </TouchableOpacity>
+      <View className="px-6 pt-6 pb-2 pb-2 bg-slate-950">
+        <View className="flex-row items-center mb-1">
+          <View className="w-8 h-8 bg-blue-500 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/30">
+            <Landmark size={18} color="white" />
+          </View>
+          <Text className="text-white text-xl font-black tracking-tighter">SpendWise</Text>
+        </View>
+        <View className="flex-row justify-between items-center mt-2">
+          <Text className="text-slate-500 text-xs font-bold uppercase tracking-widest">Dashboard</Text>
+        </View>
       </View>
 
-      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 16, paddingBottom: 120 }}>
+      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: 120 }}>
         <Animated.View entering={FadeInUp}>
-          
-          {/* SECTION 1: Summary Visual Diagram */}
-          <View className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 mb-6">
-            <Text className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-4">Summary</Text>
-            <View className="flex-row items-center justify-between">
-              
-              <View className="items-center justify-center w-[140px] h-[140px]">
-                {limitAmount > 0 ? (
-                  <>
-                    {/* Layer 1: Outer Track background */}
-                    <View className="absolute z-10 items-center justify-center">
-                      <PieChart
-                        data={[{ value: 1, color: '#1e293b' }]}
-                        donut={false}
-                        radius={70}
-                      />
-                    </View>
-                    {/* Layer 2: Outer Ring (Expense) */}
-                    <View className="absolute z-20 items-center justify-center">
-                      <PieChart
-                        data={[
-                          { value: currentMonthExpense, color: currentMonthExpense > limitAmount ? '#ef4444' : '#f43f5e' },
-                          { value: Math.max(0.0001, limitAmount - currentMonthExpense), color: 'transparent' }
-                        ]}
-                        donut={false}
-                        radius={70}
-                        isAnimated
-                        animationDuration={1000}
-                      />
-                    </View>
-                    {/* Layer 3: Gap Cutout */}
-                    <View className="absolute z-30 items-center justify-center rounded-full" style={{ width: 124, height: 124, backgroundColor: '#0b101a' }} />
-                    
-                    {/* Layer 4: Inner Ring (Budget) */}
-                    <View className="absolute z-40 items-center justify-center">
-                      <PieChart
-                        data={[{ value: 1, color: '#10b981' }]}
-                        donut={false}
-                        radius={58}
-                      />
-                    </View>
-                    
-                    {/* Layer 5: Center Hole Cutout */}
-                    <View className="absolute z-50 items-center justify-center rounded-full" style={{ width: 100, height: 100, backgroundColor: '#0b101a' }} />
-                    
-                    {/* Layer 6: Center Label */}
-                    <View className="absolute z-50 items-center justify-center">
-                      <Text className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Spent</Text>
-                      <Text className={`font-black text-sm ${currentMonthExpense > limitAmount ? 'text-rose-500' : 'text-white'}`}>
-                        {Math.round((currentMonthExpense/Math.max(1, limitAmount))*100)}%
-                      </Text>
-                    </View>
-                  </>
-                ) : (
-                  <View className="w-[120px] h-[120px] rounded-full border-4 border-slate-800 items-center justify-center">
-                    <Text className="text-slate-500 text-[10px] text-center px-2">No Budget Set</Text>
-                  </View>
-                )}
-              </View>
 
-              <View className="flex-1 ml-6 justify-center">
-                <View className="mb-3">
-                  <Text className="text-slate-500 text-xs font-bold uppercase tracking-wider">Income</Text>
-                  <Text className="text-emerald-400 text-xl font-black">+${currentMonthIncome.toFixed(0)}</Text>
-                </View>
-                <View className="mb-3">
-                  <Text className="text-slate-500 text-xs font-bold uppercase tracking-wider">Expense</Text>
-                  <Text className="text-rose-400 text-xl font-black">-${currentMonthExpense.toFixed(0)}</Text>
-                </View>
-                <View className="bg-blue-500/10 p-2 rounded-xl border border-blue-500/20">
-                  <Text className="text-blue-400/80 text-[10px] font-bold uppercase tracking-wider">Safe to spend</Text>
-                  <Text className="text-blue-400 text-lg font-black">${safeToSpend.toFixed(0)} / day</Text>
-                </View>
-              </View>
-
-            </View>
+          {/* Month Picker */}
+          <View className="mb-6 -mx-5 px-5">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-2">
+              {months.map((m) => (
+                <TouchableOpacity
+                  key={m.key}
+                  onPress={() => setSelectedMonth(m.key)}
+                  className={`mr-3 px-6 py-2.5 rounded-2xl border ${selectedMonth === m.key ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20' : 'bg-slate-900 border-slate-800'}`}
+                >
+                  <Text className={`font-black uppercase tracking-tighter text-[11px] ${selectedMonth === m.key ? 'text-white' : 'text-slate-500'}`}>
+                    {m.label} {m.year}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
 
-          {/* SECTION 2: Recent 5 Transactions */}
+          {/* SECTION 1: Summary Visual Bars */}
+          <View className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 mb-6">
+            <View className="flex-row items-center justify-between mb-8">
+              <View className="flex-row items-center">
+                <Calendar size={16} color="#64748b" />
+                <Text className="text-slate-400 font-bold text-[10px] uppercase tracking-wider ml-2">Performance Summary</Text>
+              </View>
+              {isCurrentMonth && (
+                <TouchableOpacity 
+                  onPress={() => {
+                    setIsEditingBudget(!isEditingBudget);
+                    setBudgetInput(limitAmount.toString());
+                  }}
+                  className="p-1 px-2 bg-slate-800 rounded-lg border border-slate-700 flex-row items-center"
+                >
+                  <Pencil size={10} color="#60a5fa" />
+                  <Text className="text-[10px] font-bold text-blue-400 ml-1.5">EDIT LIMIT</Text>
+                </TouchableOpacity>
+              )}
+              {!isCurrentMonth && (
+                <View className={`px-2 py-1 rounded-md ${isCurrentMonth ? 'bg-emerald-500/10' : 'bg-slate-800'}`}>
+                  <Text className={`text-[9px] font-black uppercase tracking-widest ${isCurrentMonth ? 'text-emerald-400' : 'text-slate-500'}`}>
+                    {isCurrentMonth ? 'LIVE' : 'ARCHIVED'}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {isEditingBudget ? (
+              <Animated.View entering={FadeInUp} className="bg-slate-800/80 p-5 rounded-2xl border border-blue-500/30 mb-8 items-center flex-row">
+                <View className="flex-1">
+                  <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">New Monthly Limit</Text>
+                  <TextInput
+                    value={budgetInput}
+                    onChangeText={setBudgetInput}
+                    keyboardType="decimal-pad"
+                    autoFocus
+                    className="text-white text-2xl font-black p-0"
+                    placeholderTextColor="#475569"
+                  />
+                </View>
+                <View className="flex-row items-center">
+                  <TouchableOpacity 
+                    onPress={() => setIsEditingBudget(false)}
+                    className="w-10 h-10 bg-slate-700 rounded-xl items-center justify-center mr-3"
+                  >
+                    <X size={20} color="#94a3b8" />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={handleSaveBudget}
+                    className="w-10 h-10 bg-blue-600 rounded-xl items-center justify-center shadow-lg shadow-blue-500/30"
+                  >
+                    <Check size={20} color="white" />
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            ) : (
+              <ComparisonBar
+                label="Monthly Expenses"
+                value={currentMonthExpense}
+                maxValue={limitAmount}
+                color="#f43f5e"
+                subLabel={`Limit: $${limitAmount}`}
+                statusColor
+              />
+            )}
+
+            <ComparisonBar
+              label="Monthly Income"
+              value={currentMonthIncome}
+              maxValue={Math.max(currentMonthIncome, currentMonthExpense, 1)}
+              color="#10b981"
+              subLabel="Cash Flow"
+            />
+
+            {isCurrentMonth && (
+              <ComparisonBar
+                label="Safe to Spend"
+                value={safeToSpend}
+                maxValue={Math.max(0.1, limitAmount / 30)}
+                color="#3b82f6"
+                subLabel="Daily Target"
+                suffix=" / day"
+              />
+            )}
+
+            {!isCurrentMonth && (
+              <View className="mt-4 pt-4 border-t border-slate-800/50 flex-row items-center justify-between">
+                <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Month Result</Text>
+                <Text className={`font-black text-xs uppercase tracking-widest ${currentMonthExpense > limitAmount ? 'text-rose-500' : 'text-emerald-400'}`}>
+                  {currentMonthExpense > limitAmount ? 'OVER BUDGET' : 'WITHIN BUDGET'}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* SECTION 2: Recent Activity */}
           <View className="mb-6">
             <View className="flex-row items-end justify-between mb-4 px-1">
               <Text className="text-white text-lg font-black">Recent Activity</Text>
@@ -226,62 +333,15 @@ const Dashboard = () => {
             {recentTransactions.length > 0 ? (
               recentTransactions.map(renderTransactionItem)
             ) : (
-               <View className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800 border-dashed items-center justify-center">
-                  <Text className="text-slate-400 font-medium">No transactions yet.</Text>
-               </View>
+              <View className="bg-slate-900/40 p-10 rounded-3xl border border-slate-800 border-dashed items-center justify-center">
+                <Text className="text-slate-500 font-medium text-center">No transactions recorded in this period.</Text>
+              </View>
             )}
           </View>
 
-          {/* SECTION 3: Monthly Trends Timeline */}
-          {lineChartData.length > 0 && (
-            <View className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 mb-6">
-              <Text className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-6">Expense Trends</Text>
-              <View className="items-center -ml-4">
-                <LineChart
-                  data={lineChartData}
-                  width={screenWidth - 100}
-                  height={140}
-                  color="#f43f5e"
-                  thickness={3}
-                  hideRules
-                  xAxisThickness={0}
-                  yAxisThickness={0}
-                  yAxisLabelPrefix="$"
-                  yAxisTextStyle={{ color: '#64748b', fontSize: 10 }}
-                  xAxisLabelTextStyle={{ color: '#64748b', fontSize: 10 }}
-                  noOfSections={3}
-                  isAnimated
-                  initialSpacing={20}
-                  dataPointsColor="#f43f5e"
-                  dataPointsRadius={4}
-                  areaChart
-                  startFillColor="#f43f5e"
-                  startOpacity={0.2}
-                  endOpacity={0.01}
-                />
-              </View>
-            </View>
-          )}
-
-          {/* SECTION 4: Top Categories */}
-          {topCategories.length > 0 && (
-            <View className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 mb-6">
-              <Text className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-4">Top Categories</Text>
-              {topCategories.map((item, index) => (
-                <View key={item.name + index} className="flex-row items-center justify-between mb-3 last:mb-0">
-                  <View className="flex-row items-center">
-                    <View className="w-3 h-3 rounded-full mr-3" style={{ backgroundColor: item.color || fallbackColors[index % fallbackColors.length] }} />
-                    <Text className="text-slate-200 font-bold">{item.name}</Text>
-                  </View>
-                  <Text className="text-white font-black">${item.total.toFixed(0)}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
           {/* SECTION 5: Top Merchants */}
-          {merchantData.length > 0 && (
-            <View className="bg-slate-900/60 p-5 bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl border border-slate-800 mb-6">
+          {merchantData.length > 0 && isCurrentMonth && (
+            <View className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 mb-6">
               <Text className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-4">Top Merchants</Text>
               {merchantData.slice(0, 5).map((item, index) => (
                 <View key={item.merchant + index} className="flex-row items-center justify-between mb-3 last:mb-0">

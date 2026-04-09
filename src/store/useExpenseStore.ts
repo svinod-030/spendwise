@@ -68,9 +68,9 @@ interface ExpenseState {
   addCategory: (category: Omit<Category, "id">) => Promise<void>;
   fetchBudgets: () => Promise<void>;
   upsertMonthlyBudget: (limitAmount: number) => Promise<void>;
-  getCurrentMonthExpenseTotal: () => Promise<number>;
-  getCurrentMonthIncomeTotal: () => Promise<number>;
-  getCurrentMonthCategorySpending: () => Promise<CategorySpending[]>;
+  getCurrentMonthExpenseTotal: (month?: string) => Promise<number>;
+  getCurrentMonthIncomeTotal: (month?: string) => Promise<number>;
+  getCurrentMonthCategorySpending: (month?: string) => Promise<CategorySpending[]>;
   getMonthlyTrends: () => Promise<MonthlyTrend[]>;
   getMerchantSpending: () => Promise<MerchantSpending[]>;
   importTransactionsFromSms: () => Promise<{ imported: number; skipped: number }>;
@@ -141,47 +141,62 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   upsertMonthlyBudget: async (limitAmount) => {
     const db = await getDb();
-    await db.runAsync(
-      `INSERT INTO budgets (category_id, period_type, limit_amount, start_date)
-       VALUES (NULL, 'monthly', ?, ?)
-       ON CONFLICT(category_id, period_type) DO UPDATE SET
-         limit_amount = excluded.limit_amount,
-         start_date = excluded.start_date`,
-      [limitAmount, new Date().toISOString()]
+    // Manual UPSERT because SQLite UNIQUE(category_id) where category_id IS NULL 
+    // does NOT trigger a conflict on multiple NULLs.
+    const existing = await db.getFirstAsync<{ id: number }>(
+      "SELECT id FROM budgets WHERE category_id IS NULL AND period_type = 'monthly'"
     );
+
+    if (existing) {
+      await db.runAsync(
+        "UPDATE budgets SET limit_amount = ?, start_date = ? WHERE id = ?",
+        [limitAmount, new Date().toISOString(), existing.id]
+      );
+    } else {
+      await db.runAsync(
+        "INSERT INTO budgets (category_id, period_type, limit_amount, start_date) VALUES (NULL, 'monthly', ?, ?)",
+        [limitAmount, new Date().toISOString()]
+      );
+    }
     await get().fetchBudgets();
   },
 
-  getCurrentMonthExpenseTotal: async () => {
+  getCurrentMonthExpenseTotal: async (month?: string) => {
     const db = await getDb();
+    const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
     const row = await db.getFirstAsync<{ total: number }>(
       `SELECT COALESCE(SUM(amount), 0) as total
        FROM transactions
        WHERE kind = 'expense'
-       AND date >= date('now', 'start of month')`
+       AND date >= ${dateQuery}
+       AND date < date(${dateQuery}, '+1 month')`
     );
     return row?.total ?? 0;
   },
 
-  getCurrentMonthIncomeTotal: async () => {
+  getCurrentMonthIncomeTotal: async (month?: string) => {
     const db = await getDb();
+    const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
     const row = await db.getFirstAsync<{ total: number }>(
       `SELECT COALESCE(SUM(amount), 0) as total
        FROM transactions
        WHERE (kind = 'income' OR kind = 'refund')
-       AND date >= date('now', 'start of month')`
+       AND date >= ${dateQuery}
+       AND date < date(${dateQuery}, '+1 month')`
     );
     return row?.total ?? 0;
   },
 
-  getCurrentMonthCategorySpending: async () => {
+  getCurrentMonthCategorySpending: async (month?: string) => {
     const db = await getDb();
+    const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
     const rows = await db.getAllAsync<CategorySpending>(
       `SELECT t.category_id, COALESCE(c.name, 'Uncategorized') as category_name, c.color as category_color, COALESCE(SUM(t.amount), 0) as total
        FROM transactions t
        LEFT JOIN categories c ON c.id = t.category_id
        WHERE t.kind = 'expense'
-       AND t.date >= date('now', 'start of month')
+       AND t.date >= ${dateQuery}
+       AND t.date < date(${dateQuery}, '+1 month')
        GROUP BY t.category_id, c.name, c.color
        ORDER BY total DESC`
     );

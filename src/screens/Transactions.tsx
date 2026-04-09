@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, Clock } from "lucide-react-native";
 import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
 
@@ -52,11 +52,14 @@ const Transactions = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-950">
-      <View className="px-6 py-4 flex-row items-center border-b border-slate-900">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 -ml-2">
-          <ArrowLeft size={24} color="white" />
-        </TouchableOpacity>
-        <Text className="text-white text-xl font-bold ml-4">All Transactions</Text>
+      <View className="px-6 pt-6 pb-2 bg-slate-950 border-b border-slate-900">
+        <View className="flex-row items-center mb-1">
+          <View className="w-8 h-8 bg-blue-500 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/30">
+            <Clock size={18} color="white" />
+          </View>
+          <Text className="text-white text-xl font-black tracking-tighter">SpendWise</Text>
+        </View>
+        <Text className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">History Overview</Text>
       </View>
 
       <View className="px-6 py-4">
