@@ -1,15 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
-import { ArrowLeft, Check, CheckCircle2 } from "lucide-react-native";
+import { ArrowLeft, Check, CheckCircle2, Wallet } from "lucide-react-native";
 import { useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
 import CustomNumpad from "../components/CustomNumpad";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-const AddTransaction = () => {
-  const navigation = useNavigation();
+const AddTransaction = ({ navigation }: any) => {
   const { categories, fetchCategories, addTransaction } = useExpenseStore();
   const [amountStr, setAmountStr] = useState("0");
   const [note, setNote] = useState("");
@@ -77,18 +75,28 @@ const AddTransaction = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-950">
-      <View className="px-6 py-4 flex-row items-center justify-between border-b border-slate-900">
-        <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 -ml-2">
-          <ArrowLeft size={24} color="white" />
-        </TouchableOpacity>
-        <Text className="text-white text-xl font-bold">New Transaction</Text>
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={!canSave}
-          className={`px-4 py-2 rounded-full ${canSave ? "bg-blue-500" : "bg-slate-800"}`}
-        >
-          <Text className={`font-bold ${canSave ? "text-white" : "text-slate-500"}`}>Save</Text>
-        </TouchableOpacity>
+      <View className="px-6 pt-6 pb-2 bg-slate-950 border-b border-slate-900">
+        <View className="flex-row items-center justify-between mb-1">
+          <View className="flex-row items-center">
+            <View className="w-8 h-8 bg-blue-500 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/30">
+              <Wallet size={18} color="white" />
+            </View>
+            <Text className="text-white text-xl font-black tracking-tighter">SpendWise</Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={!canSave}
+            className={`px-4 py-2 rounded-full ${canSave ? "bg-blue-600 shadow-lg shadow-blue-500/30" : "bg-slate-900 border border-slate-800"}`}
+          >
+            <Text className={`font-bold text-xs uppercase tracking-widest ${canSave ? "text-white" : "text-slate-600"}`}>Save</Text>
+          </TouchableOpacity>
+        </View>
+        <View className="flex-row items-center mt-2">
+          <TouchableOpacity onPress={() => navigation.goBack()} className="p-1 -ml-1 mr-2">
+            <ArrowLeft size={16} color="#94a3b8" />
+          </TouchableOpacity>
+          <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">New Transaction</Text>
+        </View>
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>

@@ -77,8 +77,6 @@ function TabNavigator() {
 }
 
 export default function App() {
-  const runInitialSmsImportIfNeeded = useExpenseStore((state) => state.runInitialSmsImportIfNeeded);
-  const syncRecentSmsTransactions = useExpenseStore((state) => state.syncRecentSmsTransactions);
   const [isReady, setIsReady] = useState(false);
   const [didRunLaunchImport, setDidRunLaunchImport] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<VersionCheckResult | null>(null);
@@ -105,6 +103,9 @@ export default function App() {
     async function runLaunchImport() {
       if (!isReady || didRunLaunchImport) return;
       setDidRunLaunchImport(true);
+      
+      const store = useExpenseStore.getState();
+      
       if (Platform.OS === "android" && !__DEV__) {
         const hasPermission = await checkSmsPermission();
         if (!hasPermission) {
@@ -117,17 +118,8 @@ export default function App() {
                 text: "Grant Permission",
                 onPress: async () => {
                   const status = await requestSmsPermissionWithStatus();
-                  if (status === "blocked") {
-                    Alert.alert(
-                      "Permission blocked",
-                      "SMS permission is blocked. Please enable it from app settings.",
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        { text: "Open Settings", onPress: () => Linking.openSettings() },
-                      ]
-                    );
-                  } else if (status === "granted") {
-                    await runInitialSmsImportIfNeeded();
+                  if (status === "granted") {
+                    await store.runInitialSmsImportIfNeeded();
                   }
                 },
               },
@@ -136,20 +128,21 @@ export default function App() {
           return;
         }
       }
-      await runInitialSmsImportIfNeeded();
+      await store.runInitialSmsImportIfNeeded();
     }
     runLaunchImport();
-  }, [isReady, didRunLaunchImport, runInitialSmsImportIfNeeded]);
+  }, [isReady, didRunLaunchImport]);
 
   useEffect(() => {
     if (!isReady || Platform.OS !== "android") return;
+    const store = useExpenseStore.getState();
     let intervalId: ReturnType<typeof setInterval> | null = null;
     let isSyncing = false;
     const runSync = async () => {
       if (isSyncing) return;
       isSyncing = true;
       try {
-        await syncRecentSmsTransactions();
+        await store.syncRecentSmsTransactions();
       } catch {
         // Intentionally ignore; next cycle retries.
       } finally {
@@ -182,7 +175,7 @@ export default function App() {
       appStateSubscription.remove();
       stopPolling();
     };
-  }, [isReady, syncRecentSmsTransactions]);
+  }, [isReady]);
 
   return (
     <SafeAreaProvider>
@@ -193,28 +186,26 @@ export default function App() {
         </View>
       ) : (
         <NavigationContainer>
-          <>
-            <Stack.Navigator
-              screenOptions={{
-                headerShown: false,
-                animation: 'slide_from_right',
-                contentStyle: { backgroundColor: '#020617' }
-              }}
-            >
-              <Stack.Screen name="Main" component={TabNavigator} />
-              <Stack.Screen name="AddTransaction" component={AddTransaction} options={{ presentation: 'modal' }} />
-              <Stack.Screen name="Settings" component={Settings} />
-            </Stack.Navigator>
-            <StatusBar style="light" />
-            {updateInfo && (
-              <UpdateModal
-                visible={showUpdateModal}
-                onClose={() => setShowUpdateModal(false)}
-                latestVersion={updateInfo.latestVersion}
-                storeUrl={updateInfo.storeUrl}
-              />
-            )}
-          </>
+          <Stack.Navigator
+            screenOptions={{
+              headerShown: false,
+              animation: 'slide_from_right',
+              contentStyle: { backgroundColor: '#020617' }
+            }}
+          >
+            <Stack.Screen name="Main" component={TabNavigator} />
+            <Stack.Screen name="AddTransaction" component={AddTransaction} options={{ presentation: 'modal' }} />
+            <Stack.Screen name="Settings" component={Settings} />
+          </Stack.Navigator>
+          <StatusBar style="light" />
+          {updateInfo && (
+            <UpdateModal
+              visible={showUpdateModal}
+              onClose={() => setShowUpdateModal(false)}
+              latestVersion={updateInfo.latestVersion}
+              storeUrl={updateInfo.storeUrl}
+            />
+          )}
         </NavigationContainer>
       )}
     </SafeAreaProvider>

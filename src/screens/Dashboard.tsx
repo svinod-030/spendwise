@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getTransactionDisplay, useExpenseStore, Transaction, MerchantSpending } from "../store/useExpenseStore";
+import { getTransactionDisplay, useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { Plus, Settings as SettingsIcon, ChevronRight, Calendar, Landmark, TrendingUp, TrendingDown, Wallet, Pencil, Check, X } from "lucide-react-native";
 import Animated, { FadeInUp, FadeInRight, useAnimatedStyle, withSpring, withTiming, interpolateColor } from "react-native-reanimated";
@@ -92,7 +92,6 @@ const Dashboard = () => {
 
   const [currentMonthExpense, setCurrentMonthExpense] = useState(0);
   const [currentMonthIncome, setCurrentMonthIncome] = useState(0);
-  const [merchantData, setMerchantData] = useState<MerchantSpending[]>([]);
 
   // Budget Editing States
   const [isEditingBudget, setIsEditingBudget] = useState(false);
@@ -123,14 +122,12 @@ const Dashboard = () => {
       await fetchBudgets();
       const expense = await getCurrentMonthExpenseTotal(selectedMonth);
       const income = await getCurrentMonthIncomeTotal(selectedMonth);
-      const merchants = await getMerchantSpending();
 
       setCurrentMonthExpense(expense);
       setCurrentMonthIncome(income);
-      setMerchantData(merchants);
     };
     if (isFocused) load();
-  }, [fetchTransactions, fetchBudgets, getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, getMerchantSpending, isFocused, selectedMonth]);
+  }, [fetchTransactions, fetchBudgets, getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, isFocused, selectedMonth]);
 
   const overallMonthlyBudget = useMemo(() => {
     return budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly");
@@ -233,7 +230,7 @@ const Dashboard = () => {
                 <Text className="text-slate-400 font-bold text-[10px] uppercase tracking-wider ml-2">Performance Summary</Text>
               </View>
               {isCurrentMonth && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => {
                     setIsEditingBudget(!isEditingBudget);
                     setBudgetInput(limitAmount.toString());
@@ -267,13 +264,13 @@ const Dashboard = () => {
                   />
                 </View>
                 <View className="flex-row items-center">
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => setIsEditingBudget(false)}
                     className="w-10 h-10 bg-slate-700 rounded-xl items-center justify-center mr-3"
                   >
                     <X size={20} color="#94a3b8" />
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={handleSaveBudget}
                     className="w-10 h-10 bg-blue-600 rounded-xl items-center justify-center shadow-lg shadow-blue-500/30"
                   >
@@ -292,24 +289,41 @@ const Dashboard = () => {
               />
             )}
 
-            <ComparisonBar
-              label="Monthly Income"
-              value={currentMonthIncome}
-              maxValue={Math.max(currentMonthIncome, currentMonthExpense, 1)}
-              color="#10b981"
-              subLabel="Cash Flow"
-            />
 
-            {isCurrentMonth && (
-              <ComparisonBar
-                label="Safe to Spend"
-                value={safeToSpend}
-                maxValue={Math.max(0.1, limitAmount / 30)}
-                color="#3b82f6"
-                subLabel="Daily Target"
-                suffix=" / day"
-              />
-            )}
+            <View className="flex-row gap-4 mt-4">
+              {/* Monthly Income Card */}
+              <View className="flex-1 bg-slate-800/40 p-4 rounded-3xl border border-slate-800/50">
+                <View className="flex-row items-center mb-2">
+                  <View className="w-6 h-6 bg-emerald-500/20 rounded-lg items-center justify-center">
+                    <TrendingUp size={12} color="#10b981" />
+                  </View>
+                  <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest ml-2">Income</Text>
+                </View>
+                <Text className="text-white font-black text-xl tracking-tight">${Math.round(currentMonthIncome)}</Text>
+                <Text className="text-slate-600 text-[8px] font-bold uppercase tracking-widest mt-1">Cash Flow</Text>
+              </View>
+
+              {/* Safe to Spend Card */}
+              {isCurrentMonth ? (
+                <View className="flex-1 bg-slate-800/40 p-4 rounded-3xl border border-slate-800/50">
+                  <View className="flex-row items-center mb-2">
+                    <View className="w-6 h-6 bg-blue-500/20 rounded-lg items-center justify-center">
+                      <Landmark size={12} color="#3b82f6" />
+                    </View>
+                    <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest ml-2">Daily</Text>
+                  </View>
+                  <Text className="text-white font-black text-xl tracking-tight">${Math.round(safeToSpend)}</Text>
+                  <Text className="text-slate-600 text-[8px] font-bold uppercase tracking-widest mt-1">Safe to Spend</Text>
+                </View>
+              ) : (
+                <View className="flex-1 bg-slate-800/40 p-4 rounded-3xl border border-slate-800/50 justify-center">
+                  <Text className="text-slate-500 text-[9px] font-black uppercase tracking-widest mb-1 text-center">Month Result</Text>
+                  <Text className={`font-black text-xs uppercase tracking-widest text-center ${currentMonthExpense > limitAmount ? 'text-rose-500' : 'text-emerald-400'}`}>
+                    {currentMonthExpense > limitAmount ? 'OVER' : 'GOOD'}
+                  </Text>
+                </View>
+              )}
+            </View>
 
             {!isCurrentMonth && (
               <View className="mt-4 pt-4 border-t border-slate-800/50 flex-row items-center justify-between">
@@ -339,20 +353,7 @@ const Dashboard = () => {
             )}
           </View>
 
-          {/* SECTION 5: Top Merchants */}
-          {merchantData.length > 0 && isCurrentMonth && (
-            <View className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 mb-6">
-              <Text className="text-slate-400 font-bold text-xs uppercase tracking-wider mb-4">Top Merchants</Text>
-              {merchantData.slice(0, 5).map((item, index) => (
-                <View key={item.merchant + index} className="flex-row items-center justify-between mb-3 last:mb-0">
-                  <Text className="text-slate-300 font-medium flex-1 truncate mr-4" numberOfLines={1}>
-                    {item.merchant}
-                  </Text>
-                  <Text className="text-rose-400 font-bold">${item.total.toFixed(0)}</Text>
-                </View>
-              ))}
-            </View>
-          )}
+
 
         </Animated.View>
       </ScrollView>
