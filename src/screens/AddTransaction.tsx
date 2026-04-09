@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { ArrowLeft, Check, CheckCircle2 } from "lucide-react-native";
 import { useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
 import CustomNumpad from "../components/CustomNumpad";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const AddTransaction = () => {
   const navigation = useNavigation();
@@ -14,6 +15,9 @@ const AddTransaction = () => {
   const [note, setNote] = useState("");
   const [selectedKind, setSelectedKind] = useState<TransactionKind>("expense");
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -38,7 +42,7 @@ const AddTransaction = () => {
         amount: parsedAmount,
         type,
         kind: selectedKind,
-        date: new Date().toISOString(),
+        date: date.toISOString(),
         note: note.trim(),
       });
       navigation.goBack();
@@ -98,8 +102,65 @@ const AddTransaction = () => {
         </View>
 
         {/* Numpad */}
-        <View className="px-6 mb-8">
+        <View className="px-6">
           <CustomNumpad onPressItem={handleNumpadPress} onDelete={handleNumpadDelete} />
+        </View>
+
+
+        {/* Date & Time Selector */}
+        <View className="px-6 mb-8">
+          <Text className="text-slate-400 font-semibold mb-4 text-sm uppercase tracking-wide">Date & Time</Text>
+          <View className="flex-row gap-4">
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              className="flex-1 bg-slate-900 rounded-2xl px-5 py-4 border border-slate-800"
+            >
+              <Text className="text-white font-medium">{date.toLocaleDateString()}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowTimePicker(true)}
+              className="flex-1 bg-slate-900 rounded-2xl px-5 py-4 border border-slate-800"
+            >
+              <Text className="text-white font-medium">
+                {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event: any, selectedDate?: Date) => {
+                setShowDatePicker(Platform.OS === 'ios');
+                if (selectedDate) {
+                  const newDate = new Date(selectedDate);
+                  newDate.setHours(date.getHours());
+                  newDate.setMinutes(date.getMinutes());
+                  setDate(newDate);
+                }
+              }}
+            />
+          )}
+
+          {showTimePicker && (
+            <DateTimePicker
+              value={date}
+              mode="time"
+              is24Hour={false}
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event: any, selectedTime?: Date) => {
+                setShowTimePicker(Platform.OS === 'ios');
+                if (selectedTime) {
+                  const newDate = new Date(date);
+                  newDate.setHours(selectedTime.getHours());
+                  newDate.setMinutes(selectedTime.getMinutes());
+                  setDate(newDate);
+                }
+              }}
+            />
+          )}
         </View>
 
         {/* Type Selector */}
@@ -110,14 +171,12 @@ const AddTransaction = () => {
               <TouchableOpacity
                 key={kind}
                 onPress={() => setSelectedKind(kind)}
-                className={`flex-1 py-3 items-center justify-center rounded-xl ${
-                  selectedKind === kind ? "bg-slate-800 shadow-md" : ""
-                }`}
+                className={`flex-1 py-3 items-center justify-center rounded-xl ${selectedKind === kind ? "bg-slate-800 shadow-md" : ""
+                  }`}
               >
                 <Text
-                  className={`capitalize font-semibold ${
-                    selectedKind === kind ? amountColorClasses[kind] : "text-slate-500"
-                  }`}
+                  className={`capitalize font-semibold ${selectedKind === kind ? amountColorClasses[kind] : "text-slate-500"
+                    }`}
                 >
                   {kind}
                 </Text>
@@ -138,11 +197,10 @@ const AddTransaction = () => {
                 <TouchableOpacity
                   key={category.id}
                   onPress={() => setSelectedCategoryId(category.id)}
-                  className={`w-28 h-28 mr-3 rounded-3xl p-4 justify-between border ${
-                    selectedCategoryId === category.id
-                      ? "bg-blue-500/20 border-blue-500/50"
-                      : "bg-slate-900 border-slate-800"
-                  }`}
+                  className={`w-28 h-28 mr-3 rounded-3xl p-4 justify-between border ${selectedCategoryId === category.id
+                    ? "bg-blue-500/20 border-blue-500/50"
+                    : "bg-slate-900 border-slate-800"
+                    }`}
                 >
                   <View
                     className="w-10 h-10 rounded-full items-center justify-center"
@@ -157,9 +215,8 @@ const AddTransaction = () => {
                       </View>
                     )}
                     <Text
-                      className={`font-semibold mt-2 ${
-                        selectedCategoryId === category.id ? "text-blue-400" : "text-slate-300"
-                      }`}
+                      className={`font-semibold mt-2 ${selectedCategoryId === category.id ? "text-blue-400" : "text-slate-300"
+                        }`}
                       numberOfLines={1}
                     >
                       {category.name}

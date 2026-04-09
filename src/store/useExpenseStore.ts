@@ -46,6 +46,16 @@ export interface CategorySpending {
   total: number;
 }
 
+export interface MonthlyTrend {
+  month: string;
+  total: number;
+}
+
+export interface MerchantSpending {
+  merchant: string;
+  total: number;
+}
+
 interface ExpenseState {
   transactions: Transaction[];
   categories: Category[];
@@ -59,7 +69,10 @@ interface ExpenseState {
   fetchBudgets: () => Promise<void>;
   upsertMonthlyBudget: (limitAmount: number) => Promise<void>;
   getCurrentMonthExpenseTotal: () => Promise<number>;
+  getCurrentMonthIncomeTotal: () => Promise<number>;
   getCurrentMonthCategorySpending: () => Promise<CategorySpending[]>;
+  getMonthlyTrends: () => Promise<MonthlyTrend[]>;
+  getMerchantSpending: () => Promise<MerchantSpending[]>;
   importTransactionsFromSms: () => Promise<{ imported: number; skipped: number }>;
   syncRecentSmsTransactions: () => Promise<{ imported: number; skipped: number }>;
   processIncomingSmsMessage: (message: { address: string; body: string; date: number }) => Promise<boolean>;
@@ -150,6 +163,17 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     return row?.total ?? 0;
   },
 
+  getCurrentMonthIncomeTotal: async () => {
+    const db = await getDb();
+    const row = await db.getFirstAsync<{ total: number }>(
+      `SELECT COALESCE(SUM(amount), 0) as total
+       FROM transactions
+       WHERE (kind = 'income' OR kind = 'refund')
+       AND date >= date('now', 'start of month')`
+    );
+    return row?.total ?? 0;
+  },
+
   getCurrentMonthCategorySpending: async () => {
     const db = await getDb();
     const rows = await db.getAllAsync<CategorySpending>(
@@ -159,6 +183,30 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
        WHERE t.kind = 'expense'
        AND t.date >= date('now', 'start of month')
        GROUP BY t.category_id, c.name, c.color
+       ORDER BY total DESC`
+    );
+    return rows;
+  },
+
+  getMonthlyTrends: async () => {
+    const db = await getDb();
+    const rows = await db.getAllAsync<MonthlyTrend>(
+      `SELECT strftime('%Y-%m', date) as month, COALESCE(SUM(amount), 0) as total
+       FROM transactions
+       WHERE kind = 'expense'
+       GROUP BY month
+       ORDER BY month ASC`
+    );
+    return rows;
+  },
+
+  getMerchantSpending: async () => {
+    const db = await getDb();
+    const rows = await db.getAllAsync<MerchantSpending>(
+      `SELECT COALESCE(merchant, note, 'Unknown') as merchant, COALESCE(SUM(amount), 0) as total
+       FROM transactions
+       WHERE kind = 'expense'
+       GROUP BY merchant
        ORDER BY total DESC`
     );
     return rows;

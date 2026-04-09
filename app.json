@@ -36,7 +36,8 @@
     "plugins": [
       "@react-native-google-signin/google-signin",
       "expo-localization",
-      "expo-sqlite"
+      "expo-sqlite",
+      "@react-native-community/datetimepicker"
     ]
   }
 }
