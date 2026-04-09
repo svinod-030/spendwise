@@ -42,6 +42,7 @@ export interface Budget {
 export interface CategorySpending {
   category_id: number | null;
   category_name: string;
+  category_color?: string;
   total: number;
 }
 
@@ -152,12 +153,12 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   getCurrentMonthCategorySpending: async () => {
     const db = await getDb();
     const rows = await db.getAllAsync<CategorySpending>(
-      `SELECT t.category_id, COALESCE(c.name, 'Uncategorized') as category_name, COALESCE(SUM(t.amount), 0) as total
+      `SELECT t.category_id, COALESCE(c.name, 'Uncategorized') as category_name, c.color as category_color, COALESCE(SUM(t.amount), 0) as total
        FROM transactions t
        LEFT JOIN categories c ON c.id = t.category_id
        WHERE t.kind = 'expense'
        AND t.date >= date('now', 'start of month')
-       GROUP BY t.category_id, c.name
+       GROUP BY t.category_id, c.name, c.color
        ORDER BY total DESC`
     );
     return rows;

@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo } from "react";
-import { View, Text, TouchableOpacity, FlatList, Image } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { View, Text, TouchableOpacity, FlatList, Image, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getTransactionDisplay, useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { Plus, Settings as SettingsIcon, ArrowUpCircle, ArrowDownCircle } from "lucide-react-native";
-import Animated, { FadeInRight } from "react-native-reanimated";
-import { useNavigation } from "@react-navigation/native";
+import Animated, { FadeInRight, FadeInUp } from "react-native-reanimated";
+import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { BarChart } from "react-native-gifted-charts";
 
 type RootStackParamList = {
   Dashboard: undefined;
@@ -16,8 +17,11 @@ type RootStackParamList = {
   Settings: undefined;
 };
 
+const screenWidth = Dimensions.get("window").width;
+
 const Dashboard = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const isFocused = useIsFocused();
   const {
     transactions,
     budgets,
@@ -27,9 +31,9 @@ const Dashboard = () => {
     getCurrentMonthCategorySpending,
   } = useExpenseStore();
   const { user, isAuthenticated } = useAuthStore();
-  const [currentMonthExpense, setCurrentMonthExpense] = React.useState(0);
-  const [topCategories, setTopCategories] = React.useState<{ name: string; total: number }[]>([]);
-  const [range, setRange] = React.useState<"today" | "month" | "all">("month");
+  const [currentMonthExpense, setCurrentMonthExpense] = useState(0);
+  const [topCategories, setTopCategories] = useState<{ name: string; total: number }[]>([]);
+  const [range, setRange] = useState<"today" | "month" | "all">("month");
 
   useEffect(() => {
     const load = async () => {
@@ -40,8 +44,10 @@ const Dashboard = () => {
       setCurrentMonthExpense(monthExpense);
       setTopCategories(categorySpending.slice(0, 3).map((item) => ({ name: item.category_name, total: item.total })));
     };
-    load();
-  }, [fetchTransactions, fetchBudgets, getCurrentMonthExpenseTotal, getCurrentMonthCategorySpending]);
+    if (isFocused) {
+      load();
+    }
+  }, [fetchTransactions, fetchBudgets, getCurrentMonthExpenseTotal, getCurrentMonthCategorySpending, isFocused]);
 
   const overallMonthlyBudget = useMemo(() => {
     return budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly");
@@ -88,7 +94,7 @@ const Dashboard = () => {
     };
   }, [filteredTransactions]);
 
-  const chartData = useMemo(() => {
+  const barChartData = useMemo(() => {
     const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const dayBuckets = labels.map(() => ({ income: 0, expense: 0 }));
     const today = new Date();
@@ -107,42 +113,44 @@ const Dashboard = () => {
       if (kind === "expense") dayBuckets[diffDays].expense += tx.amount;
     });
 
-    const net = dayBuckets.map((d) => d.income - d.expense);
-    const peak = Math.max(1, ...net.map((value) => Math.abs(value)));
-    return labels.map((label, index) => ({ label, net: net[index], peak }));
+    return labels.map((label, index) => {
+      const net = dayBuckets[index].income - dayBuckets[index].expense;
+      return {
+        value: Math.abs(net),
+        label,
+        frontColor: net >= 0 ? "#10b981" : "#f43f5e",
+        topLabelComponent: () => (
+          <Text className="text-[10px] text-slate-400 -mt-4 absolute -pl-2">{Math.abs(net) > 0 ? `$${Math.abs(net)}` : ''}</Text>
+        )
+      };
+    });
   }, [transactions]);
 
   const renderTransactionItem = ({ item, index }: { item: Transaction; index: number }) => (
-    (() => {
-      const display = getTransactionDisplay(item);
-      return (
-        <Animated.View
-          entering={FadeInRight.delay(index * 100)}
-          className="flex-row items-center justify-between bg-slate-900 p-4 rounded-2xl mb-3 border border-slate-800"
+    <Animated.View
+      entering={FadeInRight.delay(index * 50)}
+      className="flex-row items-center justify-between bg-slate-900/80 p-4 rounded-3xl mb-3 border border-slate-800 shadow-sm"
+    >
+      <View className="flex-row items-center flex-1">
+        <View
+          className="w-12 h-12 rounded-2xl items-center justify-center border border-slate-800"
+          style={{ backgroundColor: `${item.category_color ?? "#3b82f6"}15` }}
         >
-          <View className="flex-row items-center flex-1">
-            <View
-              className="w-12 h-12 rounded-full items-center justify-center"
-              style={{ backgroundColor: `${item.category_color ?? "#334155"}20` }}
-            >
-              <Text className="text-xl">{item.category_icon === "utensils" ? "🍴" : "📦"}</Text>
-            </View>
-            <View className="ml-4 flex-1">
-              <Text className="text-white font-semibold text-lg">{item.note || item.category_name || "Transaction"}</Text>
-              <Text className="text-slate-400 text-sm">{new Date(item.date).toLocaleDateString()}</Text>
-            </View>
-          </View>
-          <View className="items-end">
-            <Text className={`font-bold text-lg ${display.colorClass}`}>
-              {display.sign}${item.amount.toFixed(2)}
-            </Text>
-            <Text className="text-[10px] text-slate-500">{display.label}</Text>
-          </View>
-        </Animated.View>
-      );
-    })()
+          <Text className="text-xl">{item.category_icon === "utensils" ? "🍴" : "📦"}</Text>
+        </View>
+        <View className="ml-4 flex-1">
+          <Text className="text-white font-bold text-base">{item.note || item.category_name || "Transaction"}</Text>
+          <Text className="text-slate-400 text-xs font-medium">{new Date(item.date).toLocaleDateString()}</Text>
+        </View>
+      </View>
+      <View className="items-end">
+        <Text className={`font-black text-base ${getTransactionDisplay(item).colorClass}`}>
+          {getTransactionDisplay(item).sign}${item.amount.toFixed(2)}
+        </Text>
+        <Text className="text-[10px] uppercase font-bold tracking-wider text-slate-500">{getTransactionDisplay(item).label}</Text>
+      </View>
+    </Animated.View>
   );
-  
 
   return (
     <SafeAreaView className="flex-1 bg-slate-950">
@@ -150,18 +158,18 @@ const Dashboard = () => {
         data={filteredTransactions}
         renderItem={renderTransactionItem}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 100, paddingTop: 8 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120, paddingTop: 8 }}
         ListHeaderComponent={
-          <View>
+          <Animated.View entering={FadeInUp}>
             <View className="mb-6">
               <View className="flex-row justify-between items-center mb-8">
                 <View>
-                  <Text className="text-slate-400 text-sm font-medium">Available Balance</Text>
-                  <Text className="text-white text-4xl font-bold mt-1">${balance.toFixed(2)}</Text>
+                  <Text className="text-slate-400 text-sm font-bold uppercase tracking-wider mb-1">Available Balance</Text>
+                  <Text className="text-white text-5xl font-black">${balance.toFixed(2)}</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => navigation.navigate("Settings")}
-                  className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 items-center justify-center overflow-hidden"
+                  className="w-12 h-12 rounded-full bg-slate-900 border-2 border-slate-800 items-center justify-center overflow-hidden"
                 >
                   {isAuthenticated && user ? (
                     user.picture ? (
@@ -172,49 +180,44 @@ const Dashboard = () => {
                       </View>
                     )
                   ) : (
-                    <SettingsIcon size={24} color="#94a3b8" />
+                    <SettingsIcon size={22} color="#94a3b8" />
                   )}
                 </TouchableOpacity>
               </View>
 
               <View className="flex-row gap-4 mb-4">
-                <View className="flex-1 bg-emerald-500/10 p-4 rounded-3xl border border-emerald-500/20">
-                  <ArrowUpCircle size={20} color="#34d399" />
-                  <Text className="text-emerald-400/80 text-xs mt-2 font-medium">Income</Text>
-                  <Text className="text-emerald-400 text-xl font-bold">${totalIncome.toFixed(2)}</Text>
+                <View className="flex-1 bg-emerald-500/10 p-5 rounded-3xl border border-emerald-500/20 shadow-sm">
+                  <View className="w-8 h-8 rounded-full bg-emerald-500/20 items-center justify-center mb-3">
+                    <ArrowUpCircle size={20} color="#34d399" />
+                  </View>
+                  <Text className="text-emerald-400/80 text-xs font-bold uppercase tracking-wider">Income</Text>
+                  <Text className="text-emerald-400 text-2xl font-black mt-1">${totalIncome.toFixed(0)}</Text>
                 </View>
-                <View className="flex-1 bg-rose-500/10 p-4 rounded-3xl border border-rose-500/20">
-                  <ArrowDownCircle size={20} color="#fb7185" />
-                  <Text className="text-rose-400/80 text-xs mt-2 font-medium">Expenses</Text>
-                  <Text className="text-rose-400 text-xl font-bold">${totalExpenses.toFixed(2)}</Text>
-                </View>
-              </View>
-              <View className="flex-row gap-4 mb-6">
-                <View className="flex-1 bg-cyan-500/10 p-4 rounded-3xl border border-cyan-500/20">
-                  <Text className="text-cyan-400/80 text-xs mt-2 font-medium">Refunds</Text>
-                  <Text className="text-cyan-400 text-xl font-bold">${totalRefunds.toFixed(2)}</Text>
-                </View>
-                <View className="flex-1 bg-amber-500/10 p-4 rounded-3xl border border-amber-500/20">
-                  <Text className="text-amber-400/80 text-xs mt-2 font-medium">Transfers</Text>
-                  <Text className="text-amber-400 text-xl font-bold">${totalTransfers.toFixed(2)}</Text>
+                <View className="flex-1 bg-rose-500/10 p-5 rounded-3xl border border-rose-500/20 shadow-sm">
+                  <View className="w-8 h-8 rounded-full bg-rose-500/20 items-center justify-center mb-3">
+                    <ArrowDownCircle size={20} color="#fb7185" />
+                  </View>
+                  <Text className="text-rose-400/80 text-xs font-bold uppercase tracking-wider">Expenses</Text>
+                  <Text className="text-rose-400 text-2xl font-black mt-1">${totalExpenses.toFixed(0)}</Text>
                 </View>
               </View>
 
-              <View className="bg-slate-900 p-4 rounded-2xl border border-slate-800 mb-6">
-                <View className="flex-row items-center justify-between mb-3">
-                  <Text className="text-white font-semibold text-base">Monthly Budget</Text>
+              <View className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 mb-6">
+                <View className="flex-row items-center justify-between mb-4">
+                  <Text className="text-white font-bold text-base">Monthly Budget</Text>
                   <TouchableOpacity onPress={() => navigation.navigate("BudgetAndReports")}>
-                    <Text className="text-blue-400 text-xs font-semibold">Manage</Text>
+                    <Text className="text-blue-400 text-xs font-bold uppercase tracking-wider">Manage</Text>
                   </TouchableOpacity>
                 </View>
                 {overallMonthlyBudget ? (
                   <>
-                    <Text className="text-slate-300 text-sm mb-2">
-                      ${currentMonthExpense.toFixed(2)} of ${overallMonthlyBudget.limit_amount.toFixed(2)}
-                    </Text>
-                    <View className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                      <View
-                        className={`${budgetProgress > 90 ? "bg-rose-500" : "bg-blue-500"} h-2`}
+                    <View className="flex-row justify-between mb-2">
+                      <Text className="text-slate-400 text-sm font-medium">Spent</Text>
+                      <Text className="text-white font-bold">${currentMonthExpense.toFixed(2)} / ${overallMonthlyBudget.limit_amount.toFixed(0)}</Text>
+                    </View>
+                    <View className="h-3 bg-slate-800 rounded-full overflow-hidden">
+                      <Animated.View
+                        className={`${budgetProgress > 85 ? "bg-rose-500" : "bg-blue-500"} h-3 rounded-full`}
                         style={{ width: `${budgetProgress}%` }}
                       />
                     </View>
@@ -224,78 +227,55 @@ const Dashboard = () => {
                 )}
               </View>
 
-              {topCategories.length > 0 && (
-                <View className="bg-slate-900 p-4 rounded-2xl border border-slate-800 mb-6">
-                  <Text className="text-white font-semibold text-base mb-3">Top Categories This Month</Text>
-                  {topCategories.map((category) => (
-                    <View key={category.name} className="flex-row justify-between mb-2">
-                      <Text className="text-slate-300">{category.name}</Text>
-                      <Text className="text-white font-semibold">${category.total.toFixed(2)}</Text>
-                    </View>
-                  ))}
+              <View className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 mb-6 pb-2">
+                <Text className="text-white font-bold text-base mb-6">Weekly Cashflow</Text>
+                <View className="items-center -ml-4">
+                  <BarChart
+                    data={barChartData}
+                    width={screenWidth - 100}
+                    height={150}
+                    barWidth={22}
+                    spacing={14}
+                    roundedTop
+                    roundedBottom
+                    hideRules
+                    xAxisThickness={0}
+                    yAxisThickness={0}
+                    yAxisTextStyle={{ color: '#64748b', fontSize: 10 }}
+                    noOfSections={3}
+                    isAnimated
+                    animationDuration={1000}
+                  />
                 </View>
-              )}
-            </View>
-
-            <View className="flex-row pb-4">
-              {([
-                { id: "today", label: "Today" },
-                { id: "month", label: "This Month" },
-                { id: "all", label: "All Time" },
-              ] as const).map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  onPress={() => setRange(option.id)}
-                  className={`px-3 py-2 rounded-xl mr-2 border ${range === option.id ? "bg-blue-500/20 border-blue-400" : "bg-slate-900 border-slate-800"}`}
-                >
-                  <Text className="text-white text-xs">{option.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View className="mx-6 mb-6 bg-slate-900 p-4 rounded-2xl border border-slate-800">
-              <Text className="text-white font-semibold mb-3">Weekly Cashflow (Income - Expense)</Text>
-              <View className="flex-row items-end justify-between h-28">
-                {chartData.map((point) => {
-                  const heightPercent = Math.max(8, (Math.abs(point.net) / point.peak) * 100);
-                  const positive = point.net >= 0;
-                  return (
-                    <View key={point.label} className="items-center flex-1">
-                      <View
-                        className={`${positive ? "bg-emerald-500" : "bg-rose-500"} w-4 rounded-t-md rounded-b-md`}
-                        style={{ height: `${heightPercent}%` }}
-                      />
-                      <Text className="text-[10px] text-slate-400 mt-1">{point.label}</Text>
-                    </View>
-                  );
-                })}
               </View>
             </View>
 
-            <View className="flex-row justify-between items-end mb-4">
-              <Text className="text-white text-xl font-bold">Recent Activity</Text>
+            <View className="flex-row items-end justify-between mb-4 mt-2">
+              <Text className="text-white text-xl font-black">Recent Activity</Text>
               <TouchableOpacity onPress={() => navigation.navigate("Transactions")}>
-                <Text className="text-blue-400 font-medium">See All</Text>
+                <Text className="text-blue-400 font-bold text-sm">View All</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         }
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={() => (
-          <View className="items-center justify-center py-20">
-            <Text className="text-slate-500 text-lg">No transactions yet.</Text>
-            <Text className="text-slate-600 text-sm mt-2">Tap the + button to add one.</Text>
+          <View className="items-center justify-center py-10 mt-10 bg-slate-900/40 rounded-3xl border border-slate-800 border-dashed">
+            <Text className="text-slate-400 text-base font-medium">No transactions yet</Text>
+            <Text className="text-slate-500 text-xs mt-2">Tap + to record an expense</Text>
           </View>
         )}
       />
 
-      <TouchableOpacity
-        className="absolute bottom-8 right-8 w-16 h-16 bg-blue-500 rounded-full items-center justify-center shadow-lg shadow-blue-500/50"
-        activeOpacity={0.8}
-        onPress={() => navigation.navigate("AddTransaction")}
-      >
-        <Plus size={32} color="white" />
-      </TouchableOpacity>
+      <View className="absolute bottom-6 w-full items-center">
+        <TouchableOpacity
+          className="w-16 h-16 bg-blue-500 rounded-full items-center justify-center shadow-lg shadow-blue-500/50"
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate("AddTransaction")}
+        >
+          <Plus size={32} color="white" />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };

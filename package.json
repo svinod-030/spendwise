@@ -34,9 +34,12 @@
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-get-sms-android": "^2.1.0",
+    "react-native-gifted-charts": "^1.4.76",
+    "react-native-linear-gradient": "^2.8.3",
     "react-native-reanimated": "^4.3.0",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.24.0",
+    "react-native-svg": "15.12.1",
     "react-native-version-check": "^3.5.0",
     "zustand": "^5.0.12"
   },
