@@ -133,7 +133,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
       setCurrentMonthIncome(income);
     };
     if (isFocused) load();
-  }, [fetchTransactions, fetchBudgets, getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, isFocused, selectedMonth]);
+  }, [fetchTransactions, fetchBudgets, getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, isFocused, selectedMonth, transactions]);
 
   const overallMonthlyBudget = useMemo(() => {
     return budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly");

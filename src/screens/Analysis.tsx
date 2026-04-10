@@ -25,6 +25,7 @@ const Analysis = ({ navigation }: { navigation: any }) => {
     fetchBudgets,
     addCategory,
     upsertMonthlyBudget,
+    transactions,
   } = useExpenseStore();
 
   const [trendData, setTrendData] = useState<MonthlyTrend[]>([]);
@@ -58,7 +59,7 @@ const Analysis = ({ navigation }: { navigation: any }) => {
       setTotalExpense(total);
     };
     if (isFocused) load();
-  }, [getMonthlyTrends, getCurrentMonthCategorySpending, getCurrentMonthExpenseTotal, fetchCategories, fetchBudgets, isFocused]);
+  }, [getMonthlyTrends, getCurrentMonthCategorySpending, getCurrentMonthExpenseTotal, fetchCategories, fetchBudgets, isFocused, transactions]);
 
   const monthlyBudget = useMemo(
     () => budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly"),
