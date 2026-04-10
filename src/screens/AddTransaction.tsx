@@ -1,14 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, Check, CheckCircle2, Wallet } from "lucide-react-native";
-import { useExpenseStore } from "../store/useExpenseStore";
+import { ArrowLeft, CheckCircle2, Wallet } from "lucide-react-native";
+import { getTransactionDisplay, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
 import CustomNumpad from "../components/CustomNumpad";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
+const KIND_OPTIONS: TransactionKind[] = ["expense", "income", "refund", "transfer"];
+
 const AddTransaction = ({ navigation }: any) => {
-  const { categories, fetchCategories, addTransaction } = useExpenseStore();
+  const categories = useExpenseStore((state) => state.categories);
+  const fetchCategories = useExpenseStore((state) => state.fetchCategories);
+  const addTransaction = useExpenseStore((state) => state.addTransaction);
   const [amountStr, setAmountStr] = useState("0");
   const [note, setNote] = useState("");
   const [selectedKind, setSelectedKind] = useState<TransactionKind>("expense");
@@ -66,11 +70,8 @@ const AddTransaction = ({ navigation }: any) => {
     setAmountStr((prev) => (prev.length <= 1 ? "0" : prev.slice(0, -1)));
   };
 
-  const amountColorClasses = {
-    expense: "text-rose-400",
-    income: "text-emerald-400",
-    refund: "text-cyan-400",
-    transfer: "text-amber-400",
+  const getSelectedKindStyles = () => {
+    return getTransactionDisplay({ kind: selectedKind });
   };
 
   return (
@@ -104,8 +105,8 @@ const AddTransaction = ({ navigation }: any) => {
         <View className="items-center justify-center py-10 pb-6">
           <Text className="text-slate-500 dark:text-slate-400 font-medium mb-2 uppercase tracking-widest text-[10px]">Amount</Text>
           <View className="flex-row items-center">
-            <Text className={`text-4xl mr-1 font-black ${amountColorClasses[selectedKind]}`}>$</Text>
-            <Text className={`text-6xl font-black ${amountColorClasses[selectedKind]}`}>{amountStr}</Text>
+            <Text className={`text-4xl mr-1 font-black ${getSelectedKindStyles().colorClass}`}>$</Text>
+            <Text className={`text-6xl font-black ${getSelectedKindStyles().colorClass}`}>{amountStr}</Text>
           </View>
         </View>
 
@@ -175,8 +176,9 @@ const AddTransaction = ({ navigation }: any) => {
         <View className="px-6 mb-8">
           <Text className="text-slate-500 dark:text-slate-400 font-black mb-4 text-[10px] uppercase tracking-widest">Type</Text>
           <View className="bg-white dark:bg-slate-900 rounded-2xl flex-row p-1 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none">
-            {(["expense", "income", "refund", "transfer"] as const).map((kind) => {
+            {KIND_OPTIONS.map((kind) => {
               const isActive = selectedKind === kind;
+              const kindStyles = getTransactionDisplay({ kind });
               return (
                 <TouchableOpacity
                   key={kind}
@@ -185,7 +187,7 @@ const AddTransaction = ({ navigation }: any) => {
                     }`}
                 >
                   <Text
-                    className={`capitalize font-black text-xs ${isActive ? amountColorClasses[kind] : "text-slate-400"
+                    className={`capitalize font-black text-xs ${isActive ? kindStyles.colorClass : "text-slate-400"
                       }`}
                   >
                     {kind}
@@ -217,7 +219,7 @@ const AddTransaction = ({ navigation }: any) => {
                   >
                     <View
                       className="w-10 h-10 rounded-full items-center justify-center"
-                      style={{ backgroundColor: `${category.color ?? "#3b82f6"}15` }}
+                      style={{ backgroundColor: `${category.color && category.color.startsWith("#") ? category.color : "#3b82f6"}15` }}
                     >
                       <Text className="text-lg">{category.icon === "utensils" ? "🍴" : "📦"}</Text>
                     </View>

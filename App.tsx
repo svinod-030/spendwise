@@ -4,12 +4,11 @@ import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator, Alert, Linking, Platform, AppState } from "react-native";
+import { View, ActivityIndicator, Alert, Platform, AppState } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { initDatabase } from "./src/db/database";
 import { useExpenseStore } from "./src/store/useExpenseStore";
-import { useThemeStore } from "./src/store/useThemeStore";
 import { checkSmsPermission, requestSmsPermissionWithStatus } from "./src/utils/smsReader";
 import Dashboard from "./src/screens/Dashboard";
 import Analysis from "./src/screens/Analysis";
@@ -18,7 +17,7 @@ import AddTransaction from "./src/screens/AddTransaction";
 import Transactions from "./src/screens/Transactions";
 import UpdateModal from './src/components/UpdateModal';
 import { checkVersion, VersionCheckResult } from './src/utils/versionCheckService';
-import { Home, BarChart3, History, Settings as SettingsIcon } from "lucide-react-native";
+import { Home, BarChart3, History, Settings as SettingsIcon, PlusIcon } from "lucide-react-native";
 
 const SpendWiseDarkTheme = {
   ...DarkTheme,
@@ -113,7 +112,6 @@ export default function App() {
   const [updateInfo, setUpdateInfo] = useState<VersionCheckResult | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 
-  const { theme } = useThemeStore();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 

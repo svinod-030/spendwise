@@ -427,21 +427,25 @@ async function getCategoryIdForMessage(
   return null;
 }
 
-export function getCategoryIcon(categoryName?: string) {
-  const name = (categoryName || "").toLowerCase();
-  if (name.includes("food") || name.includes("dining")) return "Utensils";
+export function getCategoryIcon(categoryName?: string | null) {
+  const name = (categoryName || "").toLowerCase().trim();
+  if (!name) return "Package";
+  
+  if (name.includes("food") || name.includes("dining") || name.includes("utensils")) return "Utensils";
   if (name.includes("transport") || name.includes("car") || name.includes("fuel")) return "Car";
-  if (name.includes("bill") || name.includes("recharge") || name.includes("electricity")) return "Zap";
+  if (name.includes("bill") || name.includes("recharge") || name.includes("electricity") || name.includes("zap")) return "Zap";
   if (name.includes("shopping") || name.includes("amazon")) return "ShoppingBag";
-  if (name.includes("health") || name.includes("med")) return "Activity";
-  if (name.includes("entertainment") || name.includes("movie")) return "Play";
-  if (name.includes("salary") || name.includes("income")) return "Briefcase";
-  if (name.includes("transfer")) return "RefreshCw";
+  if (name.includes("health") || name.includes("med") || name.includes("activity")) return "Activity";
+  if (name.includes("entertainment") || name.includes("movie") || name.includes("play")) return "Play";
+  if (name.includes("salary") || name.includes("income") || name.includes("briefcase")) return "Briefcase";
+  if (name.includes("transfer") || name.includes("refresh")) return "RefreshCw";
+  
   return "Package"; // Default
 }
 
-export function getTransactionDisplay(transaction: Pick<Transaction, "kind" | "type" | "category_name">) {
-  const kind = transaction.kind ?? (transaction.type === "income" ? "income" : "expense");
+export function getTransactionDisplay(transaction: Partial<Pick<Transaction, "kind" | "type" | "category_name">>) {
+  const type = transaction.type || "expense";
+  const kind = transaction.kind || (type === "income" ? "income" : "expense");
   const icon = getCategoryIcon(transaction.category_name);
   
   if (kind === "transfer") return { sign: "", colorClass: "text-amber-400", label: "Transfer", icon };

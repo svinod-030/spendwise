@@ -3,23 +3,13 @@ import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, TextInput,
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getTransactionDisplay, useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { 
-  Plus, Settings as SettingsIcon, ChevronRight, Calendar, Landmark, 
+import {
+  Plus, Settings as SettingsIcon, ChevronRight, Calendar, Landmark,
   TrendingUp, TrendingDown, Wallet, Pencil, Check, X,
   Activity, Briefcase, Car, Play, RefreshCw, ShoppingBag, Utensils, Zap, Package
 } from "lucide-react-native";
 import Animated, { FadeInUp, FadeInRight, useAnimatedStyle, withSpring, withTiming, interpolateColor } from "react-native-reanimated";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
-
-type RootStackParamList = {
-  Overview: undefined;
-  Transactions: undefined;
-  AddTransaction: undefined;
-  Analysis: undefined;
-  Settings: undefined;
-};
-
-const screenWidth = Dimensions.get("window").width;
 
 const IconLoader = ({ name, size, color }: { name: string, size: number, color: string }) => {
   const Icons: any = {
@@ -230,11 +220,10 @@ const Dashboard = () => {
                   <TouchableOpacity
                     key={m.key}
                     onPress={() => setSelectedMonth(m.key)}
-                    className={`mr-3 px-6 py-2.5 rounded-2xl border ${
-                      isSelected 
-                        ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20' 
+                    className={`mr-3 px-6 py-2.5 rounded-2xl border ${isSelected
+                        ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20'
                         : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
-                    }`}
+                      }`}
                   >
                     <Text className={`font-black uppercase tracking-tighter text-[11px] ${isSelected ? 'text-white' : 'text-slate-500'}`}>
                       {m.label} {m.year}

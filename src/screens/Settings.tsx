@@ -7,18 +7,16 @@ import { useThemeStore, AppTheme } from "../store/useThemeStore";
 import { signInWithGoogle, signOutGoogle } from "../utils/googleAuth";
 import { backupToDrive, restoreFromDrive } from "../utils/backupService";
 import {
-  ArrowLeft, Download, Upload, Shield, Trash2,
-  Cloud, LogIn, LogOut, RefreshCcw, MessageSquare, CheckCircle2,
+  Download, Upload, Shield, Trash2,
+  Cloud, LogIn, LogOut, RefreshCcw, MessageSquare,
   Sun, Moon, Monitor
 } from "lucide-react-native";
-import { useNavigation } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 
 const Settings = () => {
-  const navigation = useNavigation();
   const { exportData, importData, importTransactionsFromSms } = useExpenseStore();
-  const { user, isAuthenticated, setUser, signOut, isLoading } = useAuthStore();
+  const { user, isAuthenticated, setUser, signOut } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
   const [isSyncing, setIsSyncing] = React.useState(false);
 
@@ -155,11 +153,10 @@ const Settings = () => {
     return (
       <TouchableOpacity
         onPress={() => setTheme(type)}
-        className={`flex-1 items-center justify-center p-4 rounded-2xl border ${
-          isActive 
-            ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20' 
-            : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-        }`}
+        className={`flex-1 items-center justify-center p-4 rounded-2xl border ${isActive
+          ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20'
+          : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+          }`}
       >
         <Icon size={20} color={isActive ? "white" : "#64748b"} />
         <Text className={`text-[10px] font-black uppercase tracking-widest mt-2 ${isActive ? 'text-white' : 'text-slate-500'}`}>
