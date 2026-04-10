@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { FlatList, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowLeft, Clock } from "lucide-react-native";
 import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
@@ -10,6 +10,24 @@ const Transactions = ({ navigation }: { navigation: any }) => {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | TransactionKind>("all");
 
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  const months = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < 12; i++) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString('default', { month: 'short' });
+      const year = d.getFullYear();
+      result.push({ key, label, year });
+    }
+    return result;
+  }, []);
+
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions]);
@@ -17,6 +35,9 @@ const Transactions = ({ navigation }: { navigation: any }) => {
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return transactions.filter((tx) => {
+      // Month check
+      if (!tx.date.startsWith(selectedMonth)) return false;
+
       const kind = tx.kind ?? (tx.type === "income" ? "income" : "expense");
       const filterMatch = activeFilter === "all" || kind === activeFilter;
       if (!filterMatch) return false;
@@ -28,7 +49,7 @@ const Transactions = ({ navigation }: { navigation: any }) => {
         tx.reference_id?.toLowerCase().includes(query)
       );
     });
-  }, [search, transactions, activeFilter]);
+  }, [search, transactions, activeFilter, selectedMonth]);
 
   const renderItem = ({ item }: { item: Transaction }) => {
     const display = getTransactionDisplay(item);
@@ -60,27 +81,49 @@ const Transactions = ({ navigation }: { navigation: any }) => {
         <Text className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">History Overview</Text>
       </View>
 
+      {/* Month Picker */}
       <View className="px-6 py-4">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-2">
+          {months.map((m) => {
+            const isSelected = selectedMonth === m.key;
+            return (
+              <TouchableOpacity
+                key={m.key}
+                onPress={() => setSelectedMonth(m.key)}
+                className={`mr-3 px-6 py-2.5 rounded-2xl border ${isSelected
+                  ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20'
+                  : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
+                  }`}
+              >
+                <Text className={`font-black uppercase tracking-tighter text-[11px] ${isSelected ? 'text-white' : 'text-slate-500'}`}>
+                  {m.label} {m.year}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      <View className="px-6 py-2">
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Search by note, category, merchant, reference"
+          placeholder="Search note, category, etc..."
           placeholderTextColor="#94a3b8"
           className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl px-4 py-4 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
         />
       </View>
-      <View className="px-6 pb-3 flex-row flex-wrap">
+      <View className="px-6 py-3 flex-row flex-wrap">
         {(["all", "expense", "income", "refund", "transfer"] as const).map((filter) => {
           const isActive = activeFilter === filter;
           return (
             <TouchableOpacity
               key={filter}
               onPress={() => setActiveFilter(filter)}
-              className={`px-3 py-2 rounded-xl mr-2 mb-2 border ${
-                isActive 
-                  ? "bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20" 
-                  : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
-              }`}
+              className={`px-3 py-2 rounded-xl mr-2 mb-2 border ${isActive
+                ? "bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20"
+                : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
+                }`}
             >
               <Text className={`text-xs capitalize font-bold ${isActive ? 'text-white' : 'text-slate-500'}`}>
                 {filter}

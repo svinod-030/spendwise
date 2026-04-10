@@ -167,7 +167,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
 
   const months = useMemo(() => {
     const result = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 12; i++) {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
