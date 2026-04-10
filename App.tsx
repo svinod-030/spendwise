@@ -112,7 +112,7 @@ export default function App() {
   const [didRunLaunchImport, setDidRunLaunchImport] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<VersionCheckResult | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
-  
+
   const { theme } = useThemeStore();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -122,10 +122,12 @@ export default function App() {
       try {
         await initDatabase();
         setIsReady(true);
-        const result = await checkVersion();
-        if (result.isUpdateAvailable) {
-          setUpdateInfo(result);
-          setShowUpdateModal(true);
+        if (!__DEV__) {
+          const result = await checkVersion();
+          if (result.isUpdateAvailable) {
+            setUpdateInfo(result);
+            setShowUpdateModal(true);
+          }
         }
       } catch (error) {
         console.error("Failed to initialize database:", error);
@@ -138,9 +140,9 @@ export default function App() {
     async function runLaunchImport() {
       if (!isReady || didRunLaunchImport) return;
       setDidRunLaunchImport(true);
-      
+
       const store = useExpenseStore.getState();
-      
+
       if (Platform.OS === "android" && !__DEV__) {
         const hasPermission = await checkSmsPermission();
         if (!hasPermission) {
