@@ -4,19 +4,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowLeft, CheckCircle2, Wallet } from "lucide-react-native";
 import { getTransactionDisplay, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
-import CustomNumpad from "../components/CustomNumpad";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { IconLoader } from "../components/IconLoader";
 
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-
 const KIND_OPTIONS: TransactionKind[] = ["expense", "income", "refund", "transfer"];
 
-interface AddTransactionProps {
-  navigation: NativeStackNavigationProp<any>;
-}
-
-const AddTransaction = ({ navigation }: AddTransactionProps) => {
+const AddTransaction = ({ navigation }: { navigation: any }) => {
   const categories = useExpenseStore((state) => state.categories);
   const fetchCategories = useExpenseStore((state) => state.fetchCategories);
   const addTransaction = useExpenseStore((state) => state.addTransaction);
@@ -65,21 +58,22 @@ const AddTransaction = ({ navigation }: AddTransactionProps) => {
     }
   };
 
-  const handleNumpadPress = (val: string) => {
-    setAmountStr((prev) => {
-      if (val === "." && prev.includes(".")) return prev;
-      if (prev === "0" && val !== ".") return val;
-      // Limit decimal places to 2
-      if (prev.includes(".")) {
-        const [, decimal] = prev.split(".");
-        if (decimal && decimal.length >= 2) return prev;
-      }
-      return prev + val;
-    });
-  };
+  const handleAmountChange = (text: string) => {
+    // Only allow numbers and one decimal point
+    let cleaned = text.replace(/[^0-9.]/g, "");
 
-  const handleNumpadDelete = () => {
-    setAmountStr((prev) => (prev.length <= 1 ? "0" : prev.slice(0, -1)));
+    // Ensure only one decimal point
+    const parts = cleaned.split(".");
+    if (parts.length > 2) {
+      cleaned = parts[0] + "." + parts.slice(1).join("");
+    }
+
+    // Limit to 2 decimal places
+    if (parts[1] && parts[1].length > 2) {
+      cleaned = parts[0] + "." + parts[1].slice(0, 2);
+    }
+
+    setAmountStr(cleaned || "0");
   };
 
   const getSelectedKindStyles = () => {
@@ -113,18 +107,22 @@ const AddTransaction = ({ navigation }: AddTransactionProps) => {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* Amount Display */}
-        <View className="items-center justify-center py-10 pb-6">
-          <Text className="text-slate-500 dark:text-slate-400 font-medium mb-2 uppercase tracking-widest text-[10px]">Amount</Text>
-          <View className="flex-row items-center">
-            <Text className={`text-4xl mr-1 font-black ${getSelectedKindStyles().colorClass}`}>$</Text>
-            <Text className={`text-6xl font-black ${getSelectedKindStyles().colorClass}`}>{amountStr}</Text>
+        {/* Amount Input Section */}
+        <View className="px-6 py-10 pb-6 items-center">
+          <Text className="text-slate-500 dark:text-slate-400 font-medium mb-3 uppercase tracking-widest text-[10px]">Enter Amount</Text>
+          <View className="flex-row items-center bg-white dark:bg-slate-900 px-8 py-6 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none w-full justify-center">
+            <Text className={`text-4xl mr-2 font-black ${getSelectedKindStyles().colorClass}`}>$</Text>
+            <TextInput
+              value={amountStr === "0" ? "" : amountStr}
+              onChangeText={handleAmountChange}
+              placeholder="0"
+              placeholderTextColor="#94a3b8"
+              keyboardType="numeric"
+              autoFocus={true}
+              className={`text-6xl font-black ${getSelectedKindStyles().colorClass} min-w-[100px] text-center`}
+              selectionColor="#3b82f6"
+            />
           </View>
-        </View>
-
-        {/* Numpad */}
-        <View className="px-6">
-          <CustomNumpad onPressItem={handleNumpadPress} onDelete={handleNumpadDelete} />
         </View>
 
 

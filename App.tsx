@@ -214,8 +214,7 @@ export default function App() {
           }}
         >
           <Stack.Screen name="Main" component={TabNavigator} />
-          <Stack.Screen name="AddTransaction" component={AddTransaction} options={{ presentation: "modal" }} />
-          <Stack.Screen name="Settings" component={Settings} />
+          <Stack.Screen name="AddTransaction" component={AddTransaction} />
         </Stack.Navigator>
         <StatusBar style={isDark ? "light" : "dark"} />
         {updateInfo && (
