@@ -9,8 +9,8 @@ import {
   TrendingUp, Pencil, Check, X
 } from "lucide-react-native";
 import Animated, { FadeInUp, FadeInRight, useAnimatedStyle, withSpring } from "react-native-reanimated";
-
 import { IconLoader } from "../components/IconLoader";
+import AddTransactionModal from "../components/AddTransactionModal";
 
 // Reusable animated progress bar component
 const ComparisonBar = ({
@@ -68,6 +68,7 @@ const ComparisonBar = ({
 
 const Dashboard = ({ navigation }: { navigation: any }) => {
   const [isFocused, setIsFocused] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
   const {
     transactions,
     budgets,
@@ -75,10 +76,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
     fetchBudgets,
     getCurrentMonthExpenseTotal,
     getCurrentMonthIncomeTotal,
-    getMerchantSpending,
   } = useExpenseStore();
-
-  const { user, isAuthenticated } = useAuthStore();
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
@@ -378,11 +376,19 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
         <TouchableOpacity
           className="w-16 h-16 bg-blue-600 rounded-full items-center justify-center shadow-lg shadow-blue-500/50"
           activeOpacity={0.9}
-          onPress={() => navigation.navigate("AddTransaction")}
+          onPress={() => setShowAddModal(true)}
         >
           <Plus size={32} color="white" />
         </TouchableOpacity>
       </View>
+
+      <AddTransactionModal
+        visible={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          fetchTransactions();
+        }}
+      />
     </SafeAreaView>
   );
 };

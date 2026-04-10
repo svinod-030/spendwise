@@ -1,8 +1,6 @@
 import "./global.css";
 import React, { useEffect, useState } from "react";
-import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { NavigationContainer } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, Alert, Platform, AppState } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -13,8 +11,8 @@ import { useExpenseStore } from "./src/store/useExpenseStore";
 import { checkSmsPermission, requestSmsPermissionWithStatus } from "./src/utils/smsReader";
 import UpdateModal from './src/components/UpdateModal';
 import { checkVersion, VersionCheckResult } from './src/utils/versionCheckService';
-import RootNavigator, { SpendWiseDarkTheme, SpendWiseLightTheme } from "./src/navigation/RootNavigator";
-import { navigationRef } from "./src/utils/navigationService";
+import TabNavigator from "./src/navigation/TabNavigator";
+import { SpendWiseDarkTheme, SpendWiseLightTheme } from "./src/navigation/RootNavigator";
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -25,6 +23,7 @@ export default function App() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  // Initialize database and check for updates
   useEffect(() => {
     async function setup() {
       try {
@@ -44,6 +43,7 @@ export default function App() {
     setup();
   }, []);
 
+  // Run initial SMS import if needed
   useEffect(() => {
     async function runLaunchImport() {
       if (!isReady || didRunLaunchImport) return;
@@ -78,6 +78,7 @@ export default function App() {
     runLaunchImport();
   }, [isReady, didRunLaunchImport]);
 
+  // Sync recent SMS transactions
   useEffect(() => {
     if (!isReady || Platform.OS !== "android") return;
     const store = useExpenseStore.getState();
@@ -122,6 +123,7 @@ export default function App() {
     };
   }, [isReady]);
 
+  // Show loading screen while database is initializing
   if (!isReady) {
     return (
       <View className="flex-1 bg-white dark:bg-slate-950 items-center justify-center">
@@ -131,21 +133,22 @@ export default function App() {
     );
   }
 
+  // Render main app with navigation and update modal
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <NavigationContainer ref={navigationRef} theme={isDark ? SpendWiseDarkTheme : SpendWiseLightTheme}>
-          <RootNavigator />
-          <StatusBar style={isDark ? "light" : "dark"} />
-          {updateInfo && (
-            <UpdateModal
-              visible={showUpdateModal}
-              onClose={() => setShowUpdateModal(false)}
-              latestVersion={updateInfo.latestVersion}
-              storeUrl={updateInfo.storeUrl}
-            />
-          )}
+        <NavigationContainer theme={isDark ? SpendWiseDarkTheme : SpendWiseLightTheme}>
+          <TabNavigator />
         </NavigationContainer>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        {updateInfo && (
+          <UpdateModal
+            visible={showUpdateModal}
+            onClose={() => setShowUpdateModal(false)}
+            latestVersion={updateInfo.latestVersion}
+            storeUrl={updateInfo.storeUrl}
+          />
+        )}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

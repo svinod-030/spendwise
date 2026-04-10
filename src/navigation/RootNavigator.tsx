@@ -1,13 +1,7 @@
 import React from "react";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { DefaultTheme, DarkTheme } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
 import { useColorScheme } from "nativewind";
-
-// Import Screens
 import TabNavigator from "./TabNavigator";
-import AddTransaction from "../screens/AddTransaction";
-
-const Stack = createNativeStackNavigator();
 
 export const SpendWiseDarkTheme = {
   ...DarkTheme,
@@ -38,15 +32,6 @@ export default function RootNavigator() {
   const isDark = colorScheme === "dark";
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: "slide_from_right",
-        contentStyle: { backgroundColor: isDark ? "#020617" : "#f8fafc" },
-      }}
-    >
-      <Stack.Screen name="Main" component={TabNavigator} />
-      <Stack.Screen name="AddTransaction" component={AddTransaction} options={{ animation: "slide_from_right", presentation: "card" }} />
-    </Stack.Navigator>
+    <TabNavigator />
   );
 }
