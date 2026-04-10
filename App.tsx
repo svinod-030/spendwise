@@ -123,23 +123,18 @@ export default function App() {
     };
   }, [isReady]);
 
-  // Show loading screen while database is initializing
-  if (!isReady) {
-    return (
-      <View className="flex-1 bg-white dark:bg-slate-950 items-center justify-center">
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <StatusBar style={isDark ? "light" : "dark"} />
-      </View>
-    );
-  }
-
-  // Render main app with navigation and update modal
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <NavigationContainer theme={isDark ? SpendWiseDarkTheme : SpendWiseLightTheme}>
-          <TabNavigator />
-        </NavigationContainer>
+        {!isReady ? (
+          <View className="flex-1 bg-white dark:bg-slate-950 items-center justify-center">
+            <ActivityIndicator size="large" color="#3b82f6" />
+          </View>
+        ) : (
+          <NavigationContainer theme={isDark ? SpendWiseDarkTheme : SpendWiseLightTheme}>
+            <TabNavigator />
+          </NavigationContainer>
+        )}
         <StatusBar style={isDark ? "light" : "dark"} />
         {updateInfo && (
           <UpdateModal
