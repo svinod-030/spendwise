@@ -3,16 +3,14 @@ import {
   Alert, Modal, ScrollView, Text, TextInput,
   TouchableOpacity, View, Platform,
   KeyboardAvoidingView,
-  Dimensions
 } from "react-native";
-import { CheckCircle2, X, Calendar, Clock, ChevronRight, Eraser } from "lucide-react-native";
+import { X, Calendar, Clock, ChevronRight, Eraser } from "lucide-react-native";
 import { getTransactionDisplay, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { IconLoader } from "./IconLoader";
 
 const KIND_OPTIONS: TransactionKind[] = ["expense", "income", "refund", "transfer"];
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface TransactionForm {
   amount: string;
@@ -28,7 +26,7 @@ interface AddTransactionProps {
 }
 
 const INITIAL_FORM: TransactionForm = {
-  amount: "0",
+  amount: "10",
   note: "",
   kind: "expense",
   categoryId: 4, // Default to a common category like Food or Misc
@@ -148,7 +146,7 @@ const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
               </View>
 
               {/* Kind Selector (Segmented) */}
-              <View className="flex-row bg-slate-100 dark:bg-slate-900 rounded-2xl p-1 mt-6 w-full max-w-[320px]">
+              <View className="flex-row bg-slate-100 dark:bg-slate-900 rounded-2xl p-1 mt-6 gap-2 w-full max-w-[320px]">
                 {KIND_OPTIONS.map((k) => {
                   const isActive = form.kind === k;
                   const kStyles = getKindStyles(k);
@@ -170,20 +168,20 @@ const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
             {/* Main Form Fields */}
             <View className="px-6 space-y-6">
               {/* Category Section */}
-              <View>
+              <View className="pb-6">
                 <View className="flex-row justify-between items-end mb-4 px-1">
                   <Text className="text-slate-400 dark:text-slate-500 font-black text-[10px] uppercase tracking-[2px]">Category</Text>
                   {!form.categoryId && <Text className="text-rose-500 text-[10px] font-black italic">Selection Required</Text>}
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
-                  <View className="flex-row pb-2 space-x-3">
+                  <View className="flex-row space-x-3 gap-3">
                     {categories.map((cat) => {
                       const isSelected = form.categoryId === cat.id;
                       return (
                         <TouchableOpacity
                           key={cat.id}
                           onPress={() => setForm(p => ({ ...p, categoryId: cat.id }))}
-                          className={`flex-row items-center px-5 py-4 rounded-2xl border ${isSelected
+                          className={`flex-row items-center px-2 py-1 rounded-2xl border ${isSelected
                             ? "bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20"
                             : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-800"}`}
                         >
@@ -202,7 +200,7 @@ const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
               </View>
 
               {/* Date & Time Section */}
-              <View>
+              <View className="pb-6">
                 <Text className="text-slate-400 dark:text-slate-500 font-black text-[10px] uppercase tracking-[2px] mb-4 px-1">Timeline</Text>
                 <View className="flex-row space-x-3">
                   <TouchableOpacity
