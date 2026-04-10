@@ -47,8 +47,9 @@ const Analysis = ({ navigation }: { navigation: any }) => {
     };
   }, [navigation]);
 
+  // 1. Initial Load: Categories and budgets on focus
   useEffect(() => {
-    const load = async () => {
+    const init = async () => {
       await fetchCategories();
       await fetchBudgets();
       const trends = await getMonthlyTrends();
@@ -58,8 +59,21 @@ const Analysis = ({ navigation }: { navigation: any }) => {
       setCategorySpending(categoriesData);
       setTotalExpense(total);
     };
-    if (isFocused) load();
-  }, [getMonthlyTrends, getCurrentMonthCategorySpending, getCurrentMonthExpenseTotal, fetchCategories, fetchBudgets, isFocused, transactions]);
+    if (isFocused) init();
+  }, [fetchCategories, fetchBudgets, isFocused]);
+
+  // 2. Reactive Refresh: Trends and breakdowns refresh when transactions update
+  useEffect(() => {
+    const refresh = async () => {
+      const trends = await getMonthlyTrends();
+      const categoriesData = await getCurrentMonthCategorySpending();
+      const total = await getCurrentMonthExpenseTotal();
+      setTrendData(trends);
+      setCategorySpending(categoriesData);
+      setTotalExpense(total);
+    };
+    if (isFocused) refresh();
+  }, [getMonthlyTrends, getCurrentMonthCategorySpending, getCurrentMonthExpenseTotal, isFocused, transactions]);
 
   const monthlyBudget = useMemo(
     () => budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly"),

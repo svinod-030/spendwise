@@ -122,18 +122,29 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
     return selectedMonth === current;
   }, [selectedMonth]);
 
+  // 1. Initial Load: Fetches everything when screen focuses or month changes
   useEffect(() => {
-    const load = async () => {
+    const loadAll = async () => {
       await fetchTransactions();
       await fetchBudgets();
       const expense = await getCurrentMonthExpenseTotal(selectedMonth);
       const income = await getCurrentMonthIncomeTotal(selectedMonth);
-
       setCurrentMonthExpense(expense);
       setCurrentMonthIncome(income);
     };
-    if (isFocused) load();
-  }, [fetchTransactions, fetchBudgets, getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, isFocused, selectedMonth, transactions]);
+    if (isFocused) loadAll();
+  }, [fetchTransactions, fetchBudgets, isFocused, selectedMonth]);
+
+  // 2. Reactive Refresh: Only updates totals when transactions change
+  useEffect(() => {
+    const refreshTotals = async () => {
+      const expense = await getCurrentMonthExpenseTotal(selectedMonth);
+      const income = await getCurrentMonthIncomeTotal(selectedMonth);
+      setCurrentMonthExpense(expense);
+      setCurrentMonthIncome(income);
+    };
+    if (isFocused) refreshTotals();
+  }, [getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, isFocused, selectedMonth, transactions]);
 
   const overallMonthlyBudget = useMemo(() => {
     return budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly");
