@@ -9,15 +9,27 @@ import { IconLoader } from "../components/IconLoader";
 
 const KIND_OPTIONS: TransactionKind[] = ["expense", "income", "refund", "transfer"];
 
+interface TransactionForm {
+  amountStr: string;
+  note: string;
+  kind: TransactionKind;
+  categoryId: number | null;
+  date: Date;
+}
+
 const AddTransaction = ({ navigation }: { navigation: any }) => {
   const categories = useExpenseStore((state) => state.categories);
   const fetchCategories = useExpenseStore((state) => state.fetchCategories);
   const addTransaction = useExpenseStore((state) => state.addTransaction);
-  const [amountStr, setAmountStr] = useState("0");
-  const [note, setNote] = useState("");
-  const [selectedKind, setSelectedKind] = useState<TransactionKind>("expense");
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-  const [date, setDate] = useState(new Date());
+
+  const [form, setForm] = useState<TransactionForm>({
+    amountStr: "0",
+    note: "",
+    kind: "expense",
+    categoryId: null,
+    date: new Date(),
+  });
+
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
@@ -26,31 +38,31 @@ const AddTransaction = ({ navigation }: { navigation: any }) => {
   }, [fetchCategories]);
 
   const canSave = useMemo(() => {
-    const parsed = Number(amountStr);
-    return parsed > 0 && selectedCategoryId !== null;
-  }, [amountStr, selectedCategoryId]);
+    const parsed = Number(form.amountStr);
+    return parsed > 0 && form.categoryId !== null;
+  }, [form.amountStr, form.categoryId]);
 
   const handleSave = async () => {
-    if (!selectedCategoryId) {
+    if (!form.categoryId) {
       Alert.alert("Missing Category", "Please select a category for this transaction.");
       return;
     }
 
-    const parsedAmount = Number(amountStr);
+    const parsedAmount = Number(form.amountStr);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       Alert.alert("Invalid amount", "Please enter a valid amount.");
       return;
     }
 
     try {
-      const type = selectedKind === "expense" || selectedKind === "transfer" ? "expense" : "income";
+      const type = form.kind === "expense" || form.kind === "transfer" ? "expense" : "income";
       await addTransaction({
-        category_id: selectedCategoryId,
+        category_id: form.categoryId,
         amount: parsedAmount,
         type,
-        kind: selectedKind,
-        date: date.toISOString(),
-        note: note.trim(),
+        kind: form.kind,
+        date: form.date.toISOString(),
+        note: form.note.trim(),
       });
       navigation.goBack();
     } catch {
@@ -59,25 +71,19 @@ const AddTransaction = ({ navigation }: { navigation: any }) => {
   };
 
   const handleAmountChange = (text: string) => {
-    // Only allow numbers and one decimal point
     let cleaned = text.replace(/[^0-9.]/g, "");
-
-    // Ensure only one decimal point
     const parts = cleaned.split(".");
     if (parts.length > 2) {
       cleaned = parts[0] + "." + parts.slice(1).join("");
     }
-
-    // Limit to 2 decimal places
     if (parts[1] && parts[1].length > 2) {
       cleaned = parts[0] + "." + parts[1].slice(0, 2);
     }
-
-    setAmountStr(cleaned || "0");
+    setForm(prev => ({ ...prev, amountStr: cleaned || "0" }));
   };
 
   const getSelectedKindStyles = () => {
-    return getTransactionDisplay({ kind: selectedKind });
+    return getTransactionDisplay({ kind: form.kind });
   };
 
   return (
@@ -113,7 +119,7 @@ const AddTransaction = ({ navigation }: { navigation: any }) => {
           <View className="flex-row items-center bg-white dark:bg-slate-900 px-8 py-6 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none w-full justify-center">
             <Text className={`text-4xl mr-2 font-black ${getSelectedKindStyles().colorClass}`}>$</Text>
             <TextInput
-              value={amountStr === "0" ? "" : amountStr}
+              value={form.amountStr === "0" ? "" : form.amountStr}
               onChangeText={handleAmountChange}
               placeholder="0"
               placeholderTextColor="#94a3b8"
@@ -134,30 +140,30 @@ const AddTransaction = ({ navigation }: { navigation: any }) => {
               onPress={() => setShowDatePicker(true)}
               className="flex-1 bg-white dark:bg-slate-900 rounded-2xl px-5 py-4 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
             >
-              <Text className="text-slate-900 dark:text-white font-bold">{date.toLocaleDateString()}</Text>
+              <Text className="text-slate-900 dark:text-white font-bold">{form.date.toLocaleDateString()}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowTimePicker(true)}
               className="flex-1 bg-white dark:bg-slate-900 rounded-2xl px-5 py-4 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
             >
               <Text className="text-slate-900 dark:text-white font-bold">
-                {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {form.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </TouchableOpacity>
           </View>
 
           {showDatePicker && (
             <DateTimePicker
-              value={date}
+              value={form.date}
               mode="date"
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={(event: any, selectedDate?: Date) => {
                 setShowDatePicker(Platform.OS === 'ios');
                 if (selectedDate) {
                   const newDate = new Date(selectedDate);
-                  newDate.setHours(date.getHours());
-                  newDate.setMinutes(date.getMinutes());
-                  setDate(newDate);
+                  newDate.setHours(form.date.getHours());
+                  newDate.setMinutes(form.date.getMinutes());
+                  setForm(prev => ({ ...prev, date: newDate }));
                 }
               }}
             />
@@ -165,17 +171,17 @@ const AddTransaction = ({ navigation }: { navigation: any }) => {
 
           {showTimePicker && (
             <DateTimePicker
-              value={date}
+              value={form.date}
               mode="time"
               is24Hour={false}
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={(event: any, selectedTime?: Date) => {
                 setShowTimePicker(Platform.OS === 'ios');
                 if (selectedTime) {
-                  const newDate = new Date(date);
+                  const newDate = new Date(form.date);
                   newDate.setHours(selectedTime.getHours());
                   newDate.setMinutes(selectedTime.getMinutes());
-                  setDate(newDate);
+                  setForm(prev => ({ ...prev, date: newDate }));
                 }
               }}
             />
@@ -187,12 +193,12 @@ const AddTransaction = ({ navigation }: { navigation: any }) => {
           <Text className="text-slate-500 dark:text-slate-400 font-black mb-4 text-[10px] uppercase tracking-widest">Type</Text>
           <View className="bg-white dark:bg-slate-900 rounded-2xl flex-row p-1 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none">
             {KIND_OPTIONS.map((kind) => {
-              const isActive = selectedKind === kind;
+              const isActive = form.kind === kind;
               const kindStyles = getTransactionDisplay({ kind });
               return (
                 <TouchableOpacity
                   key={kind}
-                  onPress={() => setSelectedKind(kind)}
+                  onPress={() => setForm(prev => ({ ...prev, kind }))}
                   className={`flex-1 py-3 items-center justify-center rounded-xl ${isActive ? "bg-slate-100 dark:bg-slate-800 shadow-sm" : ""
                     }`}
                 >
@@ -212,16 +218,16 @@ const AddTransaction = ({ navigation }: { navigation: any }) => {
         <View className="px-6 mb-8">
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-slate-500 dark:text-slate-400 font-black text-[10px] uppercase tracking-widest">Category</Text>
-            {selectedCategoryId === null && <Text className="text-rose-500 text-[10px] font-black uppercase">Required</Text>}
+            {form.categoryId === null && <Text className="text-rose-500 text-[10px] font-black uppercase">Required</Text>}
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
             <View className="flex-row pb-2 pr-6">
               {categories.map((category) => {
-                const isSelected = selectedCategoryId === category.id;
+                const isSelected = form.categoryId === category.id;
                 return (
                   <TouchableOpacity
                     key={category.id}
-                    onPress={() => setSelectedCategoryId(category.id)}
+                    onPress={() => setForm(prev => ({ ...prev, categoryId: category.id }))}
                     className={`w-28 h-28 mr-3 rounded-3xl p-4 justify-between border ${isSelected
                       ? "bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20"
                       : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
@@ -258,8 +264,8 @@ const AddTransaction = ({ navigation }: { navigation: any }) => {
         <View className="px-6 mb-8">
           <Text className="text-slate-500 dark:text-slate-400 font-black mb-4 text-[10px] uppercase tracking-widest">Note (Optional)</Text>
           <TextInput
-            value={note}
-            onChangeText={setNote}
+            value={form.note}
+            onChangeText={(text) => setForm(prev => ({ ...prev, note: text }))}
             placeholder="What was this for?"
             placeholderTextColor="#94a3b8"
             className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl px-5 py-4 border border-slate-100 dark:border-slate-800 font-bold shadow-sm dark:shadow-none"

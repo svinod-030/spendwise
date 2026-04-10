@@ -1,15 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, TouchableOpacity, Image, ScrollView, Dimensions, TextInput, Alert } from "react-native";
+import { useMemo, useState, useEffect } from "react";
+
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getTransactionDisplay, useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { useAuthStore } from "../store/useAuthStore";
 import {
-  Plus, Settings as SettingsIcon, ChevronRight, Calendar, Landmark,
-  TrendingUp, TrendingDown, Wallet, Pencil, Check, X,
-  Activity, Briefcase, Car, Play, RefreshCw, ShoppingBag, Utensils, Zap, Package
+  Plus, ChevronRight, Calendar, Landmark,
+  TrendingUp, Pencil, Check, X
 } from "lucide-react-native";
-import Animated, { FadeInUp, FadeInRight, useAnimatedStyle, withSpring, withTiming, interpolateColor } from "react-native-reanimated";
-import { useNavigation, useIsFocused } from "@react-navigation/native";
+import Animated, { FadeInUp, FadeInRight, useAnimatedStyle, withSpring } from "react-native-reanimated";
 
 import { IconLoader } from "../components/IconLoader";
 
@@ -67,9 +66,8 @@ const ComparisonBar = ({
   );
 };
 
-const Dashboard = () => {
-  const navigation = useNavigation<any>();
-  const isFocused = useIsFocused();
+const Dashboard = ({ navigation }: { navigation: any }) => {
+  const [isFocused, setIsFocused] = useState(true);
   const {
     transactions,
     budgets,
@@ -106,6 +104,19 @@ const Dashboard = () => {
     setIsEditingBudget(false);
     setBudgetInput("");
   };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      setIsFocused(true);
+    });
+    const unsubscribeBlur = navigation.addListener("blur", () => {
+      setIsFocused(false);
+    });
+    return () => {
+      unsubscribe();
+      unsubscribeBlur();
+    };
+  }, [navigation]);
 
   const isCurrentMonth = useMemo(() => {
     const now = new Date();
@@ -215,8 +226,8 @@ const Dashboard = () => {
                     key={m.key}
                     onPress={() => setSelectedMonth(m.key)}
                     className={`mr-3 px-6 py-2.5 rounded-2xl border ${isSelected
-                        ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20'
-                        : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
+                      ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20'
+                      : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
                       }`}
                   >
                     <Text className={`font-black uppercase tracking-tighter text-[11px] ${isSelected ? 'text-white' : 'text-slate-500'}`}>

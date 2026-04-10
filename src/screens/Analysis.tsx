@@ -4,15 +4,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore, MonthlyTrend } from "../store/useExpenseStore";
 import { LineChart, PieChart } from "react-native-gifted-charts";
 import Animated, { FadeInUp } from "react-native-reanimated";
-import { useIsFocused } from "@react-navigation/native";
 import { BarChart3, PieChart as PieIcon, Plus, Tags, TrendingUp } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 
 const screenWidth = Dimensions.get("window").width;
 const fallbackColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4"];
 
-const Analysis = () => {
-  const isFocused = useIsFocused();
+const Analysis = ({ navigation }: { navigation: any }) => {
+  const [isFocused, setIsFocused] = useState(true);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -32,8 +31,20 @@ const Analysis = () => {
   const [categorySpending, setCategorySpending] = useState<{ category_name: string; total: number; category_color?: string }[]>([]);
   const [totalExpense, setTotalExpense] = useState(0);
 
-  // Management States
   const [newCategoryName, setNewCategoryName] = useState("");
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      setIsFocused(true);
+    });
+    const unsubscribeBlur = navigation.addListener("blur", () => {
+      setIsFocused(false);
+    });
+    return () => {
+      unsubscribe();
+      unsubscribeBlur();
+    };
+  }, [navigation]);
 
   useEffect(() => {
     const load = async () => {

@@ -6,87 +6,15 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, Alert, Platform, AppState } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from "nativewind";
 import { initDatabase } from "./src/db/database";
 import { useExpenseStore } from "./src/store/useExpenseStore";
 import { checkSmsPermission, requestSmsPermissionWithStatus } from "./src/utils/smsReader";
-import Dashboard from "./src/screens/Dashboard";
-import Analysis from "./src/screens/Analysis";
-import Settings from "./src/screens/Settings";
-import AddTransaction from "./src/screens/AddTransaction";
-import Transactions from "./src/screens/Transactions";
 import UpdateModal from './src/components/UpdateModal';
 import { checkVersion, VersionCheckResult } from './src/utils/versionCheckService';
-import { Home, BarChart3, History, Settings as SettingsIcon, PlusIcon } from "lucide-react-native";
-
-const SpendWiseDarkTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: '#020617', // slate-950
-    card: '#0f172a', // slate-900
-    border: '#1e293b', // slate-800
-    primary: '#3b82f6', // blue-500
-    text: '#f8fafc', // slate-50
-  },
-};
-
-const SpendWiseLightTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: '#f8fafc', // slate-50
-    card: '#ffffff',
-    border: '#e2e8f0', // slate-200
-    primary: '#2563eb', // blue-600
-    text: '#0f172a', // slate-900
-  },
-};
-
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
-
-function TabNavigator() {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === "dark";
-
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: isDark ? "#0f172a" : "#ffffff",
-          borderTopWidth: 1,
-          borderTopColor: isDark ? "#1e293b" : "#f1f5f9",
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 8,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        tabBarActiveTintColor: isDark ? "#3b82f6" : "#2563eb",
-        tabBarInactiveTintColor: isDark ? "#64748b" : "#94a3b8",
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: "bold",
-          marginTop: -4,
-        },
-        tabBarIcon: ({ color, size }) => {
-          if (route.name === "Overview") return <Home size={size} color={color} />;
-          if (route.name === "Analysis") return <BarChart3 size={size} color={color} />;
-          if (route.name === "Transactions") return <History size={size} color={color} />;
-          if (route.name === "Settings_Tab") return <SettingsIcon size={size} color={color} />;
-          return null;
-        },
-      })}
-    >
-      <Tab.Screen name="Overview" component={Dashboard} />
-      <Tab.Screen name="Analysis" component={Analysis} />
-      <Tab.Screen name="Transactions" component={Transactions} />
-      <Tab.Screen name="Settings_Tab" component={Settings} options={{ title: "Settings" }} />
-    </Tab.Navigator>
-  );
-}
+import RootNavigator, { SpendWiseDarkTheme, SpendWiseLightTheme } from "./src/navigation/RootNavigator";
+import { navigationRef } from "./src/utils/navigationService";
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -204,28 +132,21 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer theme={isDark ? SpendWiseDarkTheme : SpendWiseLightTheme}>
-        <Stack.Navigator
-          screenOptions={{
-            headerShown: false,
-            animation: "slide_from_right",
-            contentStyle: { backgroundColor: isDark ? "#020617" : "#f8fafc" },
-          }}
-        >
-          <Stack.Screen name="Main" component={TabNavigator} />
-          <Stack.Screen name="AddTransaction" component={AddTransaction} />
-        </Stack.Navigator>
-        <StatusBar style={isDark ? "light" : "dark"} />
-        {updateInfo && (
-          <UpdateModal
-            visible={showUpdateModal}
-            onClose={() => setShowUpdateModal(false)}
-            latestVersion={updateInfo.latestVersion}
-            storeUrl={updateInfo.storeUrl}
-          />
-        )}
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <NavigationContainer ref={navigationRef} theme={isDark ? SpendWiseDarkTheme : SpendWiseLightTheme}>
+          <RootNavigator />
+          <StatusBar style={isDark ? "light" : "dark"} />
+          {updateInfo && (
+            <UpdateModal
+              visible={showUpdateModal}
+              onClose={() => setShowUpdateModal(false)}
+              latestVersion={updateInfo.latestVersion}
+              storeUrl={updateInfo.storeUrl}
+            />
+          )}
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

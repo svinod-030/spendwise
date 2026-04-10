@@ -1,13 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
 import { ArrowLeft, Clock } from "lucide-react-native";
 import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
 
-const Transactions = () => {
-  const navigation = useNavigation();
+const Transactions = ({ navigation }: { navigation: any }) => {
   const { transactions, fetchTransactions } = useExpenseStore();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | TransactionKind>("all");
