@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Delete } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
 interface CustomNumpadProps {
   onPressItem: (item: string) => void;
@@ -8,18 +9,21 @@ interface CustomNumpadProps {
 }
 
 const CustomNumpad = ({ onPressItem, onDelete }: CustomNumpadProps) => {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   const renderKey = (val: string, special?: React.ReactNode) => {
     const isBackspace = val === 'backspace';
     return (
       <TouchableOpacity
         key={val}
         onPress={() => (isBackspace ? onDelete() : onPressItem(val))}
-        className="w-[30%] aspect-[1.5] bg-slate-900 border border-slate-800 rounded-3xl items-center justify-center m-1.5 active:bg-slate-800"
+        className="w-[30%] aspect-[1.5] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl items-center justify-center m-1.5 active:bg-slate-100 dark:active:bg-slate-800 shadow-sm dark:shadow-none"
       >
         {special ? (
           special
         ) : (
-          <Text className="text-white text-2xl font-semibold">{val}</Text>
+          <Text className="text-slate-900 dark:text-white text-2xl font-black">{val}</Text>
         )}
       </TouchableOpacity>
     );
@@ -38,7 +42,7 @@ const CustomNumpad = ({ onPressItem, onDelete }: CustomNumpadProps) => {
       {renderKey('9')}
       {renderKey('.')}
       {renderKey('0')}
-      {renderKey('backspace', <Delete size={28} color="white" />)}
+      {renderKey('backspace', <Delete size={28} color={isDark ? "white" : "#64748b"} />)}
     </View>
   );
 };

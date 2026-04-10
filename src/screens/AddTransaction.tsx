@@ -74,38 +74,38 @@ const AddTransaction = ({ navigation }: any) => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-950">
-      <View className="px-6 pt-6 pb-2 bg-slate-950 border-b border-slate-900">
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
+      <View className="px-6 pt-6 pb-2 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
         <View className="flex-row items-center justify-between mb-1">
           <View className="flex-row items-center">
-            <View className="w-8 h-8 bg-blue-500 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/30">
+            <View className="w-8 h-8 bg-blue-600 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/30">
               <Wallet size={18} color="white" />
             </View>
-            <Text className="text-white text-xl font-black tracking-tighter">SpendWise</Text>
+            <Text className="text-slate-900 dark:text-white text-xl font-black tracking-tighter">SpendWise</Text>
           </View>
           <TouchableOpacity
             onPress={handleSave}
             disabled={!canSave}
-            className={`px-4 py-2 rounded-full ${canSave ? "bg-blue-600 shadow-lg shadow-blue-500/30" : "bg-slate-900 border border-slate-800"}`}
+            className={`px-4 py-2 rounded-full ${canSave ? "bg-blue-600 shadow-lg shadow-blue-500/30" : "bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"}`}
           >
-            <Text className={`font-bold text-xs uppercase tracking-widest ${canSave ? "text-white" : "text-slate-600"}`}>Save</Text>
+            <Text className={`font-bold text-xs uppercase tracking-widest ${canSave ? "text-white" : "text-slate-400 dark:text-slate-600"}`}>Save</Text>
           </TouchableOpacity>
         </View>
         <View className="flex-row items-center mt-2">
           <TouchableOpacity onPress={() => navigation.goBack()} className="p-1 -ml-1 mr-2">
-            <ArrowLeft size={16} color="#94a3b8" />
+            <ArrowLeft size={16} color="#64748b" />
           </TouchableOpacity>
           <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">New Transaction</Text>
         </View>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* Amount Display */}
-        <View className="items-center justify-center py-12 pb-6">
-          <Text className="text-slate-500 font-medium mb-2 uppercase tracking-widest text-xs">Amount</Text>
+        <View className="items-center justify-center py-10 pb-6">
+          <Text className="text-slate-500 dark:text-slate-400 font-medium mb-2 uppercase tracking-widest text-[10px]">Amount</Text>
           <View className="flex-row items-center">
-            <Text className={`text-4xl mr-1 ${amountColorClasses[selectedKind]}`}>$</Text>
-            <Text className={`text-6xl font-bold ${amountColorClasses[selectedKind]}`}>{amountStr}</Text>
+            <Text className={`text-4xl mr-1 font-black ${amountColorClasses[selectedKind]}`}>$</Text>
+            <Text className={`text-6xl font-black ${amountColorClasses[selectedKind]}`}>{amountStr}</Text>
           </View>
         </View>
 
@@ -117,19 +117,19 @@ const AddTransaction = ({ navigation }: any) => {
 
         {/* Date & Time Selector */}
         <View className="px-6 mb-8">
-          <Text className="text-slate-400 font-semibold mb-4 text-sm uppercase tracking-wide">Date & Time</Text>
+          <Text className="text-slate-500 dark:text-slate-400 font-black mb-4 text-[10px] uppercase tracking-widest">Date & Time</Text>
           <View className="flex-row gap-4">
             <TouchableOpacity
               onPress={() => setShowDatePicker(true)}
-              className="flex-1 bg-slate-900 rounded-2xl px-5 py-4 border border-slate-800"
+              className="flex-1 bg-white dark:bg-slate-900 rounded-2xl px-5 py-4 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
             >
-              <Text className="text-white font-medium">{date.toLocaleDateString()}</Text>
+              <Text className="text-slate-900 dark:text-white font-bold">{date.toLocaleDateString()}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowTimePicker(true)}
-              className="flex-1 bg-slate-900 rounded-2xl px-5 py-4 border border-slate-800"
+              className="flex-1 bg-white dark:bg-slate-900 rounded-2xl px-5 py-4 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
             >
-              <Text className="text-white font-medium">
+              <Text className="text-slate-900 dark:text-white font-bold">
                 {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </TouchableOpacity>
@@ -173,78 +173,84 @@ const AddTransaction = ({ navigation }: any) => {
 
         {/* Type Selector */}
         <View className="px-6 mb-8">
-          <Text className="text-slate-400 font-semibold mb-4 text-sm uppercase tracking-wide">Type</Text>
-          <View className="bg-slate-900 rounded-2xl flex-row p-1 border border-slate-800">
-            {(["expense", "income", "refund", "transfer"] as const).map((kind) => (
-              <TouchableOpacity
-                key={kind}
-                onPress={() => setSelectedKind(kind)}
-                className={`flex-1 py-3 items-center justify-center rounded-xl ${selectedKind === kind ? "bg-slate-800 shadow-md" : ""
-                  }`}
-              >
-                <Text
-                  className={`capitalize font-semibold ${selectedKind === kind ? amountColorClasses[kind] : "text-slate-500"
+          <Text className="text-slate-500 dark:text-slate-400 font-black mb-4 text-[10px] uppercase tracking-widest">Type</Text>
+          <View className="bg-white dark:bg-slate-900 rounded-2xl flex-row p-1 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none">
+            {(["expense", "income", "refund", "transfer"] as const).map((kind) => {
+              const isActive = selectedKind === kind;
+              return (
+                <TouchableOpacity
+                  key={kind}
+                  onPress={() => setSelectedKind(kind)}
+                  className={`flex-1 py-3 items-center justify-center rounded-xl ${isActive ? "bg-slate-100 dark:bg-slate-800 shadow-sm" : ""
                     }`}
                 >
-                  {kind}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    className={`capitalize font-black text-xs ${isActive ? amountColorClasses[kind] : "text-slate-400"
+                      }`}
+                  >
+                    {kind}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
         {/* Category Selector */}
         <View className="px-6 mb-8">
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-slate-400 font-semibold text-sm uppercase tracking-wide">Category</Text>
-            {selectedCategoryId === null && <Text className="text-rose-500 text-xs">Required</Text>}
+            <Text className="text-slate-500 dark:text-slate-400 font-black text-[10px] uppercase tracking-widest">Category</Text>
+            {selectedCategoryId === null && <Text className="text-rose-500 text-[10px] font-black uppercase">Required</Text>}
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
             <View className="flex-row pb-2 pr-6">
-              {categories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  onPress={() => setSelectedCategoryId(category.id)}
-                  className={`w-28 h-28 mr-3 rounded-3xl p-4 justify-between border ${selectedCategoryId === category.id
-                    ? "bg-blue-500/20 border-blue-500/50"
-                    : "bg-slate-900 border-slate-800"
-                    }`}
-                >
-                  <View
-                    className="w-10 h-10 rounded-full items-center justify-center"
-                    style={{ backgroundColor: `${category.color ?? "#4D96FF"}20` }}
+              {categories.map((category) => {
+                const isSelected = selectedCategoryId === category.id;
+                return (
+                  <TouchableOpacity
+                    key={category.id}
+                    onPress={() => setSelectedCategoryId(category.id)}
+                    className={`w-28 h-28 mr-3 rounded-3xl p-4 justify-between border ${isSelected
+                      ? "bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20"
+                      : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
+                      }`}
                   >
-                    <Text className="text-lg">{category.icon === "utensils" ? "🍴" : "📦"}</Text>
-                  </View>
-                  <View>
-                    {selectedCategoryId === category.id && (
-                      <View className="absolute right-0 bottom-6">
-                        <CheckCircle2 size={16} color="#60a5fa" />
-                      </View>
-                    )}
-                    <Text
-                      className={`font-semibold mt-2 ${selectedCategoryId === category.id ? "text-blue-400" : "text-slate-300"
-                        }`}
-                      numberOfLines={1}
+                    <View
+                      className="w-10 h-10 rounded-full items-center justify-center"
+                      style={{ backgroundColor: `${category.color ?? "#3b82f6"}15` }}
                     >
-                      {category.name}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                      <Text className="text-lg">{category.icon === "utensils" ? "🍴" : "📦"}</Text>
+                    </View>
+                    <View>
+                      {isSelected && (
+                        <View className="absolute right-0 bottom-6">
+                          <CheckCircle2 size={16} color="white" />
+                        </View>
+                      )}
+                      <Text
+                        className={`font-black text-[11px] uppercase tracking-tight ${isSelected ? "text-white" : "text-slate-700 dark:text-slate-300"
+                          }`}
+                        numberOfLines={1}
+                      >
+                        {category.name}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </ScrollView>
         </View>
 
         {/* Note */}
         <View className="px-6 mb-8">
-          <Text className="text-slate-400 font-semibold mb-4 text-sm uppercase tracking-wide">Note (Optional)</Text>
+          <Text className="text-slate-500 dark:text-slate-400 font-black mb-4 text-[10px] uppercase tracking-widest">Note (Optional)</Text>
           <TextInput
             value={note}
             onChangeText={setNote}
             placeholder="What was this for?"
-            placeholderTextColor="#64748b"
-            className="bg-slate-900 text-white rounded-2xl px-5 py-4 border border-slate-800 font-medium"
+            placeholderTextColor="#94a3b8"
+            className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl px-5 py-4 border border-slate-100 dark:border-slate-800 font-bold shadow-sm dark:shadow-none"
           />
         </View>
       </ScrollView>

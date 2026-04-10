@@ -6,12 +6,16 @@ import { LineChart, PieChart } from "react-native-gifted-charts";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { useIsFocused } from "@react-navigation/native";
 import { BarChart3, PieChart as PieIcon, Plus, Tags, TrendingUp } from "lucide-react-native";
+import { useColorScheme } from "nativewind";
 
 const screenWidth = Dimensions.get("window").width;
 const fallbackColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4"];
 
 const Analysis = () => {
   const isFocused = useIsFocused();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   const {
     categories,
     budgets,
@@ -27,7 +31,7 @@ const Analysis = () => {
   const [trendData, setTrendData] = useState<MonthlyTrend[]>([]);
   const [categorySpending, setCategorySpending] = useState<{ category_name: string; total: number; category_color?: string }[]>([]);
   const [totalExpense, setTotalExpense] = useState(0);
-  
+
   // Management States
   const [newCategoryName, setNewCategoryName] = useState("");
 
@@ -71,33 +75,32 @@ const Analysis = () => {
   const pieData = categorySpending.map((cat, index) => ({
     value: cat.total,
     color: cat.category_color || fallbackColors[index % fallbackColors.length],
-    text: `${Math.round((cat.total / Math.max(1, totalExpense)) * 100)}%`,
   }));
 
   const budgetProgress = monthlyBudget ? Math.min((totalExpense / monthlyBudget.limit_amount) * 100, 100) : 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-950">
-      <View className="px-6 pt-6 pb-2 bg-slate-950 border-b border-slate-900">
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
+      <View className="px-6 pt-6 pb-2 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
         <View className="flex-row items-center mb-1">
           <View className="w-8 h-8 bg-emerald-500 rounded-xl items-center justify-center mr-3 shadow-lg shadow-emerald-500/30">
             <TrendingUp size={18} color="white" />
           </View>
-          <Text className="text-white text-xl font-black tracking-tighter">SpendWise</Text>
+          <Text className="text-slate-900 dark:text-white text-xl font-black tracking-tighter">SpendWise</Text>
         </View>
         <Text className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">Analysis Hub</Text>
       </View>
 
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 16, paddingBottom: 120 }}>
         <Animated.View entering={FadeInUp}>
-          
+
           {/* Trends Section */}
-          <View className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 mb-6">
+          <View className="bg-white dark:bg-slate-900/60 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 mb-6 shadow-sm dark:shadow-none">
             <View className="flex-row items-center mb-6">
               <BarChart3 size={20} color="#f43f5e" />
-              <Text className="text-slate-400 font-bold text-xs uppercase tracking-wider ml-2">Spending Trends</Text>
+              <Text className="text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider ml-2">Spending Trends</Text>
             </View>
-            
+
             {lineChartData.length > 0 ? (
               <View className="items-center -ml-4">
                 <LineChart
@@ -110,8 +113,8 @@ const Analysis = () => {
                   xAxisThickness={0}
                   yAxisThickness={0}
                   yAxisLabelPrefix="$"
-                  yAxisTextStyle={{ color: '#64748b', fontSize: 10 }}
-                  xAxisLabelTextStyle={{ color: '#64748b', fontSize: 10 }}
+                  yAxisTextStyle={{ color: isDark ? '#64748b' : '#94a3b8', fontSize: 10 }}
+                  xAxisLabelTextStyle={{ color: isDark ? '#64748b' : '#94a3b8', fontSize: 10 }}
                   noOfSections={3}
                   isAnimated
                   initialSpacing={20}
@@ -129,10 +132,10 @@ const Analysis = () => {
           </View>
 
           {/* Categories Breakdown Section */}
-          <View className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 mb-6">
+          <View className="bg-white dark:bg-slate-900/60 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 mb-6 shadow-sm dark:shadow-none">
             <View className="flex-row items-center mb-6">
               <PieIcon size={20} color="#10b981" />
-              <Text className="text-slate-400 font-bold text-xs uppercase tracking-wider ml-2">Spending Breakdown</Text>
+              <Text className="text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider ml-2">Spending Breakdown</Text>
             </View>
 
             {pieData.length > 0 ? (
@@ -140,18 +143,16 @@ const Analysis = () => {
                 <PieChart
                   data={pieData}
                   donut
-                  showText
                   textColor="white"
                   radius={100}
                   innerRadius={70}
                   textSize={12}
-                  showTextBackground
-                  textBackgroundRadius={14}
-                  innerCircleColor="#0f172a"
+                  innerCircleColor={isDark ? "#0f172a" : "#ffffff"}
+                  backgroundColor={isDark ? "transparent" : "#ffffff"}
                   centerLabelComponent={() => (
                     <View className="items-center justify-center">
                       <Text className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Total</Text>
-                      <Text className="text-white font-black text-lg">${totalExpense.toFixed(0)}</Text>
+                      <Text className="text-slate-900 dark:text-white font-black text-lg">${totalExpense.toFixed(0)}</Text>
                     </View>
                   )}
                 />
@@ -164,14 +165,14 @@ const Analysis = () => {
               {categorySpending.map((item, index) => (
                 <View key={item.category_name + index} className="flex-row items-center justify-between mb-4 last:mb-0">
                   <View className="flex-row items-center flex-1 mr-4">
-                    <View 
-                      className="w-3 h-3 rounded-full mr-3" 
-                      style={{ backgroundColor: item.category_color || fallbackColors[index % fallbackColors.length] }} 
+                    <View
+                      className="w-3 h-3 rounded-full mr-3"
+                      style={{ backgroundColor: item.category_color || fallbackColors[index % fallbackColors.length] }}
                     />
-                    <Text className="text-slate-200 font-bold" numberOfLines={1}>{item.category_name}</Text>
+                    <Text className="text-slate-700 dark:text-slate-200 font-bold" numberOfLines={1}>{item.category_name}</Text>
                   </View>
                   <View className="items-end">
-                    <Text className="text-white font-black">${item.total.toFixed(0)}</Text>
+                    <Text className="text-slate-900 dark:text-white font-black">${item.total.toFixed(0)}</Text>
                     <Text className="text-[10px] text-slate-500 font-bold">
                       {Math.round((item.total / Math.max(1, totalExpense)) * 100)}%
                     </Text>
@@ -182,10 +183,10 @@ const Analysis = () => {
           </View>
 
           {/* Section 4: Category Management */}
-          <View className="bg-slate-900/60 p-5 rounded-3xl border border-slate-800 mb-6">
+          <View className="bg-white dark:bg-slate-900/60 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 mb-6 shadow-sm dark:shadow-none">
             <View className="flex-row items-center mb-6">
               <Tags size={20} color="#8b5cf6" />
-              <Text className="text-slate-400 font-bold text-xs uppercase tracking-wider ml-2">Manage Categories</Text>
+              <Text className="text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider ml-2">Manage Categories</Text>
             </View>
 
             <View className="flex-row items-center mb-6">
@@ -193,19 +194,19 @@ const Analysis = () => {
                 value={newCategoryName}
                 onChangeText={setNewCategoryName}
                 placeholder="New category name..."
-                placeholderTextColor="#64748b"
-                className="flex-1 bg-slate-800/80 text-white rounded-2xl px-4 py-3 mr-3 font-medium border border-slate-700/50"
+                placeholderTextColor="#94a3b8"
+                className="flex-1 bg-slate-100 dark:bg-slate-800/80 text-slate-900 dark:text-white rounded-2xl px-4 py-3 mr-3 font-medium border border-slate-200 dark:border-slate-700/50"
               />
-              <TouchableOpacity onPress={handleAddCategory} className="bg-slate-800 rounded-2xl w-12 h-12 items-center justify-center border border-slate-700">
+              <TouchableOpacity onPress={handleAddCategory} className="bg-slate-100 dark:bg-slate-800 rounded-2xl w-12 h-12 items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none">
                 <Plus size={24} color="#3b82f6" />
               </TouchableOpacity>
             </View>
 
             <View className="flex-row flex-wrap">
               {categories.map((category, index) => (
-                <View key={category.id || index} className="px-3 py-1.5 bg-slate-800/40 rounded-xl mr-2 mb-2 border border-slate-800/60 flex-row items-center">
+                <View key={category.id || index} className="px-3 py-1.5 bg-slate-100/50 dark:bg-slate-800/40 rounded-xl mr-2 mb-2 border border-slate-200 dark:border-slate-800/60 flex-row items-center">
                   <View className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: category.color || fallbackColors[index % fallbackColors.length] }} />
-                  <Text className="text-slate-400 text-[11px] font-bold">{category.name}</Text>
+                  <Text className="text-slate-500 dark:text-slate-400 text-[11px] font-bold">{category.name}</Text>
                 </View>
               ))}
             </View>

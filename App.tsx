@@ -1,13 +1,15 @@
 import "./global.css";
 import React, { useEffect, useState } from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, Alert, Linking, Platform, AppState } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useColorScheme } from "nativewind";
 import { initDatabase } from "./src/db/database";
 import { useExpenseStore } from "./src/store/useExpenseStore";
+import { useThemeStore } from "./src/store/useThemeStore";
 import { checkSmsPermission, requestSmsPermissionWithStatus } from "./src/utils/smsReader";
 import Dashboard from "./src/screens/Dashboard";
 import Analysis from "./src/screens/Analysis";
@@ -18,24 +20,53 @@ import UpdateModal from './src/components/UpdateModal';
 import { checkVersion, VersionCheckResult } from './src/utils/versionCheckService';
 import { Home, BarChart3, History, Settings as SettingsIcon } from "lucide-react-native";
 
+const SpendWiseDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#020617', // slate-950
+    card: '#0f172a', // slate-900
+    border: '#1e293b', // slate-800
+    primary: '#3b82f6', // blue-500
+    text: '#f8fafc', // slate-50
+  },
+};
+
+const SpendWiseLightTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: '#f8fafc', // slate-50
+    card: '#ffffff',
+    border: '#e2e8f0', // slate-200
+    primary: '#2563eb', // blue-600
+    text: '#0f172a', // slate-900
+  },
+};
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function TabNavigator() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#0f172a', // slate-900
+          backgroundColor: isDark ? '#0f172a' : '#ffffff',
           borderTopWidth: 1,
-          borderTopColor: '#1e293b', // slate-800
+          borderTopColor: isDark ? '#1e293b' : '#f1f5f9',
           height: 64,
           paddingBottom: 8,
           paddingTop: 8,
+          elevation: 0,
+          shadowOpacity: 0,
         },
-        tabBarActiveTintColor: '#3b82f6', // blue-500
-        tabBarInactiveTintColor: '#64748b', // slate-500
+        tabBarActiveTintColor: isDark ? '#3b82f6' : '#2563eb',
+        tabBarInactiveTintColor: isDark ? '#64748b' : '#94a3b8',
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: 'bold',
@@ -81,6 +112,10 @@ export default function App() {
   const [didRunLaunchImport, setDidRunLaunchImport] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<VersionCheckResult | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  
+  const { theme } = useThemeStore();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   useEffect(() => {
     async function setup() {
@@ -180,24 +215,24 @@ export default function App() {
   return (
     <SafeAreaProvider>
       {!isReady ? (
-        <View className="flex-1 bg-slate-950 items-center justify-center">
-          <ActivityIndicator size="large" color="#4D96FF" />
-          <StatusBar style="light" />
+        <View className="flex-1 bg-white dark:bg-slate-950 items-center justify-center">
+          <ActivityIndicator size="large" color="#3b82f6" />
+          <StatusBar style={isDark ? "light" : "dark"} />
         </View>
       ) : (
-        <NavigationContainer>
+        <NavigationContainer theme={isDark ? SpendWiseDarkTheme : SpendWiseLightTheme}>
           <Stack.Navigator
             screenOptions={{
               headerShown: false,
               animation: 'slide_from_right',
-              contentStyle: { backgroundColor: '#020617' }
+              contentStyle: { backgroundColor: isDark ? '#020617' : '#f8fafc' }
             }}
           >
             <Stack.Screen name="Main" component={TabNavigator} />
             <Stack.Screen name="AddTransaction" component={AddTransaction} options={{ presentation: 'modal' }} />
             <Stack.Screen name="Settings" component={Settings} />
           </Stack.Navigator>
-          <StatusBar style="light" />
+          <StatusBar style={isDark ? "light" : "dark"} />
           {updateInfo && (
             <UpdateModal
               visible={showUpdateModal}
