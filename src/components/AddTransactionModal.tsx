@@ -3,9 +3,10 @@ import {
   Alert, Modal, ScrollView, Text, TextInput,
   TouchableOpacity, View, Platform,
   KeyboardAvoidingView,
+  Switch,
 } from "react-native";
-import { X, Calendar, Clock, ChevronRight, Eraser } from "lucide-react-native";
-import { getTransactionDisplay, useExpenseStore } from "../store/useExpenseStore";
+import { X, Calendar, Clock, ChevronRight, Eraser, Trash2, EyeOff } from "lucide-react-native";
+import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { IconLoader } from "./IconLoader";
@@ -18,26 +19,31 @@ interface TransactionForm {
   kind: TransactionKind;
   categoryId: number | null;
   date: Date;
+  isExcluded: boolean;
 }
 
 interface AddTransactionProps {
   visible: boolean;
   onClose: () => void;
+  editingTransaction?: Transaction | null;
 }
 
 const INITIAL_FORM: TransactionForm = {
-  amount: "10",
+  amount: "0",
   note: "",
   kind: "expense",
   categoryId: 4, // Default to a common category like Food or Misc
   date: new Date(),
+  isExcluded: false,
 };
 
-const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
+const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransactionProps) => {
   const bottomPadding = Platform.OS === 'ios' ? 34 : 20;
   const categories = useExpenseStore((state) => state.categories);
   const fetchCategories = useExpenseStore((state) => state.fetchCategories);
   const addTransaction = useExpenseStore((state) => state.addTransaction);
+  const updateTransaction = useExpenseStore((state) => state.updateTransaction);
+  const deleteTransaction = useExpenseStore((state) => state.deleteTransaction);
 
   const [form, setForm] = useState<TransactionForm>(INITIAL_FORM);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -46,9 +52,20 @@ const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
   useEffect(() => {
     if (visible) {
       fetchCategories();
-      setForm({ ...INITIAL_FORM, date: new Date() });
+      if (editingTransaction) {
+        setForm({
+          amount: String(editingTransaction.amount),
+          note: editingTransaction.note || "",
+          kind: editingTransaction.kind || (editingTransaction.type === "income" ? "income" : "expense"),
+          categoryId: editingTransaction.category_id,
+          date: new Date(editingTransaction.date),
+          isExcluded: editingTransaction.is_excluded === 1,
+        });
+      } else {
+        setForm({ ...INITIAL_FORM, date: new Date() });
+      }
     }
-  }, [visible, fetchCategories]);
+  }, [visible, fetchCategories, editingTransaction]);
 
   const canSave = useMemo(() => {
     const parsed = parseFloat(form.amount);
@@ -69,18 +86,44 @@ const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
 
     try {
       const type = form.kind === "expense" || form.kind === "transfer" ? "expense" : "income";
-      await addTransaction({
+      const payload = {
         category_id: form.categoryId,
         amount: parsedAmount,
-        type,
+        type: type as any,
         kind: form.kind,
         date: form.date.toISOString(),
         note: form.note.trim(),
-      });
+        is_excluded: form.isExcluded ? 1 : 0,
+      };
+
+      if (editingTransaction) {
+        await updateTransaction(editingTransaction.id, payload);
+      } else {
+        await addTransaction(payload);
+      }
       onClose();
     } catch {
       Alert.alert("Error", "Unable to save transaction.");
     }
+  };
+
+  const handleDelete = () => {
+    if (!editingTransaction) return;
+    Alert.alert(
+      "Delete Transaction",
+      "Are you sure you want to remove this record? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteTransaction(editingTransaction.id);
+            onClose();
+          }
+        }
+      ]
+    );
   };
 
   const handleAmountChange = (text: string) => {
@@ -108,9 +151,15 @@ const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
             <X size={24} color="#64748b" />
           </TouchableOpacity>
           <Text className="text-slate-900 dark:text-white text-lg font-black italic uppercase tracking-tighter">
-            New Record
+            {editingTransaction ? "Edit Record" : "New Record"}
           </Text>
-          <View className="w-10" />
+          {editingTransaction ? (
+            <TouchableOpacity onPress={handleDelete} className="p-2 -mr-2">
+              <Trash2 size={24} color="#f43f5e" />
+            </TouchableOpacity>
+          ) : (
+            <View className="w-10" />
+          )}
         </View>
 
         <KeyboardAvoidingView
@@ -132,7 +181,7 @@ const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
                   placeholder="0"
                   placeholderTextColor="#cbd5e1"
                   keyboardType="decimal-pad"
-                  autoFocus
+                  autoFocus={!editingTransaction}
                   className={`text-6xl font-black ${activeKindStyles.colorClass} min-w-[50px]`}
                 />
                 {form.amount !== "0" && form.amount !== "" && (
@@ -167,6 +216,24 @@ const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
 
             {/* Main Form Fields */}
             <View className="px-6 space-y-6">
+              {/* Exclusion Toggle */}
+              <View className="flex-row items-center justify-between bg-slate-50 dark:bg-slate-900 px-5 py-4 rounded-3xl border border-slate-100 dark:border-slate-800">
+                <View className="flex-row items-center flex-1 mr-4">
+                  <View className="w-10 h-10 bg-slate-200 dark:bg-slate-800 rounded-2xl items-center justify-center mr-3">
+                    <EyeOff size={18} color={form.isExcluded ? "#f43f5e" : "#64748b"} />
+                  </View>
+                  <View>
+                    <Text className="text-slate-900 dark:text-white font-black text-xs uppercase">Not an Expense</Text>
+                    <Text className="text-slate-500 text-[10px] font-bold">Exclude from monthly totals</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={form.isExcluded}
+                  onValueChange={(val) => setForm(p => ({ ...p, isExcluded: val }))}
+                  trackColor={{ false: '#cbd5e1', true: '#ef4444' }}
+                />
+              </View>
+
               {/* Category Section */}
               <View className="pb-6">
                 <View className="flex-row justify-between items-end mb-4 px-1">
@@ -181,7 +248,7 @@ const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
                         <TouchableOpacity
                           key={cat.id}
                           onPress={() => setForm(p => ({ ...p, categoryId: cat.id }))}
-                          className={`flex-row items-center px-2 py-1 rounded-2xl border ${isSelected
+                          className={`flex-row items-center px-4 py-3 rounded-2xl border ${isSelected
                             ? "bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20"
                             : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-800"}`}
                         >
@@ -191,7 +258,6 @@ const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
                           <Text className={`font-black text-xs uppercase tracking-tight ${isSelected ? "text-white" : "text-slate-700 dark:text-slate-300"}`}>
                             {cat.name}
                           </Text>
-                          {isSelected && <View className="ml-2 w-1.5 h-1.5 rounded-full bg-white" />}
                         </TouchableOpacity>
                       );
                     })}
@@ -283,7 +349,7 @@ const AddTransactionModal = ({ visible, onClose }: AddTransactionProps) => {
               className={`w-full py-5 rounded-[24px] flex-row items-center justify-center space-x-3 ${canSave ? "bg-blue-600 shadow-xl shadow-blue-500/40" : "bg-slate-100 dark:bg-slate-900"}`}
             >
               <Text className={`font-black text-sm uppercase tracking-[3px] ${canSave ? "text-white" : "text-slate-400 dark:text-slate-500"}`}>
-                Save Transaction
+                {editingTransaction ? "Update Record" : "Save Record"}
               </Text>
               {canSave && <ChevronRight size={18} color="white" />}
             </TouchableOpacity>

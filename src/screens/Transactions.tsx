@@ -4,11 +4,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowLeft, Clock } from "lucide-react-native";
 import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
+import { IconLoader } from "../components/IconLoader";
+import AddTransactionModal from "../components/AddTransactionModal";
 
 const Transactions = ({ navigation }: { navigation: any }) => {
   const { transactions, fetchTransactions } = useExpenseStore();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | TransactionKind>("all");
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
@@ -18,12 +23,12 @@ const Transactions = ({ navigation }: { navigation: any }) => {
   const months = useMemo(() => {
     const result = [];
     for (let i = 0; i < 12; i++) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleString('default', { month: 'short' });
-      const year = d.getFullYear();
-      result.push({ key, label, year });
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const label = d.toLocaleString('default', { month: 'short' });
+        const year = d.getFullYear();
+        result.push({ key, label, year });
     }
     return result;
   }, []);
@@ -31,6 +36,11 @@ const Transactions = ({ navigation }: { navigation: any }) => {
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions]);
+
+  const handleEditTransaction = (tx: Transaction) => {
+    setEditingTransaction(tx);
+    setShowEditModal(true);
+  };
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -54,18 +64,30 @@ const Transactions = ({ navigation }: { navigation: any }) => {
   const renderItem = ({ item }: { item: Transaction }) => {
     const display = getTransactionDisplay(item);
     return (
-      <View className="flex-row items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl mb-3 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none">
-        <View className="flex-1">
-          <Text className="text-slate-900 dark:text-white font-semibold">{item.note || item.category_name || "Transaction"}</Text>
-          <Text className="text-slate-500 dark:text-slate-400 text-xs mt-1">{new Date(item.date).toLocaleString()}</Text>
+      <TouchableOpacity 
+        onPress={() => handleEditTransaction(item)}
+        activeOpacity={0.7}
+        className="flex-row items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl mb-3 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
+      >
+        <View className="flex-row items-center flex-1">
+          <View className="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-xl items-center justify-center mr-3">
+             <IconLoader name={display.icon} size={18} color="#64748b" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-slate-900 dark:text-white font-semibold leading-5 text-sm">
+                {item.note || item.category_name || "Transaction"}
+                {item.is_excluded === 1 && <Text className="text-rose-500 text-[10px] italic font-bold"> (Hidden)</Text>}
+            </Text>
+            <Text className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">{new Date(item.date).toLocaleString()}</Text>
+          </View>
         </View>
         <View className="items-end">
-          <Text className={`font-bold ${display.colorClass}`}>
+          <Text className={`font-black italic text-base tracking-tighter ${item.is_excluded === 1 ? 'text-slate-400 line-through' : display.colorClass}`}>
             {display.sign}${item.amount.toFixed(2)}
           </Text>
-          <Text className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">{display.label}</Text>
+          <Text className="text-[9px] uppercase font-bold tracking-widest text-slate-500 mt-0.5">{display.label}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -139,6 +161,15 @@ const Transactions = ({ navigation }: { navigation: any }) => {
         renderItem={renderItem}
         contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+      />
+
+      <AddTransactionModal
+        visible={showEditModal}
+        onClose={() => {
+            setShowEditModal(false);
+            setEditingTransaction(null);
+        }}
+        editingTransaction={editingTransaction}
       />
     </SafeAreaView>
   );

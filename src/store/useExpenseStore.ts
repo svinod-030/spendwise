@@ -29,6 +29,7 @@ export interface Transaction {
   category_name?: string;
   category_color?: string;
   category_icon?: string;
+  is_excluded?: number;
 }
 
 export interface Budget {
@@ -64,6 +65,7 @@ interface ExpenseState {
   fetchCategories: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
+  updateTransaction: (id: number, transaction: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: number) => Promise<void>;
   addCategory: (category: Omit<Category, "id">) => Promise<void>;
   fetchBudgets: () => Promise<void>;
@@ -109,8 +111,31 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const db = await getDb();
     const kind = transaction.kind ?? (transaction.type === "income" ? "income" : "expense");
     await db.runAsync(
-      "INSERT INTO transactions (category_id, amount, type, kind, date, note) VALUES (?, ?, ?, ?, ?, ?)",
-      [transaction.category_id, transaction.amount, transaction.type, kind, transaction.date, transaction.note]
+      "INSERT INTO transactions (category_id, amount, type, kind, date, note, is_excluded) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [transaction.category_id, transaction.amount, transaction.type, kind, transaction.date, transaction.note, transaction.is_excluded || 0]
+    );
+    await get().fetchTransactions();
+  },
+
+  updateTransaction: async (id, transaction) => {
+    const db = await getDb();
+    const sets: string[] = [];
+    const params: any[] = [];
+    
+    if (transaction.category_id !== undefined) { sets.push("category_id = ?"); params.push(transaction.category_id); }
+    if (transaction.amount !== undefined) { sets.push("amount = ?"); params.push(transaction.amount); }
+    if (transaction.type !== undefined) { sets.push("type = ?"); params.push(transaction.type); }
+    if (transaction.kind !== undefined) { sets.push("kind = ?"); params.push(transaction.kind); }
+    if (transaction.date !== undefined) { sets.push("date = ?"); params.push(transaction.date); }
+    if (transaction.note !== undefined) { sets.push("note = ?"); params.push(transaction.note); }
+    if (transaction.is_excluded !== undefined) { sets.push("is_excluded = ?"); params.push(transaction.is_excluded); }
+
+    if (sets.length === 0) return;
+    
+    params.push(id);
+    await db.runAsync(
+      `UPDATE transactions SET ${sets.join(", ")} WHERE id = ?`,
+      params
     );
     await get().fetchTransactions();
   },
@@ -168,6 +193,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       `SELECT COALESCE(SUM(amount), 0) as total
        FROM transactions
        WHERE kind = 'expense'
+       AND is_excluded = 0
        AND date >= ${dateQuery}
        AND date < date(${dateQuery}, '+1 month')`
     );
@@ -181,6 +207,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       `SELECT COALESCE(SUM(amount), 0) as total
        FROM transactions
        WHERE (kind = 'income' OR kind = 'refund')
+       AND is_excluded = 0
        AND date >= ${dateQuery}
        AND date < date(${dateQuery}, '+1 month')`
     );
@@ -195,6 +222,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
        FROM transactions t
        LEFT JOIN categories c ON c.id = t.category_id
        WHERE t.kind = 'expense'
+       AND t.is_excluded = 0
        AND t.date >= ${dateQuery}
        AND t.date < date(${dateQuery}, '+1 month')
        GROUP BY t.category_id, c.name, c.color
@@ -208,7 +236,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const rows = await db.getAllAsync<MonthlyTrend>(
       `SELECT strftime('%Y-%m', date) as month, COALESCE(SUM(amount), 0) as total
        FROM transactions
-       WHERE kind = 'expense'
+       WHERE kind = 'expense' AND is_excluded = 0
        GROUP BY month
        ORDER BY month ASC`
     );

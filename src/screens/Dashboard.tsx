@@ -69,6 +69,17 @@ const ComparisonBar = ({
 const Dashboard = ({ navigation }: { navigation: any }) => {
   const [isFocused, setIsFocused] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
+  const handleEditTransaction = (tx: Transaction) => {
+    setEditingTransaction(tx);
+    setShowAddModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowAddModal(false);
+    setEditingTransaction(null);
+  };
   const {
     transactions,
     budgets,
@@ -184,26 +195,34 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
       <Animated.View
         key={item.id}
         entering={FadeInRight.delay(index * 50)}
-        className="flex-row items-center justify-between py-4 border-b border-slate-100 dark:border-slate-900/50"
       >
-        <View className="flex-row items-center flex-1">
-          <View
-            className="w-12 h-12 rounded-2xl items-center justify-center border border-slate-200 dark:border-slate-800"
-            style={{ backgroundColor: `${item.category_color ?? "#3b82f6"}15` }}
-          >
-            <IconLoader name={display.icon} size={20} color={item.category_color ?? "#3b82f6"} />
+        <TouchableOpacity 
+          activeOpacity={0.7}
+          onPress={() => handleEditTransaction(item)}
+          className="flex-row items-center justify-between py-4 border-b border-slate-100 dark:border-slate-900/50"
+        >
+          <View className="flex-row items-center flex-1">
+            <View
+              className="w-12 h-12 rounded-2xl items-center justify-center border border-slate-200 dark:border-slate-800"
+              style={{ backgroundColor: `${item.category_color ?? "#3b82f6"}15` }}
+            >
+              <IconLoader name={display.icon} size={20} color={item.category_color ?? "#3b82f6"} />
+            </View>
+            <View className="ml-4 flex-1">
+              <Text className="text-slate-900 dark:text-slate-100 font-bold text-base leading-5">
+                {item.note || item.category_name || "Transaction"}
+                {item.is_excluded === 1 && <Text className="text-rose-500 text-[10px] italic font-bold"> (Hidden)</Text>}
+              </Text>
+              <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">{new Date(item.date).toLocaleDateString()}</Text>
+            </View>
           </View>
-          <View className="ml-4 flex-1">
-            <Text className="text-slate-900 dark:text-slate-100 font-bold text-base leading-5">{item.note || item.category_name || "Transaction"}</Text>
-            <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">{new Date(item.date).toLocaleDateString()}</Text>
+          <View className="items-end">
+            <Text className={`font-black text-base ${item.is_excluded === 1 ? 'text-slate-400 line-through' : display.colorClass}`}>
+              {display.sign}${item.amount.toFixed(2)}
+            </Text>
+            <Text className="text-[9px] uppercase font-bold tracking-widest text-slate-600 mt-0.5">{display.label}</Text>
           </View>
-        </View>
-        <View className="items-end">
-          <Text className={`font-black text-base ${display.colorClass}`}>
-            {display.sign}${item.amount.toFixed(2)}
-          </Text>
-          <Text className="text-[9px] uppercase font-bold tracking-widest text-slate-600 mt-0.5">{display.label}</Text>
-        </View>
+        </TouchableOpacity>
       </Animated.View>
     );
   };
@@ -395,10 +414,8 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
 
       <AddTransactionModal
         visible={showAddModal}
-        onClose={() => {
-          setShowAddModal(false);
-          fetchTransactions();
-        }}
+        onClose={handleCloseModal}
+        editingTransaction={editingTransaction}
       />
     </SafeAreaView>
   );
