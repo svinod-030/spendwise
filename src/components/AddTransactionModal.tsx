@@ -1,15 +1,30 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Modal, ScrollView, Text, TextInput,
+  Alert, Text, TextInput,
   TouchableOpacity, View, Platform,
   KeyboardAvoidingView,
   Switch,
+  Dimensions,
+  StyleSheet,
+  Pressable,
 } from "react-native";
 import { X, Calendar, Clock, ChevronRight, Eraser, Trash2, EyeOff } from "lucide-react-native";
 import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { IconLoader } from "./IconLoader";
+import Animated, { 
+  useAnimatedStyle, 
+  withSpring, 
+  withTiming, 
+  runOnJS,
+  FadeIn,
+  FadeOut,
+  SlideInDown,
+  SlideOutDown
+} from "react-native-reanimated";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const KIND_OPTIONS: TransactionKind[] = ["expense", "income", "refund", "transfer"];
 
@@ -58,7 +73,9 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
           note: editingTransaction.note || "",
           kind: editingTransaction.kind || (editingTransaction.type === "income" ? "income" : "expense"),
           categoryId: editingTransaction.category_id,
-          date: new Date(editingTransaction.date),
+          date: isNaN(new Date(editingTransaction.date).getTime()) 
+                ? new Date() 
+                : new Date(editingTransaction.date),
           isExcluded: editingTransaction.is_excluded === 1,
         });
       } else {
@@ -137,16 +154,28 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
   const getKindStyles = (kind: TransactionKind) => getTransactionDisplay({ kind });
   const activeKindStyles = getKindStyles(form.kind);
 
+  if (!visible) return null;
+
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      onRequestClose={onClose}
-      presentationStyle="pageSheet"
-    >
-      <View className="flex-1 bg-white dark:bg-slate-950">
+    <View style={StyleSheet.absoluteFill} className="z-[9999]">
+      {/* Backdrop */}
+      <Animated.View 
+        entering={FadeIn}
+        exiting={FadeOut}
+        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
+      >
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+      </Animated.View>
+
+      {/* Main Container */}
+      <Animated.View
+        entering={SlideInDown.springify().damping(20)}
+        exiting={SlideOutDown.springify().damping(20)}
+        className="absolute bottom-0 w-full bg-white dark:bg-slate-950 rounded-t-[40px] shadow-2xl overflow-hidden"
+        style={{ height: SCREEN_HEIGHT * 0.92 }}
+      >
         {/* Header Bar */}
-        <View className="flex-row items-center justify-between px-6 py-4">
+        <View className="flex-row items-center justify-between px-6 py-5 border-b border-slate-50 dark:border-slate-900">
           <TouchableOpacity onPress={onClose} className="p-2 -ml-2">
             <X size={24} color="#64748b" />
           </TouchableOpacity>
@@ -166,7 +195,7 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
         >
-          <ScrollView
+          <Animated.ScrollView
             className="flex-1"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 100 }}
@@ -240,7 +269,7 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
                   <Text className="text-slate-400 dark:text-slate-500 font-black text-[10px] uppercase tracking-[2px]">Category</Text>
                   {!form.categoryId && <Text className="text-rose-500 text-[10px] font-black italic">Selection Required</Text>}
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
+                <Animated.ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
                   <View className="flex-row space-x-3 gap-3">
                     {categories.map((cat) => {
                       const isSelected = form.categoryId === cat.id;
@@ -262,7 +291,7 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
                       );
                     })}
                   </View>
-                </ScrollView>
+                </Animated.ScrollView>
               </View>
 
               {/* Date & Time Section */}
@@ -275,7 +304,7 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
                   >
                     <Calendar size={18} color="#64748b" className="mr-3" />
                     <Text className="text-slate-900 dark:text-white font-black text-xs uppercase">
-                      {form.date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {form.date.toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -284,7 +313,7 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
                   >
                     <Clock size={18} color="#64748b" className="mr-3" />
                     <Text className="text-slate-900 dark:text-white font-black text-xs uppercase">
-                      {form.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {form.date.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -304,9 +333,9 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
                 />
               </View>
             </View>
-          </ScrollView>
+          </Animated.ScrollView>
 
-          {/* DateTime Pickers (Hidden) */}
+          {/* DateTime Pickers (Secondary Popups) */}
           {showDatePicker && (
             <DateTimePicker
               value={form.date}
@@ -355,8 +384,8 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </View>
-    </Modal>
+      </Animated.View>
+    </View>
   );
 };
 

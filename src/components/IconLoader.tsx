@@ -16,8 +16,11 @@ export const IconLoader = ({ name, size, color }: { name: string, size: number, 
   };
   
   // Normalize key (handle lowercase and kebab-case)
-  const normalizedKey = name.charAt(0).toUpperCase() + name.slice(1);
-  const IconComponent = Icons[normalizedKey] || Icons[name] || Icons.Package;
+  const normalizedKey = name && name.length > 0 
+    ? name.charAt(0).toUpperCase() + name.slice(1)
+    : "";
+  
+  const IconComponent = (name && Icons[normalizedKey]) || Icons[name] || Icons.Package;
   
   return <IconComponent size={size} color={color} />;
 };

@@ -213,7 +213,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
                 {item.note || item.category_name || "Transaction"}
                 {item.is_excluded === 1 && <Text className="text-rose-500 text-[10px] italic font-bold"> (Hidden)</Text>}
               </Text>
-              <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">{new Date(item.date).toLocaleDateString()}</Text>
+              <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">{new Date(item.date).toLocaleDateString("en-US")}</Text>
             </View>
           </View>
           <View className="items-end">
@@ -228,196 +228,198 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <View className="px-6 pt-8 pb-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
-        <View className="flex-row items-center mb-1">
-          <View className="w-9 h-9 bg-blue-600 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/40">
-            <Landmark size={20} color="white" />
+    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
+      <SafeAreaView className="flex-1">
+        <View className="px-6 pt-8 pb-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
+          <View className="flex-row items-center mb-1">
+            <View className="w-9 h-9 bg-blue-600 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/40">
+              <Landmark size={20} color="white" />
+            </View>
+            <Text className="text-slate-900 dark:text-white text-2xl font-black tracking-tighter">SpendWise</Text>
           </View>
-          <Text className="text-slate-900 dark:text-white text-2xl font-black tracking-tighter">SpendWise</Text>
-        </View>
-        <View className="flex-row justify-between items-center mt-3">
-          <Text className="text-slate-500 dark:text-slate-600 text-[10px] font-black uppercase tracking-[2px]">Dashboard</Text>
-        </View>
-      </View>
-
-      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: 120 }}>
-        <Animated.View entering={FadeInUp}>
-
-          {/* Month Picker */}
-          <View className="mb-6 -mx-5 px-5">
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-2">
-              {months.map((m) => {
-                const isSelected = selectedMonth === m.key;
-                return (
-                  <TouchableOpacity
-                    key={m.key}
-                    onPress={() => setSelectedMonth(m.key)}
-                    className={`mr-3 px-6 py-2.5 rounded-2xl border ${isSelected
-                      ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20'
-                      : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
-                      }`}
-                  >
-                    <Text className={`font-black uppercase tracking-tighter text-[11px] ${isSelected ? 'text-white' : 'text-slate-500'}`}>
-                      {m.label} {m.year}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+          <View className="flex-row justify-between items-center mt-3">
+            <Text className="text-slate-500 dark:text-slate-600 text-[10px] font-black uppercase tracking-[2px]">Dashboard</Text>
           </View>
+        </View>
 
-          {/* SECTION 1: Summary Visual Bars */}
-          <View className="bg-white dark:bg-slate-900/60 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800 mb-6 shadow-sm dark:shadow-none">
-            <View className="flex-row items-center justify-between mb-8">
-              <View className="flex-row items-center">
-                <Calendar size={16} color="#64748b" />
-                <Text className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase tracking-wider ml-2">Performance Summary</Text>
-              </View>
-              {isCurrentMonth && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setIsEditingBudget(!isEditingBudget);
-                    setBudgetInput(limitAmount.toString());
-                  }}
-                  className="p-1 px-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex-row items-center"
-                >
-                  <Pencil size={10} color="#3b82f6" />
-                  <Text className="text-[10px] font-bold text-blue-600 dark:text-blue-400 ml-1.5">EDIT LIMIT</Text>
-                </TouchableOpacity>
-              )}
-              {!isCurrentMonth && (
-                <View className={`px-2 py-1 rounded-md ${isCurrentMonth ? 'bg-emerald-500/10' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                  <Text className={`text-[9px] font-black uppercase tracking-widest ${isCurrentMonth ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-500'}`}>
-                    {isCurrentMonth ? 'LIVE' : 'ARCHIVED'}
-                  </Text>
-                </View>
-              )}
+        <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: 120 }}>
+          <Animated.View entering={FadeInUp}>
+
+            {/* Month Picker */}
+            <View className="mb-6 -mx-5 px-5">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-2">
+                {months.map((m) => {
+                  const isSelected = selectedMonth === m.key;
+                  return (
+                    <TouchableOpacity
+                      key={m.key}
+                      onPress={() => setSelectedMonth(m.key)}
+                      className={`mr-3 px-6 py-2.5 rounded-2xl border ${isSelected
+                        ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20'
+                        : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
+                        }`}
+                    >
+                      <Text className={`font-black uppercase tracking-tighter text-[11px] ${isSelected ? 'text-white' : 'text-slate-500'}`}>
+                        {m.label} {m.year}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
 
-            {isEditingBudget ? (
-              <Animated.View entering={FadeInUp} className="bg-slate-50 dark:bg-slate-800/80 p-5 rounded-2xl border border-blue-500/30 mb-8 items-center flex-row">
-                <View className="flex-1">
-                  <Text className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">New Monthly Limit</Text>
-                  <TextInput
-                    value={budgetInput}
-                    onChangeText={setBudgetInput}
-                    keyboardType="decimal-pad"
-                    autoFocus
-                    className="text-slate-900 dark:text-white text-2xl font-black p-0"
-                    placeholderTextColor="#64748b"
-                  />
-                </View>
+            {/* SECTION 1: Summary Visual Bars */}
+            <View className="bg-white dark:bg-slate-900/60 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800 mb-6 shadow-sm dark:shadow-none">
+              <View className="flex-row items-center justify-between mb-8">
                 <View className="flex-row items-center">
-                  <TouchableOpacity
-                    onPress={() => setIsEditingBudget(false)}
-                    className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-xl items-center justify-center mr-3"
-                  >
-                    <X size={20} color="#64748b" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={handleSaveBudget}
-                    className="w-10 h-10 bg-blue-600 rounded-xl items-center justify-center shadow-lg shadow-blue-500/30"
-                  >
-                    <Check size={20} color="white" />
-                  </TouchableOpacity>
+                  <Calendar size={16} color="#64748b" />
+                  <Text className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase tracking-wider ml-2">Performance Summary</Text>
                 </View>
-              </Animated.View>
-            ) : (
-              <ComparisonBar
-                label="Monthly Expenses"
-                value={currentMonthExpense}
-                maxValue={limitAmount}
-                color="#f43f5e"
-                subLabel={`Limit: $${limitAmount}`}
-                statusColor
-              />
-            )}
-
-
-            <View className="flex-row gap-4 mt-4">
-              {/* Monthly Income Card */}
-              <View className="flex-1 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50">
-                <View className="flex-row items-center mb-2">
-                  <View className="w-6 h-6 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg items-center justify-center">
-                    <TrendingUp size={12} color="#10b981" />
+                {isCurrentMonth && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setIsEditingBudget(!isEditingBudget);
+                      setBudgetInput(limitAmount.toString());
+                    }}
+                    className="p-1 px-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex-row items-center"
+                  >
+                    <Pencil size={10} color="#3b82f6" />
+                    <Text className="text-[10px] font-bold text-blue-600 dark:text-blue-400 ml-1.5">EDIT LIMIT</Text>
+                  </TouchableOpacity>
+                )}
+                {!isCurrentMonth && (
+                  <View className={`px-2 py-1 rounded-md ${isCurrentMonth ? 'bg-emerald-500/10' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                    <Text className={`text-[9px] font-black uppercase tracking-widest ${isCurrentMonth ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-500'}`}>
+                      {isCurrentMonth ? 'LIVE' : 'ARCHIVED'}
+                    </Text>
                   </View>
-                  <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest ml-2">Income</Text>
-                </View>
-                <Text className="text-slate-900 dark:text-white font-black text-xl tracking-tight">${Math.round(currentMonthIncome)}</Text>
-                <Text className="text-slate-400 dark:text-slate-500 text-[8px] font-bold uppercase tracking-widest mt-1">Cash Flow</Text>
+                )}
               </View>
 
-              {/* Safe to Spend Card */}
-              {isCurrentMonth ? (
+              {isEditingBudget ? (
+                <Animated.View entering={FadeInUp} className="bg-slate-50 dark:bg-slate-800/80 p-5 rounded-2xl border border-blue-500/30 mb-8 items-center flex-row">
+                  <View className="flex-1">
+                    <Text className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">New Monthly Limit</Text>
+                    <TextInput
+                      value={budgetInput}
+                      onChangeText={setBudgetInput}
+                      keyboardType="decimal-pad"
+                      autoFocus
+                      className="text-slate-900 dark:text-white text-2xl font-black p-0"
+                      placeholderTextColor="#64748b"
+                    />
+                  </View>
+                  <View className="flex-row items-center">
+                    <TouchableOpacity
+                      onPress={() => setIsEditingBudget(false)}
+                      className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-xl items-center justify-center mr-3"
+                    >
+                      <X size={20} color="#64748b" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleSaveBudget}
+                      className="w-10 h-10 bg-blue-600 rounded-xl items-center justify-center shadow-lg shadow-blue-500/30"
+                    >
+                      <Check size={20} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                </Animated.View>
+              ) : (
+                <ComparisonBar
+                  label="Monthly Expenses"
+                  value={currentMonthExpense}
+                  maxValue={limitAmount}
+                  color="#f43f5e"
+                  subLabel={`Limit: $${limitAmount}`}
+                  statusColor
+                />
+              )}
+
+
+              <View className="flex-row gap-4 mt-4">
+                {/* Monthly Income Card */}
                 <View className="flex-1 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50">
                   <View className="flex-row items-center mb-2">
-                    <View className="w-6 h-6 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg items-center justify-center">
-                      <Landmark size={12} color="#3b82f6" />
+                    <View className="w-6 h-6 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg items-center justify-center">
+                      <TrendingUp size={12} color="#10b981" />
                     </View>
-                    <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest ml-2">Daily</Text>
+                    <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest ml-2">Income</Text>
                   </View>
-                  <Text className="text-slate-900 dark:text-white font-black text-xl tracking-tight">${Math.round(safeToSpend)}</Text>
-                  <Text className="text-slate-400 dark:text-slate-500 text-[8px] font-bold uppercase tracking-widest mt-1">Safe to Spend</Text>
+                  <Text className="text-slate-900 dark:text-white font-black text-xl tracking-tight">${Math.round(currentMonthIncome)}</Text>
+                  <Text className="text-slate-400 dark:text-slate-500 text-[8px] font-bold uppercase tracking-widest mt-1">Cash Flow</Text>
                 </View>
-              ) : (
-                <View className="flex-1 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50 justify-center">
-                  <Text className="text-slate-500 text-[9px] font-black uppercase tracking-widest mb-1 text-center">Month Result</Text>
-                  <Text className={`font-black text-xs uppercase tracking-widest text-center ${currentMonthExpense > limitAmount ? 'text-rose-600 dark:text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                    {currentMonthExpense > limitAmount ? 'OVER' : 'GOOD'}
+
+                {/* Safe to Spend Card */}
+                {isCurrentMonth ? (
+                  <View className="flex-1 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50">
+                    <View className="flex-row items-center mb-2">
+                      <View className="w-6 h-6 bg-blue-500/10 dark:bg-blue-500/20 rounded-lg items-center justify-center">
+                        <Landmark size={12} color="#3b82f6" />
+                      </View>
+                      <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest ml-2">Daily</Text>
+                    </View>
+                    <Text className="text-slate-900 dark:text-white font-black text-xl tracking-tight">${Math.round(safeToSpend)}</Text>
+                    <Text className="text-slate-400 dark:text-slate-500 text-[8px] font-bold uppercase tracking-widest mt-1">Safe to Spend</Text>
+                  </View>
+                ) : (
+                  <View className="flex-1 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-3xl border border-slate-100 dark:border-slate-800/50 justify-center">
+                    <Text className="text-slate-500 text-[9px] font-black uppercase tracking-widest mb-1 text-center">Month Result</Text>
+                    <Text className={`font-black text-xs uppercase tracking-widest text-center ${currentMonthExpense > limitAmount ? 'text-rose-600 dark:text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      {currentMonthExpense > limitAmount ? 'OVER' : 'GOOD'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {!isCurrentMonth && (
+                <View className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/50 flex-row items-center justify-between">
+                  <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Month Result</Text>
+                  <Text className={`font-black text-xs uppercase tracking-widest ${currentMonthExpense > limitAmount ? 'text-rose-600 dark:text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {currentMonthExpense > limitAmount ? 'OVER BUDGET' : 'WITHIN BUDGET'}
                   </Text>
                 </View>
               )}
             </View>
 
-            {!isCurrentMonth && (
-              <View className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/50 flex-row items-center justify-between">
-                <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Month Result</Text>
-                <Text className={`font-black text-xs uppercase tracking-widest ${currentMonthExpense > limitAmount ? 'text-rose-600 dark:text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                  {currentMonthExpense > limitAmount ? 'OVER BUDGET' : 'WITHIN BUDGET'}
-                </Text>
+            <View className="mb-6 bg-white dark:bg-slate-900/30 rounded-[32px] p-2 border border-slate-100 dark:border-transparent shadow-sm dark:shadow-none">
+              <View className="flex-row items-end justify-between mb-2 px-3 pt-4">
+                <Text className="text-slate-900 dark:text-white text-lg font-black tracking-tight">Recent Activity</Text>
+                <TouchableOpacity onPress={() => navigation.navigate("Transactions")} className="flex-row items-center bg-slate-100 dark:bg-slate-800/50 px-3 py-1.5 rounded-full">
+                  <Text className="text-blue-600 dark:text-blue-400 font-bold text-[10px] mr-1 uppercase tracking-widest">View All</Text>
+                  <ChevronRight size={12} color="#3b82f6" />
+                </TouchableOpacity>
               </View>
-            )}
-          </View>
-
-          <View className="mb-6 bg-white dark:bg-slate-900/30 rounded-[32px] p-2 border border-slate-100 dark:border-transparent shadow-sm dark:shadow-none">
-            <View className="flex-row items-end justify-between mb-2 px-3 pt-4">
-              <Text className="text-slate-900 dark:text-white text-lg font-black tracking-tight">Recent Activity</Text>
-              <TouchableOpacity onPress={() => navigation.navigate("Transactions")} className="flex-row items-center bg-slate-100 dark:bg-slate-800/50 px-3 py-1.5 rounded-full">
-                <Text className="text-blue-600 dark:text-blue-400 font-bold text-[10px] mr-1 uppercase tracking-widest">View All</Text>
-                <ChevronRight size={12} color="#3b82f6" />
-              </TouchableOpacity>
+              <View className="px-3 pb-4">
+                {recentTransactions.length > 0 ? (
+                  recentTransactions.map(renderTransactionItem)
+                ) : (
+                  <View className="py-10 items-center justify-center">
+                    <Text className="text-slate-400 dark:text-slate-600 font-bold text-[10px] uppercase tracking-widest">No activity recorded</Text>
+                  </View>
+                )}
+              </View>
             </View>
-            <View className="px-3 pb-4">
-              {recentTransactions.length > 0 ? (
-                recentTransactions.map(renderTransactionItem)
-              ) : (
-                <View className="py-10 items-center justify-center">
-                  <Text className="text-slate-400 dark:text-slate-600 font-bold text-[10px] uppercase tracking-widest">No activity recorded</Text>
-                </View>
-              )}
-            </View>
-          </View>
 
-        </Animated.View>
-      </ScrollView>
+          </Animated.View>
+        </ScrollView>
 
-      <View className="absolute bottom-6 w-full items-center">
-        <TouchableOpacity
-          className="w-16 h-16 bg-blue-600 rounded-full items-center justify-center shadow-lg shadow-blue-500/50"
-          activeOpacity={0.9}
-          onPress={() => setShowAddModal(true)}
-        >
-          <Plus size={32} color="white" />
-        </TouchableOpacity>
-      </View>
+        <View className="absolute bottom-6 w-full items-center">
+          <TouchableOpacity
+            className="w-16 h-16 bg-blue-600 rounded-full items-center justify-center shadow-lg shadow-blue-500/50"
+            activeOpacity={0.9}
+            onPress={() => setShowAddModal(true)}
+          >
+            <Plus size={32} color="white" />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
 
       <AddTransactionModal
         visible={showAddModal}
         onClose={handleCloseModal}
         editingTransaction={editingTransaction}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
