@@ -6,10 +6,17 @@ import { getTransactionDisplay, useExpenseStore } from "../store/useExpenseStore
 import { TransactionKind } from "../utils/smsParser";
 import CustomNumpad from "../components/CustomNumpad";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { IconLoader } from "../components/IconLoader";
+
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 const KIND_OPTIONS: TransactionKind[] = ["expense", "income", "refund", "transfer"];
 
-const AddTransaction = ({ navigation }: any) => {
+interface AddTransactionProps {
+  navigation: NativeStackNavigationProp<any>;
+}
+
+const AddTransaction = ({ navigation }: AddTransactionProps) => {
   const categories = useExpenseStore((state) => state.categories);
   const fetchCategories = useExpenseStore((state) => state.fetchCategories);
   const addTransaction = useExpenseStore((state) => state.addTransaction);
@@ -31,6 +38,11 @@ const AddTransaction = ({ navigation }: any) => {
   }, [amountStr, selectedCategoryId]);
 
   const handleSave = async () => {
+    if (!selectedCategoryId) {
+      Alert.alert("Missing Category", "Please select a category for this transaction.");
+      return;
+    }
+
     const parsedAmount = Number(amountStr);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       Alert.alert("Invalid amount", "Please enter a valid amount.");
@@ -221,7 +233,7 @@ const AddTransaction = ({ navigation }: any) => {
                       className="w-10 h-10 rounded-full items-center justify-center"
                       style={{ backgroundColor: `${category.color && category.color.startsWith("#") ? category.color : "#3b82f6"}15` }}
                     >
-                      <Text className="text-lg">{category.icon === "utensils" ? "🍴" : "📦"}</Text>
+                      <IconLoader name={category.icon || "Package"} size={20} color={category.color || "#3b82f6"} />
                     </View>
                     <View>
                       {isSelected && (

@@ -52,56 +52,38 @@ function TabNavigator() {
 
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: isDark ? '#0f172a' : '#ffffff',
+          backgroundColor: isDark ? "#0f172a" : "#ffffff",
           borderTopWidth: 1,
-          borderTopColor: isDark ? '#1e293b' : '#f1f5f9',
+          borderTopColor: isDark ? "#1e293b" : "#f1f5f9",
           height: 64,
           paddingBottom: 8,
           paddingTop: 8,
           elevation: 0,
           shadowOpacity: 0,
         },
-        tabBarActiveTintColor: isDark ? '#3b82f6' : '#2563eb',
-        tabBarInactiveTintColor: isDark ? '#64748b' : '#94a3b8',
+        tabBarActiveTintColor: isDark ? "#3b82f6" : "#2563eb",
+        tabBarInactiveTintColor: isDark ? "#64748b" : "#94a3b8",
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: 'bold',
+          fontWeight: "bold",
           marginTop: -4,
         },
-      }}
+        tabBarIcon: ({ color, size }) => {
+          if (route.name === "Overview") return <Home size={size} color={color} />;
+          if (route.name === "Analysis") return <BarChart3 size={size} color={color} />;
+          if (route.name === "Transactions") return <History size={size} color={color} />;
+          if (route.name === "Settings_Tab") return <SettingsIcon size={size} color={color} />;
+          return null;
+        },
+      })}
     >
-      <Tab.Screen
-        name="Overview"
-        component={Dashboard}
-        options={{
-          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Analysis"
-        component={Analysis}
-        options={{
-          tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Transactions"
-        component={Transactions}
-        options={{
-          tabBarIcon: ({ color, size }) => <History size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Settings_Tab"
-        component={Settings}
-        options={{
-          title: "Settings",
-          tabBarIcon: ({ color, size }) => <SettingsIcon size={size} color={color} />,
-        }}
-      />
+      <Tab.Screen name="Overview" component={Dashboard} />
+      <Tab.Screen name="Analysis" component={Analysis} />
+      <Tab.Screen name="Transactions" component={Transactions} />
+      <Tab.Screen name="Settings_Tab" component={Settings} options={{ title: "Settings" }} />
     </Tab.Navigator>
   );
 }
@@ -212,37 +194,39 @@ export default function App() {
     };
   }, [isReady]);
 
+  if (!isReady) {
+    return (
+      <View className="flex-1 bg-white dark:bg-slate-950 items-center justify-center">
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <StatusBar style={isDark ? "light" : "dark"} />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
-      {!isReady ? (
-        <View className="flex-1 bg-white dark:bg-slate-950 items-center justify-center">
-          <ActivityIndicator size="large" color="#3b82f6" />
-          <StatusBar style={isDark ? "light" : "dark"} />
-        </View>
-      ) : (
-        <NavigationContainer theme={isDark ? SpendWiseDarkTheme : SpendWiseLightTheme}>
-          <Stack.Navigator
-            screenOptions={{
-              headerShown: false,
-              animation: 'slide_from_right',
-              contentStyle: { backgroundColor: isDark ? '#020617' : '#f8fafc' }
-            }}
-          >
-            <Stack.Screen name="Main" component={TabNavigator} />
-            <Stack.Screen name="AddTransaction" component={AddTransaction} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="Settings" component={Settings} />
-          </Stack.Navigator>
-          <StatusBar style={isDark ? "light" : "dark"} />
-          {updateInfo && (
-            <UpdateModal
-              visible={showUpdateModal}
-              onClose={() => setShowUpdateModal(false)}
-              latestVersion={updateInfo.latestVersion}
-              storeUrl={updateInfo.storeUrl}
-            />
-          )}
-        </NavigationContainer>
-      )}
+      <NavigationContainer theme={isDark ? SpendWiseDarkTheme : SpendWiseLightTheme}>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            animation: "slide_from_right",
+            contentStyle: { backgroundColor: isDark ? "#020617" : "#f8fafc" },
+          }}
+        >
+          <Stack.Screen name="Main" component={TabNavigator} />
+          <Stack.Screen name="AddTransaction" component={AddTransaction} options={{ presentation: "modal" }} />
+          <Stack.Screen name="Settings" component={Settings} />
+        </Stack.Navigator>
+        <StatusBar style={isDark ? "light" : "dark"} />
+        {updateInfo && (
+          <UpdateModal
+            visible={showUpdateModal}
+            onClose={() => setShowUpdateModal(false)}
+            latestVersion={updateInfo.latestVersion}
+            storeUrl={updateInfo.storeUrl}
+          />
+        )}
+      </NavigationContainer>
     </SafeAreaProvider>
   );
 }

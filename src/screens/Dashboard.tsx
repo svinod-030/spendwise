@@ -11,13 +11,7 @@ import {
 import Animated, { FadeInUp, FadeInRight, useAnimatedStyle, withSpring, withTiming, interpolateColor } from "react-native-reanimated";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 
-const IconLoader = ({ name, size, color }: { name: string, size: number, color: string }) => {
-  const Icons: any = {
-    Activity, Briefcase, Car, Play, RefreshCw, ShoppingBag, Utensils, Zap, Package
-  };
-  const IconComponent = Icons[name] || Icons.Package;
-  return <IconComponent size={size} color={color} />;
-};
+import { IconLoader } from "../components/IconLoader";
 
 // Reusable animated progress bar component
 const ComparisonBar = ({
