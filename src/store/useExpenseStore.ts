@@ -121,7 +121,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const db = await getDb();
     const sets: string[] = [];
     const params: any[] = [];
-    
+
     if (transaction.category_id !== undefined) { sets.push("category_id = ?"); params.push(transaction.category_id); }
     if (transaction.amount !== undefined) { sets.push("amount = ?"); params.push(transaction.amount); }
     if (transaction.type !== undefined) { sets.push("type = ?"); params.push(transaction.type); }
@@ -131,7 +131,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     if (transaction.is_excluded !== undefined) { sets.push("is_excluded = ?"); params.push(transaction.is_excluded); }
 
     if (sets.length === 0) return;
-    
+
     params.push(id);
     await db.runAsync(
       `UPDATE transactions SET ${sets.join(", ")} WHERE id = ?`,
@@ -458,7 +458,7 @@ async function getCategoryIdForMessage(
 export function getCategoryIcon(categoryName?: string | null) {
   const name = (categoryName || "").toLowerCase().trim();
   if (!name) return "Package";
-  
+
   if (name.includes("food") || name.includes("dining") || name.includes("utensils")) return "Utensils";
   if (name.includes("transport") || name.includes("car") || name.includes("fuel")) return "Car";
   if (name.includes("bill") || name.includes("recharge") || name.includes("electricity") || name.includes("zap")) return "Zap";
@@ -467,7 +467,7 @@ export function getCategoryIcon(categoryName?: string | null) {
   if (name.includes("entertainment") || name.includes("movie") || name.includes("play")) return "Play";
   if (name.includes("salary") || name.includes("income") || name.includes("briefcase")) return "Briefcase";
   if (name.includes("transfer") || name.includes("refresh")) return "RefreshCw";
-  
+
   return "Package"; // Default
 }
 
@@ -475,7 +475,7 @@ export function getTransactionDisplay(transaction: Partial<Pick<Transaction, "ki
   const type = transaction.type || "expense";
   const kind = transaction.kind || (type === "income" ? "income" : "expense");
   const icon = getCategoryIcon(transaction.category_name);
-  
+
   if (kind === "transfer") return { sign: "", colorClass: "text-amber-400", label: "Transfer", icon };
   if (kind === "refund") return { sign: "+", colorClass: "text-cyan-400", label: "Refund", icon };
   if (kind === "income") return { sign: "+", colorClass: "text-emerald-400", label: "Income", icon };

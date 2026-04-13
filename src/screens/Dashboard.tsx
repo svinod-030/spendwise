@@ -10,7 +10,6 @@ import {
 } from "lucide-react-native";
 import Animated, { FadeInUp, FadeInRight, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { IconLoader } from "../components/IconLoader";
-import AddTransactionModal from "../components/AddTransactionModal";
 
 // Reusable animated progress bar component
 const ComparisonBar = ({
@@ -68,18 +67,15 @@ const ComparisonBar = ({
 
 const Dashboard = ({ navigation }: { navigation: any }) => {
   const [isFocused, setIsFocused] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
-  const handleEditTransaction = (tx: Transaction) => {
-    setEditingTransaction(tx);
-    setShowAddModal(true);
+  const handleAddItem = () => {
+    navigation.navigate("AddTransaction", { editingTransaction: null });
   };
 
-  const handleCloseModal = () => {
-    setShowAddModal(false);
-    setEditingTransaction(null);
+  const handleEditItem = (tx: Transaction) => {
+    navigation.navigate("AddTransaction", { editingTransaction: tx });
   };
+
   const {
     transactions,
     budgets,
@@ -198,7 +194,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
       >
         <TouchableOpacity 
           activeOpacity={0.7}
-          onPress={() => handleEditTransaction(item)}
+          onPress={() => handleEditItem(item)}
           className="flex-row items-center justify-between py-4 border-b border-slate-100 dark:border-slate-900/50"
         >
           <View className="flex-row items-center flex-1">
@@ -407,18 +403,12 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
           <TouchableOpacity
             className="w-16 h-16 bg-blue-600 rounded-full items-center justify-center shadow-lg shadow-blue-500/50"
             activeOpacity={0.9}
-            onPress={() => setShowAddModal(true)}
+            onPress={handleAddItem}
           >
             <Plus size={32} color="white" />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
-
-      <AddTransactionModal
-        visible={showAddModal}
-        onClose={handleCloseModal}
-        editingTransaction={editingTransaction}
-      />
     </View>
   );
 };

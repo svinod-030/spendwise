@@ -1,8 +1,7 @@
 import "./global.css";
 import React, { useEffect, useState } from "react";
-import { NavigationContainer } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator, Alert, Platform, AppState } from "react-native";
+import { Alert, Platform, AppState } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from "nativewind";
@@ -11,8 +10,9 @@ import { useExpenseStore } from "./src/store/useExpenseStore";
 import { checkSmsPermission, requestSmsPermissionWithStatus } from "./src/utils/smsReader";
 import UpdateModal from './src/components/UpdateModal';
 import { checkVersion, VersionCheckResult } from './src/utils/versionCheckService';
-import TabNavigator from "./src/navigation/TabNavigator";
-import { SpendWiseDarkTheme, SpendWiseLightTheme } from "./src/navigation/RootNavigator";
+import RootNavigator, { darkTheme, lightTheme } from "./src/navigation/RootNavigator";
+import { NavigationContainer } from "@react-navigation/native";
+
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -124,27 +124,21 @@ export default function App() {
   }, [isReady]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        {!isReady ? (
-          <View className="flex-1 bg-white dark:bg-slate-950 items-center justify-center">
-            <ActivityIndicator size="large" color="#3b82f6" />
-          </View>
-        ) : (
-          <NavigationContainer theme={isDark ? SpendWiseDarkTheme : SpendWiseLightTheme}>
-            <TabNavigator />
-          </NavigationContainer>
-        )}
-        <StatusBar style={isDark ? "light" : "dark"} />
-        {updateInfo && (
-          <UpdateModal
-            visible={showUpdateModal}
-            onClose={() => setShowUpdateModal(false)}
-            latestVersion={updateInfo.latestVersion}
-            storeUrl={updateInfo.storeUrl}
-          />
-        )}
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <NavigationContainer theme={isDark ? darkTheme : lightTheme}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <RootNavigator />
+          <StatusBar style={isDark ? "light" : "dark"} />
+          {updateInfo && (
+            <UpdateModal
+              visible={showUpdateModal}
+              onClose={() => setShowUpdateModal(false)}
+              latestVersion={updateInfo.latestVersion}
+              storeUrl={updateInfo.storeUrl}
+            />
+          )}
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </NavigationContainer>
   );
 }

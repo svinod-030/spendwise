@@ -5,14 +5,12 @@ import { ArrowLeft, Clock } from "lucide-react-native";
 import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
 import { IconLoader } from "../components/IconLoader";
-import AddTransactionModal from "../components/AddTransactionModal";
 
 const Transactions = ({ navigation }: { navigation: any }) => {
   const { transactions, fetchTransactions } = useExpenseStore();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | TransactionKind>("all");
 
-  const [showEditModal, setShowEditModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -38,8 +36,7 @@ const Transactions = ({ navigation }: { navigation: any }) => {
   }, [fetchTransactions]);
 
   const handleEditTransaction = (tx: Transaction) => {
-    setEditingTransaction(tx);
-    setShowEditModal(true);
+    navigation.navigate("AddTransaction", { editingTransaction: tx });
   };
 
   const filtered = useMemo(() => {
@@ -164,15 +161,6 @@ const Transactions = ({ navigation }: { navigation: any }) => {
           showsVerticalScrollIndicator={false}
         />
       </SafeAreaView>
-
-      <AddTransactionModal
-        visible={showEditModal}
-        onClose={() => {
-            setShowEditModal(false);
-            setEditingTransaction(null);
-        }}
-        editingTransaction={editingTransaction}
-      />
     </View>
   );
 };
