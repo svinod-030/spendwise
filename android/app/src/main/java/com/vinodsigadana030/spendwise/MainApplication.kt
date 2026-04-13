@@ -1,4 +1,4 @@
-package com.vinodsigadana030.offlineexpensetracker
+package com.vinodsigadana030.spendwise
 
 import android.app.Application
 import android.content.res.Configuration

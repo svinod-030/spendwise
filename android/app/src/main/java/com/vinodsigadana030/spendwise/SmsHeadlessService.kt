@@ -1,4 +1,4 @@
-package com.vinodsigadana030.offlineexpensetracker
+package com.vinodsigadana030.spendwise
 
 import android.content.Intent
 import com.facebook.react.HeadlessJsTaskService

@@ -27,7 +27,7 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>com.vinodsigadana030.offlineexpensetracker</string>
+          <string>com.vinodsigadana030.spendwise</string>
         </array>
       </dict>
     </array>

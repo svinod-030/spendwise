@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.vinodsigadana030.offlineexpensetracker'
+    namespace 'com.vinodsigadana030.spendwise'
     defaultConfig {
-        applicationId 'com.vinodsigadana030.offlineexpensetracker'
+        applicationId 'com.vinodsigadana030.spendwise'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

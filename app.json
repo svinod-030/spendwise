@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.vinodsigadana030.offlineexpensetracker"
+      "bundleIdentifier": "com.vinodsigadana030.spendwise"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +27,7 @@
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.vinodsigadana030.offlineexpensetracker",
+      "package": "com.vinodsigadana030.spendwise",
       "googleServicesFile": "./google-services.json"
     },
     "web": {
