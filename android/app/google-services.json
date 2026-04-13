@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "918020484080",
+    "project_id": "cric-score-d6f20",
+    "storage_bucket": "cric-score-d6f20.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:918020484080:android:28115d8194e4b7e27dcb35",
+        "android_client_info": {
+          "package_name": "com.vinodsigadana030.spendwise"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "918020484080-98hoih83c6dngpl675p6npd11079svg0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqvuMb1sQyXL-9tH4_FMdVxGH7QkBBFm0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "918020484080-98hoih83c6dngpl675p6npd11079svg0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
