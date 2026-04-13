@@ -13,11 +13,7 @@ import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/us
 import { TransactionKind } from "../utils/smsParser";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { IconLoader } from "./IconLoader";
-import Animated, { 
-  useAnimatedStyle, 
-  withSpring, 
-  withTiming, 
-  runOnJS,
+import Animated, {
   FadeIn,
   FadeOut,
   SlideInDown,
@@ -73,9 +69,9 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
           note: editingTransaction.note || "",
           kind: editingTransaction.kind || (editingTransaction.type === "income" ? "income" : "expense"),
           categoryId: editingTransaction.category_id,
-          date: isNaN(new Date(editingTransaction.date).getTime()) 
-                ? new Date() 
-                : new Date(editingTransaction.date),
+          date: isNaN(new Date(editingTransaction.date).getTime())
+            ? new Date()
+            : new Date(editingTransaction.date),
           isExcluded: editingTransaction.is_excluded === 1,
         });
       } else {
@@ -159,7 +155,7 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
   return (
     <View style={StyleSheet.absoluteFill} className="z-[9999]">
       {/* Backdrop */}
-      <Animated.View 
+      <Animated.View
         entering={FadeIn}
         exiting={FadeOut}
         style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
@@ -169,8 +165,8 @@ const AddTransactionModal = ({ visible, onClose, editingTransaction }: AddTransa
 
       {/* Main Container */}
       <Animated.View
-        entering={SlideInDown.springify().damping(20)}
-        exiting={SlideOutDown.springify().damping(20)}
+        entering={SlideInDown.springify().damping(100)}
+        exiting={SlideOutDown.springify().damping(100)}
         className="absolute bottom-0 w-full bg-white dark:bg-slate-950 rounded-t-[40px] shadow-2xl overflow-hidden"
         style={{ height: SCREEN_HEIGHT * 0.92 }}
       >
