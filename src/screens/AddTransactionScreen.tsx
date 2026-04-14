@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, Modal, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { PlusCircle, Calendar as CalendarIcon, ChevronRight, Check, TrendingUp } from "lucide-react-native";
+import { PlusCircle, Calendar as CalendarIcon, ChevronRight, Check, TrendingUp, Clock as ClockIcon } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { IconLoader } from "../components/IconLoader";
@@ -22,6 +22,7 @@ const AddTransactionScreen = () => {
   const [note, setNote] = useState("");
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
 
   useEffect(() => {
@@ -87,6 +88,11 @@ const AddTransactionScreen = () => {
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) setDate(selectedDate);
+  };
+
+  const handleTimeChange = (event: any, selectedDate?: Date) => {
+    setShowTimePicker(Platform.OS === 'ios');
     if (selectedDate) setDate(selectedDate);
   };
 
@@ -206,24 +212,46 @@ const AddTransactionScreen = () => {
               />
             </View>
 
-            {/* Date */}
-            <View className="mb-6">
-              <Text className="text-slate-500 text-xs font-bold mb-2 uppercase tracking-widest">Date</Text>
-              <TouchableOpacity
-                className="bg-white dark:bg-slate-900 shadow-sm dark:shadow-none rounded-2xl px-4 py-4 flex-row items-center border border-slate-100 dark:border-slate-800"
-                onPress={() => setShowDatePicker(true)}
-              >
-                <CalendarIcon size={18} color="#64748b" className="mr-3" />
-                <Text className="text-slate-900 dark:text-white font-semibold">
-                  {date.toLocaleDateString()}
-                </Text>
-              </TouchableOpacity>
+            {/* Date & Time */}
+            <View className="mb-6 flex-row w-full">
+              <View className="flex-1 mr-2">
+                <Text className="text-slate-500 text-xs font-bold mb-2 uppercase tracking-widest">Date</Text>
+                <TouchableOpacity
+                  className="bg-white dark:bg-slate-900 shadow-sm dark:shadow-none rounded-2xl px-4 py-4 flex-row items-center border border-slate-100 dark:border-slate-800"
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <CalendarIcon size={18} color="#64748b" className="mr-3" />
+                  <Text className="text-slate-900 dark:text-white font-semibold flex-1" numberOfLines={1}>
+                    {date.toLocaleDateString()}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View className="flex-1 ml-2">
+                <Text className="text-slate-500 text-xs font-bold mb-2 uppercase tracking-widest">Time</Text>
+                <TouchableOpacity
+                  className="bg-white dark:bg-slate-900 shadow-sm dark:shadow-none rounded-2xl px-4 py-4 flex-row items-center border border-slate-100 dark:border-slate-800"
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <ClockIcon size={18} color="#64748b" className="mr-3" />
+                  <Text className="text-slate-900 dark:text-white font-semibold flex-1" numberOfLines={1}>
+                    {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </TouchableOpacity>
+              </View>
               {showDatePicker && (
                 <DateTimePicker
                   value={date}
                   mode="date"
                   display="default"
                   onChange={handleDateChange}
+                />
+              )}
+              {showTimePicker && (
+                <DateTimePicker
+                  value={date}
+                  mode="time"
+                  display="default"
+                  onChange={handleTimeChange}
                 />
               )}
             </View>
@@ -262,9 +290,8 @@ const AddTransactionScreen = () => {
               onPress={handleSave}
               className="bg-blue-600 py-4 rounded-2xl items-center shadow-lg shadow-blue-500/30 flex-row justify-center"
             >
-              <PlusCircle size={20} color="white" className="mr-2" />
               <Text className="text-white font-black text-base">
-                {editingTransaction ? "Save Changes" : "Add Transaction"}
+                Save
               </Text>
             </TouchableOpacity>
           </View>
