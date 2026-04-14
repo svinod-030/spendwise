@@ -192,7 +192,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
         key={item.id}
         entering={FadeInRight.delay(index * 50)}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           activeOpacity={0.7}
           onPress={() => handleEditItem(item)}
           className="flex-row items-center justify-between py-4 border-b border-slate-100 dark:border-slate-900/50"
@@ -398,16 +398,6 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
 
           </Animated.View>
         </ScrollView>
-
-        <View className="absolute bottom-6 w-full items-center">
-          <TouchableOpacity
-            className="w-16 h-16 bg-blue-600 rounded-full items-center justify-center shadow-lg shadow-blue-500/50"
-            activeOpacity={0.9}
-            onPress={handleAddItem}
-          >
-            <Plus size={32} color="white" />
-          </TouchableOpacity>
-        </View>
       </SafeAreaView>
     </View>
   );
