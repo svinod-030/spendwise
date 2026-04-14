@@ -222,7 +222,6 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
             <Text className={`font-black text-base ${item.is_excluded === 1 ? 'text-slate-400 line-through' : display.colorClass}`}>
               {display.sign}{getCurrencySymbol()}{item.amount.toFixed(2)}
             </Text>
-            <Text className="text-[9px] uppercase font-bold tracking-widest text-slate-600 mt-0.5">{display.label}</Text>
           </View>
         </TouchableOpacity>
       </Animated.View>
