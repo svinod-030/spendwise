@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, Modal, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { PlusCircle, Calendar as CalendarIcon } from "lucide-react-native";
+import { PlusCircle, Calendar as CalendarIcon, ChevronRight, Check, TrendingUp } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { IconLoader } from "../components/IconLoader";
@@ -21,6 +21,7 @@ const AddTransactionScreen = () => {
   const [note, setNote] = useState("");
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -92,20 +93,78 @@ const AddTransactionScreen = () => {
           </View>
 
           <ScrollView className="flex-1 px-6 pt-4" showsVerticalScrollIndicator={false}>
-            {/* Type Selector */}
-            <View className="flex-row bg-slate-100 dark:bg-slate-900 rounded-2xl p-1 mb-6">
-              <TouchableOpacity
-                className={`flex-1 py-3 rounded-xl items-center ${type === "expense" ? "bg-white dark:bg-slate-800 shadow-sm" : ""}`}
-                onPress={() => setType("expense")}
+            {/* Type Selector Dropdown */}
+            <View className="mb-6 z-10">
+              <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase tracking-widest">Transaction Type</Text>
+              <TouchableOpacity 
+                activeOpacity={0.7}
+                onPress={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+                className="bg-white dark:bg-slate-900 shadow-sm dark:shadow-none rounded-2xl px-4 py-4 flex-row items-center justify-between border border-slate-100 dark:border-slate-800"
               >
-                <Text className={`font-bold ${type === "expense" ? "text-rose-500" : "text-slate-500"}`}>Expense</Text>
+                <View className="flex-row items-center">
+                  <View className={`w-8 h-8 rounded-xl items-center justify-center mr-3 ${type === "expense" ? "bg-rose-500/10" : "bg-emerald-500/10"}`}>
+                    <TrendingUp size={16} color={type === "expense" ? "#f43f5e" : "#10b981"} style={{ transform: [{ rotate: type === "expense" ? "180deg" : "0deg" }] }} />
+                  </View>
+                  <Text className={`font-black text-base ${type === "expense" ? "text-rose-500" : "text-emerald-500"}`}>
+                    {type === "expense" ? "Expense" : "Income"}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color="#64748b" style={{ transform: [{ rotate: isTypeDropdownOpen ? "90deg" : "0deg" }] }} />
               </TouchableOpacity>
-              <TouchableOpacity
-                className={`flex-1 py-3 rounded-xl items-center ${type === "income" ? "bg-white dark:bg-slate-800 shadow-sm" : ""}`}
-                onPress={() => setType("income")}
-              >
-                <Text className={`font-bold ${type === "income" ? "text-emerald-500" : "text-slate-500"}`}>Income</Text>
-              </TouchableOpacity>
+
+              {isTypeDropdownOpen && (
+                <Modal
+                  transparent={true}
+                  visible={isTypeDropdownOpen}
+                  animationType="fade"
+                  onRequestClose={() => setIsTypeDropdownOpen(false)}
+                >
+                  <Pressable 
+                    className="flex-1 bg-slate-900/40 backdrop-blur-sm justify-center px-10"
+                    onPress={() => setIsTypeDropdownOpen(false)}
+                  >
+                    <Pressable className="bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800">
+                      <View className="px-6 py-4 border-b border-slate-50 dark:border-slate-800">
+                        <Text className="text-slate-900 dark:text-white font-black text-center">Select Type</Text>
+                      </View>
+                      
+                      <TouchableOpacity 
+                        className="flex-row items-center px-6 py-5 border-b border-slate-50 dark:border-slate-800"
+                        onPress={() => {
+                          setType("expense");
+                          setIsTypeDropdownOpen(false);
+                        }}
+                      >
+                        <View className="w-10 h-10 rounded-2xl bg-rose-500/10 items-center justify-center mr-4">
+                          <TrendingUp size={20} color="#f43f5e" style={{ transform: [{ rotate: "180deg" }] }} />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="font-black text-slate-800 dark:text-slate-100 text-base">Expense</Text>
+                          <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Money going out</Text>
+                        </View>
+                        {type === "expense" && <Check size={20} color="#3b82f6" />}
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        className="flex-row items-center px-6 py-5"
+                        onPress={() => {
+                          setType("income");
+                          setIsTypeDropdownOpen(false);
+                        }}
+                      >
+                        <View className="w-10 h-10 rounded-2xl bg-emerald-500/10 items-center justify-center mr-4">
+                          <TrendingUp size={20} color="#10b981" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="font-black text-slate-800 dark:text-slate-100 text-base">Income</Text>
+                          <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Money coming in</Text>
+                        </View>
+                        {type === "income" && <Check size={20} color="#3b82f6" />}
+                      </TouchableOpacity>
+                    </Pressable>
+                  </Pressable>
+                </Modal>
+              )}
             </View>
 
             {/* Amount */}
