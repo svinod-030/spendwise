@@ -5,11 +5,12 @@ import { PlusCircle, Calendar as CalendarIcon, ChevronRight, Check, TrendingUp }
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { IconLoader } from "../components/IconLoader";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute, useIsFocused } from "@react-navigation/native";
 
 const AddTransactionScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const isFocused = useIsFocused();
   const editingTransaction: Transaction | undefined = route.params?.editingTransaction;
 
   const { addTransaction, updateTransaction, categories, fetchCategories, getCurrencySymbol } = useExpenseStore();
@@ -42,6 +43,16 @@ const AddTransactionScreen = () => {
       setNote("");
     }
   }, [editingTransaction]);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setType("expense");
+      setAmount("");
+      setCategoryId(null);
+      setDate(new Date());
+      setNote("");
+    }
+  }, [isFocused]);
 
   const handleSave = async () => {
     if (!amount || isNaN(Number(amount))) {
