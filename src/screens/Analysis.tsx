@@ -26,6 +26,7 @@ const Analysis = ({ navigation }: { navigation: any }) => {
     addCategory,
     upsertMonthlyBudget,
     transactions,
+    getCurrencySymbol,
   } = useExpenseStore();
 
   const [trendData, setTrendData] = useState<MonthlyTrend[]>([]);
@@ -138,7 +139,7 @@ const Analysis = ({ navigation }: { navigation: any }) => {
                   hideRules
                   xAxisThickness={0}
                   yAxisThickness={0}
-                  yAxisLabelPrefix="$"
+                  yAxisLabelPrefix={getCurrencySymbol()}
                   yAxisTextStyle={{ color: isDark ? '#64748b' : '#94a3b8', fontSize: 10 }}
                   xAxisLabelTextStyle={{ color: isDark ? '#64748b' : '#94a3b8', fontSize: 10 }}
                   noOfSections={3}
@@ -178,7 +179,7 @@ const Analysis = ({ navigation }: { navigation: any }) => {
                   centerLabelComponent={() => (
                     <View className="items-center justify-center">
                       <Text className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Total</Text>
-                      <Text className="text-slate-900 dark:text-white font-black text-lg">${totalExpense.toFixed(0)}</Text>
+                      <Text className="text-slate-900 dark:text-white font-black text-lg">{getCurrencySymbol()}{totalExpense.toFixed(0)}</Text>
                     </View>
                   )}
                 />
@@ -198,7 +199,7 @@ const Analysis = ({ navigation }: { navigation: any }) => {
                     <Text className="text-slate-700 dark:text-slate-200 font-bold" numberOfLines={1}>{item.category_name}</Text>
                   </View>
                   <View className="items-end">
-                    <Text className="text-slate-900 dark:text-white font-black">${item.total.toFixed(0)}</Text>
+                    <Text className="text-slate-900 dark:text-white font-black">{getCurrencySymbol()}{item.total.toFixed(0)}</Text>
                     <Text className="text-[10px] text-slate-500 font-bold">
                       {Math.round((item.total / Math.max(1, totalExpense)) * 100)}%
                     </Text>

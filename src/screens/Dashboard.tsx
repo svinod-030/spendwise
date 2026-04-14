@@ -83,7 +83,13 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
     fetchBudgets,
     getCurrentMonthExpenseTotal,
     getCurrentMonthIncomeTotal,
+    getCurrencySymbol,
+    fetchCurrency
   } = useExpenseStore();
+
+  useEffect(() => {
+    fetchCurrency()
+  }, []);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
@@ -214,7 +220,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
           </View>
           <View className="items-end">
             <Text className={`font-black text-base ${item.is_excluded === 1 ? 'text-slate-400 line-through' : display.colorClass}`}>
-              {display.sign}${item.amount.toFixed(2)}
+              {display.sign}{getCurrencySymbol()}{item.amount.toFixed(2)}
             </Text>
             <Text className="text-[9px] uppercase font-bold tracking-widest text-slate-600 mt-0.5">{display.label}</Text>
           </View>
@@ -326,7 +332,8 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
                   value={currentMonthExpense}
                   maxValue={limitAmount}
                   color="#f43f5e"
-                  subLabel={`Limit: $${limitAmount}`}
+                  subLabel={`Limit: ${getCurrencySymbol()}${limitAmount}`}
+                  prefix={getCurrencySymbol()}
                   statusColor
                 />
               )}
@@ -341,8 +348,8 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
                     </View>
                     <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest ml-2">Income</Text>
                   </View>
-                  <Text className="text-slate-900 dark:text-white font-black text-xl tracking-tight">${Math.round(currentMonthIncome)}</Text>
-                  <Text className="text-slate-400 dark:text-slate-500 text-[8px] font-bold uppercase tracking-widest mt-1">Cash Flow</Text>
+                  <Text className="text-slate-900 dark:text-white font-black text-xl tracking-tight">{getCurrencySymbol()}{Math.round(currentMonthIncome)}</Text>
+                  <Text className="text-slate-400 dark:text-slate-50 text-[8px] font-bold uppercase tracking-widest mt-1">Cash Flow</Text>
                 </View>
 
                 {/* Safe to Spend Card */}
@@ -354,7 +361,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
                       </View>
                       <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest ml-2">Daily</Text>
                     </View>
-                    <Text className="text-slate-900 dark:text-white font-black text-xl tracking-tight">${Math.round(safeToSpend)}</Text>
+                    <Text className="text-slate-900 dark:text-white font-black text-xl tracking-tight">{getCurrencySymbol()}{Math.round(safeToSpend)}</Text>
                     <Text className="text-slate-400 dark:text-slate-500 text-[8px] font-bold uppercase tracking-widest mt-1">Safe to Spend</Text>
                   </View>
                 ) : (

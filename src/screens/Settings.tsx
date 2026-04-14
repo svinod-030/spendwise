@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore } from "../store/useExpenseStore";
@@ -14,11 +14,22 @@ import {
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 
+const currencies = [
+  { label: "US Dollar ($)", value: "USD", symbol: "$" },
+  { label: "Indian Rupee (₹)", value: "INR", symbol: "₹" },
+  { label: "Euro (€)", value: "EUR", symbol: "€" },
+  { label: "British Pound (£)", value: "GBP", symbol: "£" },
+];
+
 const Settings = () => {
-  const { exportData, importData, importTransactionsFromSms } = useExpenseStore();
+  const { exportData, importData, importTransactionsFromSms, currency, updateCurrency, fetchCurrency } = useExpenseStore();
   const { user, isAuthenticated, setUser, signOut } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
   const [isSyncing, setIsSyncing] = React.useState(false);
+
+  useEffect(() => {
+    fetchCurrency()
+  }, []);
 
   const handleGoogleLogin = async () => {
     try {
@@ -166,6 +177,23 @@ const Settings = () => {
     );
   };
 
+  const CurrencyOption = ({ type }: { type: string }) => {
+    const isActive = currency === type;
+    return (
+      <TouchableOpacity
+        onPress={() => updateCurrency(type)}
+        className={`flex-1 items-center justify-center p-3 mx-2 rounded-2xl border ${isActive
+          ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20'
+          : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+          }`}
+      >
+        <Text className={`text-[10px] font-black uppercase tracking-widest mt-1.5 ${isActive ? 'text-white' : 'text-slate-500'}`}>
+          {type}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
       <View className="px-6 py-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
@@ -199,6 +227,16 @@ const Settings = () => {
           <ThemeOption type="light" label="Light" icon={Sun} />
           <ThemeOption type="dark" label="Dark" icon={Moon} />
           <ThemeOption type="system" label="System" icon={Monitor} />
+        </View>
+
+
+        <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Currency</Text>
+        <View className="flex-row space-x-3 mb-8">
+          {
+            currencies.map((currency) => (
+              <CurrencyOption key={currency.value} type={currency.value} />
+            ))
+          }
         </View>
 
         <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Cloud Sync</Text>

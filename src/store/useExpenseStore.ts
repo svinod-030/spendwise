@@ -61,9 +61,14 @@ interface ExpenseState {
   transactions: Transaction[];
   categories: Category[];
   budgets: Budget[];
+  currency: string;
   isLoading: boolean;
   fetchCategories: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
+  fetchCurrency: () => Promise<string>;
+  updateCurrency: (currency: string) => Promise<void>;
+  isSetupDone: () => Promise<boolean>;
+  setSetupDone: () => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
   updateTransaction: (id: number, transaction: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: number) => Promise<void>;
@@ -81,13 +86,26 @@ interface ExpenseState {
   runInitialSmsImportIfNeeded: () => Promise<{ ran: boolean; imported: number; skipped: number }>;
   exportData: () => Promise<void>;
   importData: (jsonData: string) => Promise<void>;
+  getCurrencySymbol: () => string;
 }
 
 export const useExpenseStore = create<ExpenseState>((set, get) => ({
   transactions: [],
   categories: [],
   budgets: [],
+  currency: "USD",
   isLoading: false,
+
+  getCurrencySymbol: () => {
+    const { currency } = get();
+    const symbols: Record<string, string> = {
+      USD: "$",
+      INR: "₹",
+      EUR: "€",
+      GBP: "£",
+    };
+    return symbols[currency] || "$";
+  },
 
   fetchCategories: async () => {
     const db = await getDb();
@@ -144,6 +162,31 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const db = await getDb();
     await db.runAsync("DELETE FROM transactions WHERE id = ?", [id]);
     await get().fetchTransactions();
+  },
+
+  fetchCurrency: async () => {
+    const db = await getDb();
+    const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM app_meta WHERE key = 'currency'");
+    const currency = row?.value || "USD";
+    set({ currency });
+    return currency;
+  },
+
+  updateCurrency: async (currency: string) => {
+    const db = await getDb();
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('currency', ?)", [currency]);
+    set({ currency });
+  },
+
+  isSetupDone: async () => {
+    const db = await getDb();
+    const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM app_meta WHERE key = 'setup_done'");
+    return row?.value === "true";
+  },
+
+  setSetupDone: async () => {
+    const db = await getDb();
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('setup_done', 'true')");
   },
 
   addCategory: async (category) => {

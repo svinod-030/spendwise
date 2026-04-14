@@ -12,7 +12,7 @@ const AddTransactionScreen = () => {
   const route = useRoute<any>();
   const editingTransaction: Transaction | undefined = route.params?.editingTransaction;
 
-  const { addTransaction, updateTransaction, categories, fetchCategories } = useExpenseStore();
+  const { addTransaction, updateTransaction, categories, fetchCategories, getCurrencySymbol } = useExpenseStore();
 
   const [type, setType] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
@@ -46,7 +46,7 @@ const AddTransactionScreen = () => {
   const handleSave = async () => {
     if (!amount || isNaN(Number(amount))) {
       // In a real app we might use a toast, fallback to alert
-      return; 
+      return;
     }
 
     const transactionData = {
@@ -82,7 +82,7 @@ const AddTransactionScreen = () => {
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <SafeAreaView className="flex-1">
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
         >
@@ -96,7 +96,7 @@ const AddTransactionScreen = () => {
             {/* Type Selector Dropdown */}
             <View className="mb-6 z-10">
               <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase tracking-widest">Transaction Type</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
                 className="bg-white dark:bg-slate-900 shadow-sm dark:shadow-none rounded-2xl px-4 py-4 flex-row items-center justify-between border border-slate-100 dark:border-slate-800"
@@ -119,7 +119,7 @@ const AddTransactionScreen = () => {
                   animationType="fade"
                   onRequestClose={() => setIsTypeDropdownOpen(false)}
                 >
-                  <Pressable 
+                  <Pressable
                     className="flex-1 bg-slate-900/40 backdrop-blur-sm justify-center px-10"
                     onPress={() => setIsTypeDropdownOpen(false)}
                   >
@@ -127,8 +127,8 @@ const AddTransactionScreen = () => {
                       <View className="px-6 py-4 border-b border-slate-50 dark:border-slate-800">
                         <Text className="text-slate-900 dark:text-white font-black text-center">Select Type</Text>
                       </View>
-                      
-                      <TouchableOpacity 
+
+                      <TouchableOpacity
                         className="flex-row items-center px-6 py-5 border-b border-slate-50 dark:border-slate-800"
                         onPress={() => {
                           setType("expense");
@@ -145,7 +145,7 @@ const AddTransactionScreen = () => {
                         {type === "expense" && <Check size={20} color="#3b82f6" />}
                       </TouchableOpacity>
 
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         className="flex-row items-center px-6 py-5"
                         onPress={() => {
                           setType("income");
@@ -171,7 +171,7 @@ const AddTransactionScreen = () => {
             <View className="mb-6 items-center">
               <Text className="text-slate-500 text-sm font-bold mb-2 uppercase tracking-widest">Amount</Text>
               <View className="flex-row items-center">
-                <Text className="text-3xl text-slate-400 font-bold mr-1">$</Text>
+                <Text className="text-3xl text-slate-400 font-bold mr-1">{getCurrencySymbol()}</Text>
                 <TextInput
                   value={amount}
                   onChangeText={setAmount}
@@ -198,7 +198,7 @@ const AddTransactionScreen = () => {
             {/* Date */}
             <View className="mb-6">
               <Text className="text-slate-500 text-xs font-bold mb-2 uppercase tracking-widest">Date</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="bg-white dark:bg-slate-900 shadow-sm dark:shadow-none rounded-2xl px-4 py-4 flex-row items-center border border-slate-100 dark:border-slate-800"
                 onPress={() => setShowDatePicker(true)}
               >
@@ -227,11 +227,10 @@ const AddTransactionScreen = () => {
                     <TouchableOpacity
                       key={cat.id}
                       onPress={() => setCategoryId(cat.id)}
-                      className={`mr-3 mb-3 px-4 py-3 rounded-2xl flex-row items-center border ${
-                        isSelected 
-                          ? 'bg-blue-600 border-blue-500 shadow-md shadow-blue-500/20' 
-                          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
-                      }`}
+                      className={`mr-3 mb-3 px-4 py-3 rounded-2xl flex-row items-center border ${isSelected
+                        ? 'bg-blue-600 border-blue-500 shadow-md shadow-blue-500/20'
+                        : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
+                        }`}
                     >
                       <View className="mr-2">
                         <IconLoader name={cat.icon} size={16} color={isSelected ? "white" : cat.color || "#64748b"} />
