@@ -95,7 +95,6 @@ const Transactions = ({ navigation }: { navigation: any }) => {
             </View>
             <Text className="text-slate-900 dark:text-white text-xl font-black tracking-tighter">SpendWise</Text>
           </View>
-          <Text className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">History Overview</Text>
         </View>
 
         {/* Month Picker */}

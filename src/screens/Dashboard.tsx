@@ -238,9 +238,6 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
             </View>
             <Text className="text-slate-900 dark:text-white text-2xl font-black tracking-tighter">SpendWise</Text>
           </View>
-          <View className="flex-row justify-between items-center mt-3">
-            <Text className="text-slate-500 dark:text-slate-600 text-[10px] font-black uppercase tracking-[2px]">Dashboard</Text>
-          </View>
         </View>
 
         <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: 120 }}>

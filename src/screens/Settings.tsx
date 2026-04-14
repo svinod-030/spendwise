@@ -203,7 +203,6 @@ const Settings = () => {
           </View>
           <Text className="text-slate-900 dark:text-white text-lg font-black tracking-tighter">SpendWise</Text>
         </View>
-        <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">App Settings & Profile</Text>
       </View>
 
       <ScrollView

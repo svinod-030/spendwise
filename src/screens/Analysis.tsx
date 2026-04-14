@@ -115,7 +115,6 @@ const Analysis = ({ navigation }: { navigation: any }) => {
           </View>
           <Text className="text-slate-900 dark:text-white text-xl font-black tracking-tighter">SpendWise</Text>
         </View>
-        <Text className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">Analysis Hub</Text>
       </View>
 
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 16, paddingBottom: 120 }}>
