@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FlatList, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, Clock } from "lucide-react-native";
+import { ArrowLeft, Clock, RefreshCcw } from "lucide-react-native";
 import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
 import { IconLoader } from "../components/IconLoader";
@@ -58,6 +58,9 @@ const Transactions = ({ navigation }: { navigation: any }) => {
 
   const renderItem = ({ item }: { item: Transaction }) => {
     const display = getTransactionDisplay(item);
+    const hasLinkedRefund = transactions.some(t => t.parent_id === item.id);
+    const isRefund = item.kind === "refund" || !!item.parent_id;
+
     return (
       <TouchableOpacity
         onPress={() => handleEditTransaction(item)}
@@ -69,10 +72,20 @@ const Transactions = ({ navigation }: { navigation: any }) => {
             <IconLoader name={display.icon} size={18} color="#64748b" />
           </View>
           <View className="flex-1">
-            <Text className="text-slate-900 dark:text-white font-semibold leading-5 text-sm">
-              {item.note || item.category_name || "Transaction"}
-              {item.is_excluded === 1 && <Text className="text-rose-500 text-[10px] italic font-bold"> (Hidden)</Text>}
-            </Text>
+            <View className="flex-row items-center">
+              <Text className="text-slate-900 dark:text-white font-semibold leading-5 text-sm">
+                {item.note || item.category_name || "Transaction"}
+              </Text>
+              {(hasLinkedRefund || isRefund) && (
+                <View className="ml-2 bg-emerald-500/10 px-1.5 py-0.5 rounded-md flex-row items-center">
+                  <RefreshCcw size={10} color="#10b981" />
+                  <Text className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 ml-1 uppercase">
+                    {isRefund ? "Refund" : "Refunded"}
+                  </Text>
+                </View>
+              )}
+              {item.is_excluded === 1 && <Text className="text-rose-500 text-[10px] italic font-bold ml-1"> (Hidden)</Text>}
+            </View>
             <Text className="text-slate-500 dark:text-slate-400 text-[9px] font-bold uppercase tracking-widest mt-0.5">
               {new Date(item.date).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })} • {new Date(item.date).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: true })}
             </Text>

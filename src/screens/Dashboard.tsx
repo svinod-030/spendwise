@@ -6,7 +6,8 @@ import { getTransactionDisplay, useExpenseStore, Transaction } from "../store/us
 import { useAuthStore } from "../store/useAuthStore";
 import {
   Plus, ChevronRight, Calendar, Landmark,
-  TrendingUp, Pencil, Check, X
+  TrendingUp, Pencil, Check, X,
+  RefreshCcw
 } from "lucide-react-native";
 import Animated, { FadeInUp, FadeInRight, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { IconLoader } from "../components/IconLoader";
@@ -211,10 +212,20 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
               <IconLoader name={display.icon} size={20} color={item.category_color ?? "#3b82f6"} />
             </View>
             <View className="ml-4 flex-1">
-              <Text className="text-slate-900 dark:text-slate-100 font-bold text-base leading-5">
-                {item.note || item.category_name || "Transaction"}
-                {item.is_excluded === 1 && <Text className="text-rose-500 text-[10px] italic font-bold"> (Hidden)</Text>}
-              </Text>
+              <View className="flex-row items-center">
+                <Text className="text-slate-900 dark:text-slate-100 font-bold text-base leading-5">
+                  {item.note || item.category_name || "Transaction"}
+                </Text>
+                {((transactions.some(t => t.parent_id === item.id)) || item.kind === "refund" || !!item.parent_id) && (
+                  <View className="ml-2 bg-emerald-500/10 px-1.5 py-0.5 rounded-md flex-row items-center">
+                    <RefreshCcw size={10} color="#10b981" />
+                    <Text className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 ml-1 uppercase">
+                      {(item.kind === "refund" || !!item.parent_id) ? "Refund" : "Refunded"}
+                    </Text>
+                  </View>
+                )}
+                {item.is_excluded === 1 && <Text className="text-rose-500 text-[10px] italic font-bold ml-1"> (Hidden)</Text>}
+              </View>
               <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest mt-0.5">
                 {new Date(item.date).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })} • {new Date(item.date).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: true })}
               </Text>
