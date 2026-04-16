@@ -30,6 +30,7 @@ export interface Transaction {
   category_color?: string;
   category_icon?: string;
   is_excluded?: number;
+  parent_id?: number | null;
 }
 
 export interface Budget {
@@ -157,6 +158,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     if (transaction.date !== undefined) { sets.push("date = ?"); params.push(transaction.date); }
     if (transaction.note !== undefined) { sets.push("note = ?"); params.push(transaction.note); }
     if (transaction.is_excluded !== undefined) { sets.push("is_excluded = ?"); params.push(transaction.is_excluded); }
+    if (transaction.parent_id !== undefined) { sets.push("parent_id = ?"); params.push(transaction.parent_id); }
 
     if (sets.length === 0) return;
 
@@ -242,7 +244,9 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   getCurrentMonthExpenseTotal: async (month?: string) => {
     const db = await getDb();
     const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
-    const row = await db.getFirstAsync<{ total: number }>(
+    
+    // Total expenses
+    const expRow = await db.getFirstAsync<{ total: number }>(
       `SELECT COALESCE(SUM(amount), 0) as total
        FROM transactions
        WHERE kind = 'expense'
@@ -250,7 +254,19 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
        AND date >= ${dateQuery}
        AND date < date(${dateQuery}, '+1 month')`
     );
-    return row?.total ?? 0;
+
+    // Subtract linked refunds
+    const refRow = await db.getFirstAsync<{ total: number }>(
+      `SELECT COALESCE(SUM(amount), 0) as total
+       FROM transactions
+       WHERE kind = 'refund'
+       AND parent_id IS NOT NULL
+       AND is_excluded = 0
+       AND date >= ${dateQuery}
+       AND date < date(${dateQuery}, '+1 month')`
+    );
+
+    return (expRow?.total ?? 0) - (refRow?.total ?? 0);
   },
 
   getCurrentMonthIncomeTotal: async (month?: string) => {
@@ -259,7 +275,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const row = await db.getFirstAsync<{ total: number }>(
       `SELECT COALESCE(SUM(amount), 0) as total
        FROM transactions
-       WHERE (kind = 'income' OR kind = 'refund')
+       WHERE (kind = 'income' OR (kind = 'refund' AND parent_id IS NULL))
        AND is_excluded = 0
        AND date >= ${dateQuery}
        AND date < date(${dateQuery}, '+1 month')`

@@ -64,6 +64,7 @@ export async function initDatabase() {
   await ensureColumn(db, "transactions", "reference_id", "TEXT");
   await ensureColumn(db, "transactions", "raw_sender", "TEXT");
   await ensureColumn(db, "transactions", "is_excluded", "INTEGER DEFAULT 0");
+  await ensureColumn(db, "transactions", "parent_id", "INTEGER");
   await db.execAsync(`
     UPDATE transactions
     SET kind = CASE
