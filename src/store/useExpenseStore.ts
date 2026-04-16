@@ -86,6 +86,7 @@ interface ExpenseState {
   runInitialSmsImportIfNeeded: () => Promise<{ ran: boolean; imported: number; skipped: number }>;
   exportData: () => Promise<void>;
   importData: (jsonData: string) => Promise<void>;
+  clearAllData: () => Promise<void>;
   getCurrencySymbol: () => string;
 }
 
@@ -404,6 +405,14 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
     await get().fetchCategories();
     await get().fetchTransactions();
+  },
+
+  clearAllData: async () => {
+    const db = await getDb();
+    await db.execAsync("DELETE FROM transactions; DELETE FROM messages; DELETE FROM budgets;");
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('sms_initial_import_done', 'false')");
+    await get().fetchTransactions();
+    await get().fetchBudgets();
   },
 }));
 

@@ -23,8 +23,7 @@ const currencies = [
 ];
 
 const Settings = () => {
-  const { exportData, importData, importTransactionsFromSms, currency, updateCurrency, fetchCurrency } = useExpenseStore();
-  const { user, isAuthenticated, setUser, signOut } = useAuthStore();
+  const { importTransactionsFromSms, currency, updateCurrency, fetchCurrency, clearAllData } = useExpenseStore();
   const { theme, setTheme } = useThemeStore();
   const [isSyncing, setIsSyncing] = React.useState(false);
 
@@ -32,114 +31,29 @@ const Settings = () => {
     fetchCurrency()
   }, []);
 
-  const handleGoogleLogin = async () => {
-    try {
-      const result = await signInWithGoogle();
-      if (result) {
-        setUser(result.user, result.accessToken);
-        Alert.alert("Success", `Signed in as ${result.user.name}`);
-      }
-    } catch (error) {
-      console.error("Login failed", error);
-      Alert.alert("Error", "Google Sign-in failed. Please try again.");
-    }
-  };
-
-  const handleGoogleLogout = async () => {
-    try {
-      await signOutGoogle();
-      signOut();
-      Alert.alert("Signed Out", "You have been signed out from Google.");
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
-  };
-
-  const handleDriveBackup = async () => {
-    if (!isAuthenticated) return;
-    setIsSyncing(true);
-    try {
-      const success = await backupToDrive();
-      if (success) {
-        Alert.alert("Success", "Data backed up to Google Drive successfully.");
-      } else {
-        throw new Error("Backup failed");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to backup data to Google Drive.");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleDriveRestore = async () => {
-    if (!isAuthenticated) return;
-
+  const handleClearData = async () => {
     Alert.alert(
-      "Restore from Drive",
-      "This will overwrite all local data. Are you sure?",
+      "Clear All Data",
+      "This will permanently delete all transactions, messages, and budgets. This action cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
-        {
-          text: "Restore",
-          style: "destructive",
+        { 
+          text: "Clear Everything", 
+          style: "destructive", 
           onPress: async () => {
             setIsSyncing(true);
             try {
-              const data = await restoreFromDrive();
-              if (data) {
-                await importData(data);
-                Alert.alert("Success", "Data restored from Google Drive successfully.");
-              } else {
-                Alert.alert("Error", "No backup found or failed to download.");
-              }
+              await clearAllData();
+              Alert.alert("Success", "All data has been cleared.");
             } catch (error) {
-              Alert.alert("Error", "Failed to restore data.");
+              Alert.alert("Error", "Failed to clear data.");
             } finally {
               setIsSyncing(false);
             }
-          }
+          } 
         },
       ]
     );
-  };
-
-  const handleExport = async () => {
-    try {
-      await exportData();
-      Alert.alert("Success", "Backup file created and ready to share.");
-    } catch (error) {
-      Alert.alert("Error", "Failed to export data.");
-    }
-  };
-
-  const handleImport = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "application/json",
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const content = await FileSystem.readAsStringAsync(result.assets[0].uri);
-        Alert.alert(
-          "Import Data",
-          "This will overwrite all existing data. Are you sure?",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Import",
-              style: "destructive",
-              onPress: async () => {
-                await importData(content);
-                Alert.alert("Success", "Data imported successfully.");
-              }
-            },
-          ]
-        );
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to import data. Please ensure it's a valid backup file.");
-    }
   };
 
   const handleSmsImport = async () => {
@@ -218,7 +132,7 @@ const Settings = () => {
           </View>
           <Text className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
             All your financial data is stored locally on this device.
-            We do not have access to your data. Manage your own backups below.
+            We do not have access to your data.
           </Text>
         </View>
 
@@ -239,69 +153,7 @@ const Settings = () => {
           }
         </View>
 
-        <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Cloud Sync</Text>
-
-        {!isAuthenticated ? (
-          <TouchableOpacity
-            onPress={handleGoogleLogin}
-            className="flex-row items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6 shadow-sm dark:shadow-none"
-          >
-            <View className="w-10 h-10 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl items-center justify-center">
-              <LogIn size={20} color="#3b82f6" />
-            </View>
-            <View className="ml-3">
-              <Text className="text-slate-900 dark:text-white font-bold text-base">Sign in with Google</Text>
-              <Text className="text-slate-500 text-xs">Enable cloud backup & restore</Text>
-            </View>
-          </TouchableOpacity>
-        ) : (
-          <View className="mb-6">
-            <View className="flex-row items-center bg-blue-500/5 dark:bg-blue-500/10 p-3 rounded-2xl border border-blue-500/10 dark:border-blue-500/20 mb-3">
-              <View className="w-9 h-9 bg-blue-600 dark:bg-blue-500 rounded-full items-center justify-center">
-                <Text className="text-white font-bold">{user?.name?.charAt(0) || 'U'}</Text>
-              </View>
-              <View className="ml-3 flex-1">
-                <Text className="text-slate-900 dark:text-white font-bold text-sm">{user?.name}</Text>
-                <Text className="text-slate-500 text-[10px]">{user?.email}</Text>
-              </View>
-              <TouchableOpacity onPress={handleGoogleLogout} className="p-2">
-                <LogOut size={18} color="#f43f5e" />
-              </TouchableOpacity>
-            </View>
-
-            <View className="flex-row space-x-3">
-              <TouchableOpacity
-                onPress={handleDriveBackup}
-                disabled={isSyncing}
-                className="flex-1 flex-row items-center bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
-              >
-                <View className="w-8 h-8 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-lg items-center justify-center">
-                  {isSyncing ? <RefreshCcw size={16} color="#10b981" /> : <Cloud size={16} color="#10b981" />}
-                </View>
-                <View className="ml-2.5">
-                  <Text className="text-slate-900 dark:text-white font-bold text-sm">Backup</Text>
-                  <Text className="text-slate-500 text-[9px]">Cloud</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleDriveRestore}
-                disabled={isSyncing}
-                className="flex-1 flex-row items-center bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
-              >
-                <View className="w-8 h-8 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg items-center justify-center">
-                  <RefreshCcw size={16} color="#f59e0b" />
-                </View>
-                <View className="ml-2.5">
-                  <Text className="text-slate-900 dark:text-white font-bold text-sm">Restore</Text>
-                  <Text className="text-slate-500 text-[9px]">Cloud</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Local Data</Text>
+        <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Data Management</Text>
 
         <TouchableOpacity
           onPress={handleSmsImport}
@@ -318,32 +170,8 @@ const Settings = () => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={handleExport}
-          className="flex-row items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-3 shadow-sm dark:shadow-none"
-        >
-          <View className="w-10 h-10 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl items-center justify-center">
-            <Download size={20} color="#10b981" />
-          </View>
-          <View className="ml-3.5">
-            <Text className="text-slate-900 dark:text-white font-bold text-base">Export JSON</Text>
-            <Text className="text-slate-500 text-xs">Save to local device</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={handleImport}
-          className="flex-row items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6 shadow-sm dark:shadow-none"
-        >
-          <View className="w-10 h-10 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl items-center justify-center">
-            <Upload size={20} color="#3b82f6" />
-          </View>
-          <View className="ml-3.5">
-            <Text className="text-slate-900 dark:text-white font-bold text-base">Import JSON</Text>
-            <Text className="text-slate-500 text-xs">Restore from local file</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
+          onPress={handleClearData}
+          disabled={isSyncing}
           className="flex-row items-center bg-rose-500/5 p-4 rounded-2xl border border-rose-500/10 mb-8"
         >
           <View className="w-10 h-10 bg-rose-500/10 dark:bg-rose-500/20 rounded-xl items-center justify-center">
