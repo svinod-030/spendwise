@@ -51,6 +51,18 @@ export async function initDatabase() {
       start_date TEXT NOT NULL,
       UNIQUE(category_id, period_type)
     );
+    CREATE TABLE IF NOT EXISTS bills (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender TEXT,
+      body TEXT,
+      amount REAL,
+      due_date TEXT,
+      status TEXT DEFAULT 'unpaid',
+      category_id INTEGER,
+      transaction_id INTEGER,
+      FOREIGN KEY (category_id) REFERENCES categories (id),
+      FOREIGN KEY (transaction_id) REFERENCES transactions (id)
+    );
     CREATE INDEX IF NOT EXISTS idx_messages_hash ON messages (hash);
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
     CREATE INDEX IF NOT EXISTS idx_transactions_category_date ON transactions (category_id, date);
@@ -65,6 +77,8 @@ export async function initDatabase() {
   await ensureColumn(db, "transactions", "raw_sender", "TEXT");
   await ensureColumn(db, "transactions", "is_excluded", "INTEGER DEFAULT 0");
   await ensureColumn(db, "transactions", "parent_id", "INTEGER");
+  await ensureColumn(db, "bills", "transaction_id", "INTEGER");
+  await ensureColumn(db, "bills", "category_id", "INTEGER");
   await db.execAsync(`
     UPDATE transactions
     SET kind = CASE

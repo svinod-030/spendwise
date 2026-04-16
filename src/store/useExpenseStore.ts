@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { getDb } from "../db/database";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import { parseSmsForTransaction, TransactionKind } from "../utils/smsParser";
+import { parseSmsForTransaction, TransactionKind, parseSmsForBill, buildHash } from "../utils/smsParser";
 import { checkSmsPermission, readInboxMessages, requestSmsPermission } from "../utils/smsReader";
 
 export interface Category {
@@ -58,10 +58,22 @@ export interface MerchantSpending {
   total: number;
 }
 
+export interface Bill {
+  id: number;
+  sender: string;
+  body: string;
+  amount: number;
+  due_date: string;
+  status: "unpaid" | "paid";
+  category_id?: number | null;
+  transaction_id?: number | null;
+}
+
 interface ExpenseState {
   transactions: Transaction[];
   categories: Category[];
   budgets: Budget[];
+  bills: Bill[];
   currency: string;
   isLoading: boolean;
   fetchCategories: () => Promise<void>;
@@ -81,6 +93,9 @@ interface ExpenseState {
   getCurrentMonthCategorySpending: (month?: string) => Promise<CategorySpending[]>;
   getMonthlyTrends: () => Promise<MonthlyTrend[]>;
   getMerchantSpending: () => Promise<MerchantSpending[]>;
+  fetchBills: () => Promise<void>;
+  markBillAsPaid: (billId: number, transactionId?: number) => Promise<void>;
+  cleanupDuplicateBills: () => Promise<void>;
   importTransactionsFromSms: () => Promise<{ imported: number; skipped: number }>;
   syncRecentSmsTransactions: () => Promise<{ imported: number; skipped: number }>;
   processIncomingSmsMessage: (message: { address: string; body: string; date: number }) => Promise<boolean>;
@@ -97,6 +112,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   transactions: [],
   categories: [],
   budgets: [],
+  bills: [],
   currency: "INR",
   isLoading: false,
 
@@ -244,7 +260,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   getCurrentMonthExpenseTotal: async (month?: string) => {
     const db = await getDb();
     const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
-    
+
     // Total expenses
     const expRow = await db.getFirstAsync<{ total: number }>(
       `SELECT COALESCE(SUM(amount), 0) as total
@@ -434,12 +450,81 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   clearAllData: async () => {
     const db = await getDb();
-    await db.execAsync("DELETE FROM transactions; DELETE FROM messages; DELETE FROM budgets;");
+    await db.execAsync("DELETE FROM transactions; DELETE FROM messages; DELETE FROM budgets; DELETE from bills;");
     await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('sms_initial_import_done', 'false')");
     await get().fetchTransactions();
     await get().fetchBudgets();
+    await get().fetchBills();
+  },
+
+  fetchBills: async () => {
+    const db = await getDb();
+
+    // Auto-cleanup duplicates if any exist from the previous bug
+    await db.runAsync(`
+      DELETE FROM bills 
+      WHERE status = 'unpaid' AND id NOT IN (
+        SELECT MIN(id) FROM bills GROUP BY body, amount, due_date
+      )
+    `);
+
+    const bills = await db.getAllAsync<Bill>(
+      "SELECT * FROM bills WHERE status = 'unpaid' ORDER BY due_date ASC"
+    );
+    set({ bills });
+  },
+
+  cleanupDuplicateBills: async () => {
+    const db = await getDb();
+    await db.runAsync(`
+      DELETE FROM bills 
+      WHERE status = 'unpaid' AND id NOT IN (
+        SELECT MIN(id) FROM bills GROUP BY body, amount, due_date
+      )
+    `);
+    get().fetchBills();
+  },
+
+  markBillAsPaid: async (billId, transactionId) => {
+    const db = await getDb();
+    const bill = await db.getFirstAsync<Bill>("SELECT * FROM bills WHERE id = ?", [billId]);
+    if (!bill) return;
+
+    // 1. Mark as paid & link transaction_id
+    if (transactionId) {
+      await db.runAsync("UPDATE bills SET status = 'paid', transaction_id = ? WHERE id = ?", [transactionId, billId]);
+    } else {
+      // Create new transaction if none provided (manual payment)
+      const txId = Date.now(); // In reality addTransaction should return the ID
+      // Let's call addTransaction but we need the ID back. 
+      // addTransaction in useExpenseStore is async and doesn't return ID.
+      // I'll manually insert to get the ID for linking.
+      const categoryId = bill.category_id || null;
+      const result = await db.runAsync(
+        `INSERT INTO transactions 
+          (category_id, amount, type, kind, date, note, merchant) 
+          VALUES (?, ?, 'expense', 'expense', ?, ?, ?)`,
+        [
+          categoryId,
+          bill.amount,
+          new Date().toISOString(),
+          bill.body ? bill.body.substring(0, 100) : "Paid Bill",
+          bill.sender ? cleanMerchant(bill.sender) : "Bill Payment"
+        ]
+      );
+      const lastId = result.lastInsertRowId;
+      await db.runAsync("UPDATE bills SET status = 'paid', transaction_id = ? WHERE id = ?", [lastId, billId]);
+      await get().fetchTransactions();
+    }
+
+    await get().fetchBills();
   },
 }));
+
+// Helper to clean merchant names (moved from smsParser or just using it)
+function cleanMerchant(name: string) {
+  return name.replace(/^VM-|^AD-|^DM-|^HP-|^BZ-|^CP-|^IC-|^AX-|^HD-|^SC-/, "").trim();
+}
 
 async function ingestSmsMessages(
   db: Awaited<ReturnType<typeof getDb>>,
@@ -451,6 +536,26 @@ async function ingestSmsMessages(
   for (const message of messages) {
     const parsed = parseSmsForTransaction(message);
     if (!parsed) {
+      // Try parsing as a bill if it's not a transaction
+      const parsedBill = parseSmsForBill(message);
+      if (parsedBill) {
+        const hash = buildHash(parsedBill.sender, parsedBill.body, message.date);
+        const existingBill = await db.getFirstAsync<{ id: number }>("SELECT id FROM messages WHERE hash = ?", [hash]);
+        if (!existingBill) {
+          // Use a batch to ensure both are inserted or none
+          await db.withTransactionAsync(async () => {
+            await db.runAsync(
+              "INSERT INTO bills (sender, body, amount, due_date, status) VALUES (?, ?, ?, ?, 'unpaid')",
+              [parsedBill.sender, parsedBill.body, parsedBill.amount, parsedBill.dueDate || new Date().toISOString()]
+            );
+            await db.runAsync(
+              "INSERT INTO messages (sender, body, received_at, hash, parse_confidence, processed_status) VALUES (?, ?, ?, ?, 1.0, 'processed')",
+              [parsedBill.sender, parsedBill.body, parsedBill.receivedAt, hash]
+            );
+          });
+          imported += 1;
+        }
+      }
       skipped += 1;
       continue;
     }

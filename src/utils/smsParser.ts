@@ -21,6 +21,15 @@ export interface ParsedSmsTransaction {
   confidence: number;
 }
 
+export interface ParsedSmsBill {
+  sender: string;
+  body: string;
+  receivedAt: string;
+  amount: number;
+  dueDate?: string;
+  merchant?: string;
+}
+
 const transactionKeywords = [
   "debited",
   "credited",
@@ -53,12 +62,39 @@ function normalizeAmount(raw: string): number {
   return Number(raw.replace(/,/g, ""));
 }
 
+export function parseSmsForBill(sms: { address: string; body: string; date: number }): ParsedSmsBill | null {
+  const body = sms.body.toLowerCase();
+
+  // Check for bill keywords
+  const billKeywords = ["due", "outstanding", "reminder", "overdue"];
+  const isBill = billKeywords.some(kw => body.includes(kw));
+  if (!isBill) return null;
+
+  // Extract amount
+  const amountMatch = sms.body.match(amountPattern);
+  if (!amountMatch) return null;
+  const amount = normalizeAmount(amountMatch[1]);
+
+  // Extract due date (very basic attempt)
+  let dueDate = new Date(sms.date).toISOString();
+  // Try to find a date in the future if possible, but for now just use message date
+
+  return {
+    sender: sms.address,
+    body: sms.body,
+    receivedAt: new Date(sms.date).toISOString(),
+    amount,
+    dueDate,
+    merchant: cleanMerchant(sms.address)
+  };
+}
+
 function detectType(body: string): ParsedTransactionType | null {
   const lower = body.toLowerCase();
-  
+
   // Exclude non-transactional messages
   if (excludeKeywords.some(keyword => lower.includes(keyword))) return null;
-  
+
   if (/(debited|spent|paid|purchase|withdrawn|minus|taken out)/.test(lower)) return "expense";
   if (/(credited|received|deposited|refund|plus|added to)/.test(lower)) return "income";
   if (/(transfer|neft|imps|rtgs)/.test(lower)) return "expense";
@@ -75,13 +111,13 @@ function detectKind(body: string): TransactionKind {
 
 function cleanMerchant(name: string): string {
   if (!name) return "";
-  
+
   // Words that commonly appear in SMS but aren't part of the merchant name
   const noiseWords = [
-    "using", "via", "on", "at", "to", "from", "for", "ref", "id", "date", 
+    "using", "via", "on", "at", "to", "from", "for", "ref", "id", "date",
     "bank", "ac", "acct", "available", "bal", "balance", "txn", "vpa", "upi"
   ];
-  
+
   let cleaned = name
     .replace(/(?:vpa|upi|info|id|ref|txn|a\/c|acct|acc|date).*$/i, "")
     .replace(/[*\-]/g, " ")
@@ -93,10 +129,10 @@ function cleanMerchant(name: string): string {
   if (words.length > 0) {
     const firstWord = words[0].toLowerCase();
     const lastWord = words[words.length - 1].toLowerCase();
-    
+
     if (noiseWords.includes(firstWord) && words.length > 1) words.shift();
     if (noiseWords.includes(lastWord) && words.length > 1) words.pop();
-    
+
     cleaned = words.join(" ");
   }
 
@@ -106,7 +142,7 @@ function cleanMerchant(name: string): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
-function buildHash(sender: string, body: string, date: number): string {
+export function buildHash(sender: string, body: string, date: number): string {
   const key = `${sender}|${date}|${body}`;
   let hash = 0;
   for (let index = 0; index < key.length; index += 1) {
@@ -134,25 +170,25 @@ export function parseSmsForTransaction(message: SmsMessage): ParsedSmsTransactio
 
   const accountMatch = body.match(accountPattern);
   const refMatch = body.match(refPattern);
-  
+
   // Improved merchant extraction
   let merchant: string | undefined;
-  
+
   // Pattern 1: {To/At/From} {Merchant} {On/For/Using/Ref}
   const toAtMatches = body.match(/(?:to|at|from|towards)\s+([A-Za-z0-9 .&-]{2,50}?)(\s+(?:on|for|using|via|ref|id|balance|bal|date|is|at|towards)|$)/i);
-  
+
   // Pattern 2: Dedicated info/memo field
   const useAtMatches = body.match(/(?:info|memo|vpa)[:*]?\s*([A-Za-z0-9 .&-]{2,40})/i);
-  
+
   // Pattern 3: Capitalized merchant name after amount (common in some banks)
   // e.g. "Spent Rs.500 at ZOMATO"
   const capsMatches = body.match(/([A-Z]{3,20}(?:\s+[A-Z]{2,20})*)/);
 
   merchant = toAtMatches?.[1] || useAtMatches?.[1];
-  
+
   // If we found a merchant, try to see if it's too generic and we can find a better one
   if (!merchant || merchant.length < 3) {
-     merchant = merchant || capsMatches?.[0];
+    merchant = merchant || capsMatches?.[0];
   }
 
   if (merchant) {

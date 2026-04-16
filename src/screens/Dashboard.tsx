@@ -1,13 +1,14 @@
 import { useMemo, useState, useEffect } from "react";
 
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, Modal, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getTransactionDisplay, useExpenseStore, Transaction } from "../store/useExpenseStore";
+import { getTransactionDisplay, useExpenseStore, Transaction, Bill } from "../store/useExpenseStore";
 import { useAuthStore } from "../store/useAuthStore";
 import {
   Plus, ChevronRight, Calendar, Landmark,
   TrendingUp, Pencil, Check, X,
-  RefreshCcw
+  RefreshCcw,
+  Search
 } from "lucide-react-native";
 import Animated, { FadeInUp, FadeInRight, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { IconLoader } from "../components/IconLoader";
@@ -78,14 +79,9 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
   };
 
   const {
-    transactions,
-    budgets,
-    fetchTransactions,
-    fetchBudgets,
-    getCurrentMonthExpenseTotal,
-    getCurrentMonthIncomeTotal,
-    getCurrencySymbol,
-    fetchCurrency
+    transactions, fetchTransactions, budgets, fetchBudgets,
+    getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal,
+    getCurrencySymbol, fetchCurrency, bills, fetchBills, markBillAsPaid
   } = useExpenseStore();
 
   useEffect(() => {
@@ -103,6 +99,11 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
   // Budget Editing States
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
+
+  // Bill Linking States
+  const [isBillModalOpen, setIsBillModalOpen] = useState(false);
+  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  const [billSearch, setBillSearch] = useState("");
 
   const { upsertMonthlyBudget } = useExpenseStore();
 
@@ -141,13 +142,14 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
     const loadAll = async () => {
       await fetchTransactions();
       await fetchBudgets();
+      await fetchBills();
       const expense = await getCurrentMonthExpenseTotal(selectedMonth);
       const income = await getCurrentMonthIncomeTotal(selectedMonth);
       setCurrentMonthExpense(expense);
       setCurrentMonthIncome(income);
     };
     if (isFocused) loadAll();
-  }, [fetchTransactions, fetchBudgets, isFocused, selectedMonth]);
+  }, [fetchTransactions, fetchBudgets, fetchBills, isFocused, selectedMonth]);
 
   // 2. Reactive Refresh: Only updates totals when transactions change
   useEffect(() => {
@@ -412,8 +414,172 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
               </View>
             </View>
 
+            {/* Upcoming Bills Section */}
+            {bills.length > 0 && (
+              <View className="mb-10 bg-white dark:bg-slate-900/30 rounded-[32px] p-2 border border-slate-100 dark:border-transparent shadow-sm dark:shadow-none">
+                <View className="flex-row items-end justify-between mb-4 px-3 pt-4">
+                  <View>
+                    <Text className="text-slate-900 dark:text-white text-lg font-black tracking-tight">Upcoming Bills</Text>
+                    <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pending Payments</Text>
+                  </View>
+                  <View className="bg-rose-500/10 px-2.5 py-1 rounded-full">
+                    <Text className="text-rose-600 dark:text-rose-400 font-black text-[10px] uppercase tracking-tighter">{bills.length} Pending</Text>
+                  </View>
+                </View>
+
+                <View className="px-3 pb-2">
+                  {bills.map((bill, index) => (
+                    <View
+                      key={bill.id}
+                      className={`flex-row items-center justify-between py-4 ${index !== bills.length - 1 ? 'border-b border-slate-50 dark:border-slate-800/50' : ''}`}
+                    >
+                      <View className="flex-row items-center flex-1">
+                        <View className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 items-center justify-center">
+                          <Landmark size={18} color="#64748b" />
+                        </View>
+                        <View className="ml-3 flex-1">
+                          <Text className="text-slate-900 dark:text-white font-bold text-sm" numberOfLines={1}>
+                            {bill.sender || "Bill Payment"}
+                          </Text>
+                          <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest mt-0.5">
+                            Due: {new Date(bill.due_date).toLocaleDateString()}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View className="flex-row items-center">
+                        <View className="mr-4 items-end">
+                          <Text className="text-slate-900 dark:text-white font-black text-sm">
+                            {getCurrencySymbol()}{bill.amount.toFixed(2)}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setSelectedBill(bill);
+                            setIsBillModalOpen(true);
+                          }}
+                          activeOpacity={0.7}
+                          className="bg-blue-600 px-3 py-2 rounded-xl shadow-lg shadow-blue-500/20"
+                        >
+                          <Text className="text-white font-black text-[10px] uppercase tracking-tighter">Mark Paid</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+            <View className="h-10" />
+
           </Animated.View>
         </ScrollView>
+
+        {/* Bill Linking Modal */}
+        <Modal
+          visible={isBillModalOpen}
+          animationType="slide"
+          transparent={true}
+        >
+          <SafeAreaView className="flex-1 bg-slate-900/50 backdrop-blur-md justify-end">
+            <View className="bg-white dark:bg-slate-950 rounded-t-[40px] h-[85%] shadow-2xl">
+              <View className="px-6 pt-8 pb-4 border-b border-slate-50 dark:border-slate-900">
+                <View className="flex-row items-center justify-between mb-6">
+                  <View>
+                    <Text className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">
+                      Mark Bill as Paid
+                    </Text>
+                    <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                      {selectedBill?.sender} • {getCurrencySymbol()}{selectedBill?.amount}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setIsBillModalOpen(false)}
+                    className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full"
+                  >
+                    <X size={20} color="#64748b" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Option 1: Create New */}
+                <TouchableOpacity
+                  onPress={async () => {
+                    if (selectedBill) await markBillAsPaid(selectedBill.id);
+                    setIsBillModalOpen(false);
+                  }}
+                  className="bg-blue-600 p-5 rounded-3xl flex-row items-center justify-between mb-6 shadow-xl shadow-blue-500/20"
+                >
+                  <View className="flex-row items-center">
+                    <View className="w-10 h-10 rounded-2xl bg-white/20 items-center justify-center mr-4">
+                      <Plus size={20} color="white" />
+                    </View>
+                    <View>
+                      <Text className="text-white font-black text-sm">Create New Transaction</Text>
+                      <Text className="text-white/60 text-[10px] uppercase font-bold tracking-widest">Mark as paid manually</Text>
+                    </View>
+                  </View>
+                  <ChevronRight size={18} color="white" />
+                </TouchableOpacity>
+
+                <View className="flex-row items-center bg-slate-50 dark:bg-slate-900 rounded-2xl px-4 py-3 mb-2">
+                  <Search size={18} color="#94a3b8" />
+                  <TextInput
+                    placeholder="Search recent transactions to link..."
+                    placeholderTextColor="#94a3b8"
+                    value={billSearch}
+                    onChangeText={setBillSearch}
+                    className="flex-1 ml-2 text-slate-900 dark:text-white font-bold"
+                  />
+                </View>
+              </View>
+
+              <FlatList
+                data={transactions.filter(t => {
+                  if (t.type !== 'expense') return false;
+                  // Already linked to some bill? (Expensive but okay for local list)
+                  // We don't have that info easily on the Transaction object here
+                  // but SQLite join would be better. For now just search.
+                  if (!billSearch) {
+                    // Show transactions with similar amount or very recent
+                    return Math.abs(t.amount - (selectedBill?.amount || 0)) < 100;
+                  }
+                  return (t.note || "").toLowerCase().includes(billSearch.toLowerCase()) ||
+                    (t.merchant || "").toLowerCase().includes(billSearch.toLowerCase()) ||
+                    t.amount.toString().includes(billSearch);
+                }).slice(0, 20)}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={{ padding: 24 }}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={async () => {
+                      if (selectedBill) await markBillAsPaid(selectedBill.id, item.id);
+                      setIsBillModalOpen(false);
+                    }}
+                    className="bg-white dark:bg-slate-900 p-4 rounded-3xl mb-3 border border-slate-100 dark:border-slate-800 shadow-sm"
+                  >
+                    <View className="flex-row justify-between items-center">
+                      <View className="flex-1">
+                        <Text className="text-slate-900 dark:text-white font-black text-sm">{item.note || item.merchant || "Transaction"}</Text>
+                        <Text className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mt-1">
+                          {new Date(item.date).toLocaleDateString()} • {getCurrencySymbol()}{item.amount}
+                        </Text>
+                      </View>
+                      <View className="bg-blue-500/10 px-3 py-1.5 rounded-xl">
+                        <Text className="text-blue-600 font-black text-[10px] uppercase tracking-tighter">Link This</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={() => (
+                  <View className="py-10 items-center justify-center">
+                    <Text className="text-slate-400 font-bold text-xs uppercase tracking-widest text-center px-10">
+                      No matching transactions found to link.
+                    </Text>
+                  </View>
+                )}
+              />
+            </View>
+          </SafeAreaView>
+        </Modal>
       </SafeAreaView>
     </View>
   );

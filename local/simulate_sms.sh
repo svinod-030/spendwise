@@ -33,6 +33,10 @@ case $TYPE in
     BODY="Paid Rs. $AMOUNT to $MERCHANT from your account on $DATE. Txn ID: $REF"
     SENDER="UPIPAY"
     ;;
+  "bill")
+    BODY="Your $MERCHANT bill of Rs. $AMOUNT is due on $DATE. Txn ID: $REF"
+    SENDER="BSNL"
+    ;;
   *)
     echo "Error: Invalid type '$TYPE'. Use credit, debit, or pay."
     show_help
