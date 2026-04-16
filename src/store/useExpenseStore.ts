@@ -469,7 +469,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     `);
 
     const bills = await db.getAllAsync<Bill>(
-      "SELECT * FROM bills WHERE status = 'unpaid' ORDER BY due_date ASC"
+      "SELECT * FROM bills ORDER BY due_date ASC"
     );
     set({ bills });
   },
