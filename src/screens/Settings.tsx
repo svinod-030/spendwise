@@ -208,7 +208,7 @@ const Settings = () => {
       <ScrollView
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: 20, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingTop: 20, paddingBottom: 120 }}
       >
         <View className="bg-blue-500/5 dark:bg-blue-500/10 p-4 rounded-2xl border border-blue-500/10 dark:border-blue-500/20 mb-6">
           <View className="flex-row items-center mb-2">

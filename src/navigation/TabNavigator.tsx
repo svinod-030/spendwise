@@ -1,6 +1,7 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useColorScheme } from "nativewind";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Home, BarChart3, History, Settings as SettingsIcon, PlusCircle } from "lucide-react-native";
 import Dashboard from "../screens/Dashboard";
 import Analysis from "../screens/Analysis";
@@ -13,6 +14,7 @@ const Tab = createBottomTabNavigator();
 export default function TabNavigator() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -22,8 +24,8 @@ export default function TabNavigator() {
           backgroundColor: isDark ? "#0f172a" : "#ffffff",
           borderTopWidth: 1,
           borderTopColor: isDark ? "#1e293b" : "#f1f5f9",
-          height: 64,
-          paddingBottom: 8,
+          height: 64 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
           elevation: 0,
           shadowOpacity: 0,
