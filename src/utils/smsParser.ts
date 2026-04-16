@@ -33,6 +33,18 @@ const transactionKeywords = [
   "upi",
 ];
 
+const excludeKeywords = [
+  "due",
+  "outstanding",
+  "reminder",
+  "generated",
+  "statement",
+  "overdue",
+  "will be debited",
+  "request",
+  "requested",
+];
+
 const amountPattern = /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
 const accountPattern = /(?:a\/c|acct|account)\s*[x*]*([0-9]{2,6})/i;
 const refPattern = /(?:ref(?:erence)?(?:\s*id)?|utr|txn(?:\s*id)?)\s*[:\-]?\s*([a-z0-9\-]+)/i;
@@ -43,8 +55,12 @@ function normalizeAmount(raw: string): number {
 
 function detectType(body: string): ParsedTransactionType | null {
   const lower = body.toLowerCase();
-  if (/(debited|spent|paid|purchase|withdrawn)/.test(lower)) return "expense";
-  if (/(credited|received|deposited|refund)/.test(lower)) return "income";
+  
+  // Exclude non-transactional messages
+  if (excludeKeywords.some(keyword => lower.includes(keyword))) return null;
+  
+  if (/(debited|spent|paid|purchase|withdrawn|minus|taken out)/.test(lower)) return "expense";
+  if (/(credited|received|deposited|refund|plus|added to)/.test(lower)) return "income";
   if (/(transfer|neft|imps|rtgs)/.test(lower)) return "expense";
   return null;
 }
@@ -55,6 +71,14 @@ function detectKind(body: string): TransactionKind {
   if (/(transfer|self transfer|neft|imps|rtgs)/.test(lower)) return "transfer";
   if (/(credited|received|deposited)/.test(lower)) return "income";
   return "expense";
+}
+
+function cleanMerchant(name: string): string {
+  if (!name) return "";
+  return name
+    .replace(/(?:vpa|upi|info|id|ref|txn).*$/i, "")
+    .replace(/[*\-]/g, " ")
+    .trim();
 }
 
 function buildHash(sender: string, body: string, date: number): string {
@@ -85,7 +109,17 @@ export function parseSmsForTransaction(message: SmsMessage): ParsedSmsTransactio
 
   const accountMatch = body.match(accountPattern);
   const refMatch = body.match(refPattern);
-  const merchantMatch = body.match(/(?:to|at|from)\s+([A-Za-z0-9 .&-]{2,50})/i);
+  
+  // Try extracting merchant with multiple patterns
+  let merchant: string | undefined;
+  const toAtMatches = body.match(/(?:to|at|from)\s+([A-Za-z0-9 .&-]{2,50})/i);
+  const usedAtMatches = body.match(/info[:*]\s*([A-Za-z0-9 .&-]{2,40})/i);
+  const upiMatches = body.match(/(?:VPA|UPI)[:*]\s*([A-Za-z0-9 .&-]{2,30})/i);
+  
+  merchant = toAtMatches?.[1] || usedAtMatches?.[1] || upiMatches?.[1];
+  if (merchant) {
+    merchant = cleanMerchant(merchant);
+  }
 
   return {
     sender,
@@ -95,9 +129,9 @@ export function parseSmsForTransaction(message: SmsMessage): ParsedSmsTransactio
     amount,
     type,
     kind: detectKind(body),
-    merchant: merchantMatch?.[1]?.trim(),
+    merchant: merchant || undefined,
     referenceId: refMatch?.[1]?.trim(),
     accountRef: accountMatch?.[1]?.trim(),
-    confidence: merchantMatch ? 0.9 : 0.75,
+    confidence: merchant ? 0.9 : 0.75,
   };
 }

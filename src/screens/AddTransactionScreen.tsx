@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, Modal, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { PlusCircle, Calendar as CalendarIcon, ChevronRight, Check, TrendingUp, Clock as ClockIcon } from "lucide-react-native";
+import { PlusCircle, Calendar as CalendarIcon, ChevronRight, Check, TrendingUp, Clock as ClockIcon, Trash2, Eye, EyeOff } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { IconLoader } from "../components/IconLoader";
 import { useNavigation, useRoute, useIsFocused } from "@react-navigation/native";
+import { Alert } from "react-native";
 
 const AddTransactionScreen = () => {
   const navigation = useNavigation<any>();
@@ -13,13 +14,14 @@ const AddTransactionScreen = () => {
   const isFocused = useIsFocused();
   const editingTransaction: Transaction | undefined = route.params?.editingTransaction;
 
-  const { addTransaction, updateTransaction, categories, fetchCategories, getCurrencySymbol } = useExpenseStore();
+  const { addTransaction, updateTransaction, deleteTransaction, categories, fetchCategories, getCurrencySymbol } = useExpenseStore();
 
   const [type, setType] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [date, setDate] = useState(new Date());
   const [note, setNote] = useState("");
+  const [isExcluded, setIsExcluded] = useState(false);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -36,12 +38,14 @@ const AddTransactionScreen = () => {
       setCategoryId(editingTransaction.category_id);
       setDate(new Date(editingTransaction.date));
       setNote(editingTransaction.note || "");
+      setIsExcluded(editingTransaction.is_excluded === 1);
     } else {
       setType("expense");
       setAmount("");
       setCategoryId(null);
       setDate(new Date());
       setNote("");
+      setIsExcluded(false);
     }
   }, [editingTransaction]);
 
@@ -52,12 +56,31 @@ const AddTransactionScreen = () => {
       setCategoryId(null);
       setDate(new Date());
       setNote("");
+      setIsExcluded(false);
     }
   }, [isFocused]);
 
+  const handleDelete = () => {
+    if (!editingTransaction) return;
+    Alert.alert(
+      "Delete Transaction",
+      "Are you sure you want to permanently delete this transaction?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteTransaction(editingTransaction.id);
+            navigation.goBack();
+          }
+        }
+      ]
+    );
+  };
+
   const handleSave = async () => {
     if (!amount || isNaN(Number(amount))) {
-      // In a real app we might use a toast, fallback to alert
       return;
     }
 
@@ -67,7 +90,7 @@ const AddTransactionScreen = () => {
       category_id: categoryId,
       date: date.toISOString(),
       note,
-      is_excluded: editingTransaction?.is_excluded ?? 0,
+      is_excluded: isExcluded ? 1 : 0,
     };
 
     if (editingTransaction) {
@@ -82,6 +105,7 @@ const AddTransactionScreen = () => {
       setCategoryId(null);
       setDate(new Date());
       setNote("");
+      setIsExcluded(false);
       navigation.navigate("Transactions");
     }
   };
@@ -103,10 +127,15 @@ const AddTransactionScreen = () => {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
         >
-          <View className="px-6 py-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
+          <View className="px-6 py-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900 flex-row items-center justify-between">
             <Text className="text-slate-900 dark:text-white text-xl font-black tracking-tighter">
               {editingTransaction ? "Edit Transaction" : "New Transaction"}
             </Text>
+            {editingTransaction && (
+              <TouchableOpacity onPress={handleDelete} className="p-2 -mr-2">
+                <Trash2 size={20} color="#f43f5e" />
+              </TouchableOpacity>
+            )}
           </View>
 
           <ScrollView className="flex-1 px-6 pt-4" showsVerticalScrollIndicator={false}>
@@ -254,6 +283,34 @@ const AddTransactionScreen = () => {
                   onChange={handleTimeChange}
                 />
               )}
+            </View>
+
+            {/* Visibility Selection */}
+            <View className="mb-6">
+              <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase tracking-widest">Reporting Visibility</Text>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setIsExcluded(!isExcluded)}
+                className={`bg-white dark:bg-slate-900 rounded-[24px] px-5 py-4 flex-row items-center border ${isExcluded ? 'border-rose-100 dark:border-rose-950/30 bg-rose-50/30 dark:bg-rose-950/10' : 'border-slate-100 dark:border-slate-800'}`}
+              >
+                <View className={`w-11 h-11 rounded-2xl items-center justify-center mr-4 ${isExcluded ? 'bg-rose-500/10' : 'bg-blue-500/10'}`}>
+                  {isExcluded ? <EyeOff size={22} color="#f43f5e" /> : <Eye size={22} color="#3b82f6" />}
+                </View>
+                <View className="flex-1">
+                  <Text className={`font-black text-sm ${isExcluded ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
+                    {isExcluded ? "Excluded from Budget" : "Included in Budget"}
+                  </Text>
+                  <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
+                    {isExcluded ? "Hidden from all calculations" : "Visible in charts & reports"}
+                  </Text>
+                </View>
+                {/* Custom Toggle Switch */}
+                <View className={`w-12 h-7 rounded-full px-1 justify-center ${isExcluded ? 'bg-rose-500' : 'bg-slate-200 dark:bg-slate-800'}`}>
+                  <View 
+                    className={`w-5 h-5 bg-white rounded-full ${isExcluded ? 'self-end' : 'self-start'}`}
+                  />
+                </View>
+              </TouchableOpacity>
             </View>
 
             {/* Categories */}

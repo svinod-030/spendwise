@@ -421,14 +421,36 @@ async function ingestSmsMessages(
       continue;
     }
 
-    const existing = await db.getFirstAsync<{ id: number }>(
+    const existingHash = await db.getFirstAsync<{ id: number }>(
       "SELECT id FROM messages WHERE hash = ?",
       [parsed.hash]
     );
 
-    if (existing) {
+    if (existingHash) {
       skipped += 1;
       continue;
+    }
+
+    // Advanced duplicate check (same reference ID or same amount/day/account)
+    if (parsed.referenceId) {
+      const existingRef = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM transactions WHERE reference_id = ?",
+        [parsed.referenceId]
+      );
+      if (existingRef) {
+        skipped += 1;
+        continue;
+      }
+    } else {
+      // Check for same amount on the same day (naive similarity)
+      const existingSimilar = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM transactions WHERE amount = ? AND date(date) = date(?) AND type = ?",
+        [parsed.amount, parsed.receivedAt, parsed.type]
+      );
+      if (existingSimilar) {
+        skipped += 1;
+        continue;
+      }
     }
 
     const messageInsert = await db.runAsync(
