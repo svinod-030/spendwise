@@ -2,34 +2,58 @@ import React, { useEffect } from "react";
 import { View, Text, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore } from "../store/useExpenseStore";
-import { useAuthStore } from "../store/useAuthStore";
 import { useThemeStore, AppTheme } from "../store/useThemeStore";
-import { signInWithGoogle, signOutGoogle } from "../utils/googleAuth";
-import { backupToDrive, restoreFromDrive } from "../utils/backupService";
 import {
-  Download, Upload, Shield, Trash2,
-  Cloud, LogIn, LogOut, RefreshCcw, MessageSquare,
+  Shield, Trash2,
+  MessageSquare,
   Sun, Moon, Monitor,
-  TrendingUp
+  TrendingUp, Search, Globe, ChevronRight, CheckCircle2
 } from "lucide-react-native";
-import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import { Modal, FlatList, TextInput as RNTextInput } from "react-native";
+import * as Localization from "expo-localization";
 
-const currencies = [
-  { label: "US Dollar ($)", value: "USD", symbol: "$" },
-  { label: "Indian Rupee (₹)", value: "INR", symbol: "₹" },
-  { label: "Euro (€)", value: "EUR", symbol: "€" },
-  { label: "British Pound (£)", value: "GBP", symbol: "£" },
-];
+import { ALL_CURRENCY_CODES } from "../constants/currencies";
+
+const deviceLocales = Localization.getLocales();
+const commonCurrencies = deviceLocales
+  .filter(l => l.currencyCode)
+  .map(l => ({
+    label: l.currencyCode || "USD",
+    value: l.currencyCode || "USD",
+    symbol: l.currencySymbol || "$"
+  }))
+  .filter((v, i, a) => a.findIndex(t => t.value === v.value) === i); // Unique
+
+// If device locales don't have enough, add some defaults
+if (commonCurrencies.length < 3) {
+  const defaults = [
+    { label: "USD", value: "USD", symbol: "$" },
+    { label: "INR", value: "INR", symbol: "₹" },
+    { label: "EUR", value: "EUR", symbol: "€" },
+  ];
+  defaults.forEach(d => {
+    if (!commonCurrencies.find(c => c.value === d.value)) {
+      commonCurrencies.push(d);
+    }
+  });
+}
+
+const allCurrencyCodes = ALL_CURRENCY_CODES;
 
 const Settings = () => {
-  const { importTransactionsFromSms, currency, updateCurrency, fetchCurrency, clearAllData } = useExpenseStore();
+  const { importTransactionsFromSms, currency, updateCurrency, fetchCurrency, clearAllData, getCurrencySymbol } = useExpenseStore();
   const { theme, setTheme } = useThemeStore();
   const [isSyncing, setIsSyncing] = React.useState(false);
+  const [isCurrencyModalVisible, setIsCurrencyModalVisible] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
 
   useEffect(() => {
     fetchCurrency()
   }, []);
+
+  const filteredCurrencies = allCurrencyCodes.filter(code =>
+    code.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleClearData = async () => {
     Alert.alert(
@@ -37,9 +61,9 @@ const Settings = () => {
       "This will permanently delete all transactions, messages, and budgets. This action cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Clear Everything", 
-          style: "destructive", 
+        {
+          text: "Clear Everything",
+          style: "destructive",
           onPress: async () => {
             setIsSyncing(true);
             try {
@@ -50,7 +74,7 @@ const Settings = () => {
             } finally {
               setIsSyncing(false);
             }
-          } 
+          }
         },
       ]
     );
@@ -92,23 +116,6 @@ const Settings = () => {
     );
   };
 
-  const CurrencyOption = ({ type }: { type: string }) => {
-    const isActive = currency === type;
-    return (
-      <TouchableOpacity
-        onPress={() => updateCurrency(type)}
-        className={`flex-1 items-center justify-center p-3 mx-2 rounded-2xl border ${isActive
-          ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20'
-          : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-          }`}
-      >
-        <Text className={`text-[10px] font-black uppercase tracking-widest mt-1.5 ${isActive ? 'text-white' : 'text-slate-500'}`}>
-          {type}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
       <View className="px-6 py-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
@@ -143,15 +150,20 @@ const Settings = () => {
           <ThemeOption type="system" label="System" icon={Monitor} />
         </View>
 
-
-        <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Currency</Text>
-        <View className="flex-row space-x-3 mb-8">
-          {
-            currencies.map((currency) => (
-              <CurrencyOption key={currency.value} type={currency.value} />
-            ))
-          }
-        </View>
+        <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Display Currency</Text>
+        <TouchableOpacity
+          onPress={() => setIsCurrencyModalVisible(true)}
+          className="flex-row items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-8 shadow-sm dark:shadow-none"
+        >
+          <View className="w-10 h-10 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl items-center justify-center">
+            <Globe size={20} color="#3b82f6" />
+          </View>
+          <View className="ml-3.5 flex-1">
+            <Text className="text-slate-900 dark:text-white font-bold text-base">{currency}</Text>
+            <Text className="text-slate-500 text-xs">Symbol: {getCurrencySymbol()}</Text>
+          </View>
+          <ChevronRight size={20} color="#64748b" />
+        </TouchableOpacity>
 
         <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Data Management</Text>
 
@@ -231,6 +243,77 @@ const Settings = () => {
           </>
         )}
       </ScrollView>
+
+      {/* Currency Selector Modal */}
+      <Modal
+        visible={isCurrencyModalVisible}
+        animationType="slide"
+        onRequestClose={() => setIsCurrencyModalVisible(false)}
+      >
+        <SafeAreaView className="flex-1 bg-white dark:bg-slate-950">
+          <View className="px-6 py-4 border-b border-slate-100 dark:border-slate-900 flex-row items-center justify-between">
+            <Text className="text-xl font-black text-slate-900 dark:text-white">Select Currency</Text>
+            <TouchableOpacity onPress={() => setIsCurrencyModalVisible(false)}>
+              <Text className="text-blue-600 font-bold text-base">Done</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View className="px-6 py-3">
+            <View className="flex-row items-center bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800">
+              <Search size={18} color="#64748b" />
+              <RNTextInput
+                className="flex-1 ml-2 text-slate-900 dark:text-white py-1.5"
+                placeholder="Search currency code (e.g. USD, INR)..."
+                placeholderTextColor="#64748b"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCapitalize="characters"
+              />
+            </View>
+          </View>
+
+          <FlatList
+            data={filteredCurrencies}
+            numColumns={3}
+            keyExtractor={(item) => item}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+            ListHeaderComponent={() => (
+              searchQuery === "" ? (
+                <View className="px-2">
+                  <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-6 mb-2">All Currencies</Text>
+                </View>
+              ) : (
+                <View className="px-2">
+                  <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-6 mb-2">Search Results</Text>
+                </View>
+              )
+            )}
+            renderItem={({ item }) => {
+              const isActive = currency === item;
+              return (
+                <TouchableOpacity
+                  onPress={() => {
+                    updateCurrency(item);
+                    setIsCurrencyModalVisible(false);
+                  }}
+                  className={`flex-1 m-1 py-1 rounded-[20px] items-center justify-center border ${isActive ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm'}`}
+                >
+                  <View className={`px-1 py-1 items-center justify-center`}>
+                    <Text className={`font-black text-[12px] text-center ${isActive ? 'text-white' : 'text-blue-600 dark:text-blue-400'}`}>
+                      {item} {getCurrencySymbol(item)}
+                    </Text>
+                  </View>
+                  {isActive && (
+                    <View className="absolute top-2 right-2">
+                      <CheckCircle2 size={12} color="white" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };

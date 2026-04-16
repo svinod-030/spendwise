@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { getDb } from "../db/database";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import * as Localization from "expo-localization";
 import { parseSmsForTransaction, TransactionKind } from "../utils/smsParser";
 import { checkSmsPermission, readInboxMessages, requestSmsPermission } from "../utils/smsReader";
 
@@ -87,25 +88,34 @@ interface ExpenseState {
   exportData: () => Promise<void>;
   importData: (jsonData: string) => Promise<void>;
   clearAllData: () => Promise<void>;
-  getCurrencySymbol: () => string;
+  getCurrencySymbol: (code?: string) => string;
 }
+
+import { CURRENCY_SYMBOLS } from "../constants/currencies";
 
 export const useExpenseStore = create<ExpenseState>((set, get) => ({
   transactions: [],
   categories: [],
   budgets: [],
-  currency: "USD",
+  currency: "INR",
   isLoading: false,
 
-  getCurrencySymbol: () => {
-    const { currency } = get();
-    const symbols: Record<string, string> = {
-      USD: "$",
-      INR: "₹",
-      EUR: "€",
-      GBP: "£",
-    };
-    return symbols[currency] || "$";
+  getCurrencySymbol: (code?: string) => {
+    const target = code || get().currency;
+
+    if (CURRENCY_SYMBOLS[target]) return CURRENCY_SYMBOLS[target];
+
+    try {
+      const symbol = (0).toLocaleString("en-US", {
+        style: 'currency',
+        currency: target,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).replace(/\d/g, '').replace(/[.,]/g, '').trim();
+      return symbol || target;
+    } catch {
+      return target;
+    }
   },
 
   fetchCategories: async () => {
