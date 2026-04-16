@@ -37,7 +37,7 @@ export const BillsSection = ({
             onPress={() => setBillFilter("paid")}
             className={`px-3 py-1.5 rounded-lg ${billFilter === "paid" ? "bg-white dark:bg-slate-700 shadow-sm" : ""}`}
           >
-            <Text className={`text-[9px] font-black uppercase tracking-tighter ${billFilter === "paid" ? "text-blue-600 dark:text-blue-400" : "text-slate-500"}`}>Paid</Text>
+            <Text className={`text-[9px] font-black uppercase tracking-tighter ${billFilter === "paid" ? "text-blue-600 dark:text-blue-400" : "text-slate-500"}`}>All</Text>
           </TouchableOpacity>
         </View>
       </View>

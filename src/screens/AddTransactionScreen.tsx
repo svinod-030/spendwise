@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, Modal, Pressable, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Calendar as CalendarIcon, ChevronRight, Check, TrendingUp, Clock as ClockIcon, Trash2, Eye, EyeOff, Link as LinkIcon, RefreshCcw, Search, X } from "lucide-react-native";
+import { Calendar as CalendarIcon, ChevronRight, Check, TrendingUp, Clock as ClockIcon, Trash2, Eye, EyeOff, Link as LinkIcon, RefreshCcw, Search, X, ArrowLeft } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { IconLoader } from "../components/IconLoader";
@@ -162,10 +162,15 @@ const AddTransactionScreen = () => {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
         >
-          <View className="px-6 py-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900 flex-row items-center justify-between">
-            <Text className="text-slate-900 dark:text-white text-xl font-black tracking-tighter">
-              {editingTransaction ? "Edit Transaction" : "New Transaction"}
-            </Text>
+          <View className="px-4 py-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900 flex-row items-center justify-between">
+            <View className="flex-row items-center">
+              <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 -ml-2 mr-2">
+                <ArrowLeft size={24} color="#64748b" />
+              </TouchableOpacity>
+              <Text className="text-slate-900 dark:text-white text-xl font-black tracking-tighter">
+                {editingTransaction ? "Edit Transaction" : "New Transaction"}
+              </Text>
+            </View>
             {editingTransaction && (
               <TouchableOpacity onPress={handleDelete} className="p-2 -mr-2">
                 <Trash2 size={20} color="#f43f5e" />
