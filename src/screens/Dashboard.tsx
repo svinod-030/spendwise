@@ -215,7 +215,9 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
                 {item.note || item.category_name || "Transaction"}
                 {item.is_excluded === 1 && <Text className="text-rose-500 text-[10px] italic font-bold"> (Hidden)</Text>}
               </Text>
-              <Text className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">{new Date(item.date).toLocaleDateString("en-US")}</Text>
+              <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest mt-0.5">
+                {new Date(item.date).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })} • {new Date(item.date).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: true })}
+              </Text>
             </View>
           </View>
           <View className="items-end">

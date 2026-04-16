@@ -488,7 +488,7 @@ async function ingestSmsMessages(
         parsed.type,
         parsed.kind,
         parsed.receivedAt,
-        parsed.merchant || parsed.body.slice(0, 80),
+        parsed.merchant || (parsed.sender ? `SMS: ${parsed.sender}` : "Miscellaneous"),
         messageInsert.lastInsertRowId,
         parsed.merchant || null,
         "INR",

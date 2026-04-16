@@ -75,10 +75,35 @@ function detectKind(body: string): TransactionKind {
 
 function cleanMerchant(name: string): string {
   if (!name) return "";
-  return name
-    .replace(/(?:vpa|upi|info|id|ref|txn).*$/i, "")
+  
+  // Words that commonly appear in SMS but aren't part of the merchant name
+  const noiseWords = [
+    "using", "via", "on", "at", "to", "from", "for", "ref", "id", "date", 
+    "bank", "ac", "acct", "available", "bal", "balance", "txn", "vpa", "upi"
+  ];
+  
+  let cleaned = name
+    .replace(/(?:vpa|upi|info|id|ref|txn|a\/c|acct|acc|date).*$/i, "")
     .replace(/[*\-]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
+
+  // Remove trailing/leading noise words
+  const words = cleaned.split(" ");
+  if (words.length > 0) {
+    const firstWord = words[0].toLowerCase();
+    const lastWord = words[words.length - 1].toLowerCase();
+    
+    if (noiseWords.includes(firstWord) && words.length > 1) words.shift();
+    if (noiseWords.includes(lastWord) && words.length > 1) words.pop();
+    
+    cleaned = words.join(" ");
+  }
+
+  // Final cleanup: remove any standalone numbers or short codes if they look like trash
+  if (/^[0-9 ]+$/.test(cleaned) && cleaned.length < 4) return "";
+
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
 function buildHash(sender: string, body: string, date: number): string {
@@ -110,16 +135,32 @@ export function parseSmsForTransaction(message: SmsMessage): ParsedSmsTransactio
   const accountMatch = body.match(accountPattern);
   const refMatch = body.match(refPattern);
   
-  // Try extracting merchant with multiple patterns
+  // Improved merchant extraction
   let merchant: string | undefined;
-  const toAtMatches = body.match(/(?:to|at|from)\s+([A-Za-z0-9 .&-]{2,50})/i);
-  const usedAtMatches = body.match(/info[:*]\s*([A-Za-z0-9 .&-]{2,40})/i);
-  const upiMatches = body.match(/(?:VPA|UPI)[:*]\s*([A-Za-z0-9 .&-]{2,30})/i);
   
-  merchant = toAtMatches?.[1] || usedAtMatches?.[1] || upiMatches?.[1];
+  // Pattern 1: {To/At/From} {Merchant} {On/For/Using/Ref}
+  const toAtMatches = body.match(/(?:to|at|from|towards)\s+([A-Za-z0-9 .&-]{2,50}?)(\s+(?:on|for|using|via|ref|id|balance|bal|date|is|at|towards)|$)/i);
+  
+  // Pattern 2: Dedicated info/memo field
+  const useAtMatches = body.match(/(?:info|memo|vpa)[:*]?\s*([A-Za-z0-9 .&-]{2,40})/i);
+  
+  // Pattern 3: Capitalized merchant name after amount (common in some banks)
+  // e.g. "Spent Rs.500 at ZOMATO"
+  const capsMatches = body.match(/([A-Z]{3,20}(?:\s+[A-Z]{2,20})*)/);
+
+  merchant = toAtMatches?.[1] || useAtMatches?.[1];
+  
+  // If we found a merchant, try to see if it's too generic and we can find a better one
+  if (!merchant || merchant.length < 3) {
+     merchant = merchant || capsMatches?.[0];
+  }
+
   if (merchant) {
     merchant = cleanMerchant(merchant);
   }
+
+  // If merchant is still just noise or empty, use sender as fallback but with lower confidence
+  const finalMerchant = (merchant && merchant.length > 2) ? merchant : undefined;
 
   return {
     sender,
@@ -129,9 +170,9 @@ export function parseSmsForTransaction(message: SmsMessage): ParsedSmsTransactio
     amount,
     type,
     kind: detectKind(body),
-    merchant: merchant || undefined,
+    merchant: finalMerchant,
     referenceId: refMatch?.[1]?.trim(),
     accountRef: accountMatch?.[1]?.trim(),
-    confidence: merchant ? 0.9 : 0.75,
+    confidence: finalMerchant ? 0.9 : 0.6,
   };
 }
