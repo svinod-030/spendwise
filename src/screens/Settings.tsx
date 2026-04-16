@@ -9,7 +9,8 @@ import { backupToDrive, restoreFromDrive } from "../utils/backupService";
 import {
   Download, Upload, Shield, Trash2,
   Cloud, LogIn, LogOut, RefreshCcw, MessageSquare,
-  Sun, Moon, Monitor
+  Sun, Moon, Monitor,
+  TrendingUp
 } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
@@ -343,7 +344,7 @@ const Settings = () => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          className="flex-row items-center bg-rose-500/5 p-4 rounded-2xl border border-rose-500/10"
+          className="flex-row items-center bg-rose-500/5 p-4 rounded-2xl border border-rose-500/10 mb-8"
         >
           <View className="w-10 h-10 bg-rose-500/10 dark:bg-rose-500/20 rounded-xl items-center justify-center">
             <Trash2 size={20} color="#f43f5e" />
@@ -353,6 +354,54 @@ const Settings = () => {
             <Text className="text-slate-500 text-xs">Permanently delete all records</Text>
           </View>
         </TouchableOpacity>
+
+        {__DEV__ && (
+          <>
+            <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Developer Tools</Text>
+
+            <TouchableOpacity
+              onPress={async () => {
+                const mockSms = {
+                  address: "HDFCBNK",
+                  body: `Your A/C x1234 has been debited for Rs. 500.00 at ZOMATO on ${new Date().toLocaleDateString()}. Ref: 1234567890`,
+                  date: Date.now()
+                };
+                const result = await useExpenseStore.getState().processIncomingSmsMessage(mockSms);
+                Alert.alert(result ? "Success" : "Already exists or failed", "Mock expense processed.");
+              }}
+              className="flex-row items-center bg-slate-100/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3"
+            >
+              <View className="w-10 h-10 bg-rose-500/10 dark:bg-rose-500/20 rounded-xl items-center justify-center">
+                <TrendingUp size={20} color="#f43f5e" style={{ transform: [{ rotate: '180deg' }] }} />
+              </View>
+              <View className="ml-3.5 flex-1">
+                <Text className="text-slate-900 dark:text-white font-bold text-base">Simulate Expense SMS</Text>
+                <Text className="text-slate-500 text-xs">Test: HDFC Rs. 500 at Zomato</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={async () => {
+                const mockSms = {
+                  address: "ICICIBNK",
+                  body: `Dear Customer, your Acct XX123 has been credited with INR 2,500.00 on ${new Date().toLocaleDateString()} from Google India.`,
+                  date: Date.now()
+                };
+                const result = await useExpenseStore.getState().processIncomingSmsMessage(mockSms);
+                Alert.alert(result ? "Success" : "Already exists or failed", "Mock income processed.");
+              }}
+              className="flex-row items-center bg-slate-100/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800"
+            >
+              <View className="w-10 h-10 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl items-center justify-center">
+                <TrendingUp size={20} color="#10b981" />
+              </View>
+              <View className="ml-3.5 flex-1">
+                <Text className="text-slate-900 dark:text-white font-bold text-base">Simulate Income SMS</Text>
+                <Text className="text-slate-500 text-xs">Test: ICICI INR 2,500 credit</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
