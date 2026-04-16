@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { getDb } from "../db/database";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import * as Localization from "expo-localization";
 import { parseSmsForTransaction, TransactionKind } from "../utils/smsParser";
 import { checkSmsPermission, readInboxMessages, requestSmsPermission } from "../utils/smsReader";
 
