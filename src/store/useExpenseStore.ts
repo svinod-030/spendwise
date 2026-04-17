@@ -105,6 +105,7 @@ interface ExpenseState {
   importData: (jsonData: string) => Promise<void>;
   clearAllData: () => Promise<void>;
   getCurrencySymbol: (code?: string) => string;
+  fetchMessageById: (id: number) => Promise<{ sender: string; body: string; date: string } | null>;
 }
 
 import { CURRENCY_SYMBOLS } from "../constants/currencies";
@@ -200,6 +201,14 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const currency = row?.value || "USD";
     set({ currency });
     return currency;
+  },
+
+  fetchMessageById: async (id: number) => {
+    const db = await getDb();
+    return await db.getFirstAsync<{ sender: string; body: string; date: string }>(
+      "SELECT sender, body, received_at as date FROM messages WHERE id = ?",
+      [id]
+    );
   },
 
   updateCurrency: async (currency: string) => {

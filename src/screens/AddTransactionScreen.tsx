@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, Modal, Pressable, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Calendar as CalendarIcon, ChevronRight, Check, TrendingUp, Clock as ClockIcon, Trash2, Eye, EyeOff, Link as LinkIcon, RefreshCcw, Search, X, ArrowLeft } from "lucide-react-native";
+import { Calendar as CalendarIcon, ChevronRight, ChevronDown, Check, TrendingUp, Clock as ClockIcon, Trash2, Eye, EyeOff, Link as LinkIcon, RefreshCcw, Search, X, ArrowLeft, MessageSquare } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { IconLoader } from "../components/IconLoader";
@@ -15,7 +15,7 @@ const AddTransactionScreen = () => {
   const isFocused = useIsFocused();
   const editingTransaction: Transaction | undefined = route.params?.editingTransaction;
 
-  const { addTransaction, updateTransaction, deleteTransaction, categories, fetchCategories, getCurrencySymbol, transactions } = useExpenseStore();
+  const { addTransaction, updateTransaction, deleteTransaction, categories, fetchCategories, getCurrencySymbol, transactions, fetchMessageById } = useExpenseStore();
 
   const [type, setType] = useState<"expense" | "income">("expense");
   const [kind, setKind] = useState<string>("expense");
@@ -31,6 +31,8 @@ const AddTransactionScreen = () => {
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   const [isLinkingModalOpen, setIsLinkingModalOpen] = useState(false);
   const [linkSearch, setLinkSearch] = useState("");
+  const [smsContent, setSmsContent] = useState<{ sender: string, body: string } | null>(null);
+  const [isSmsCollapsed, setIsSmsCollapsed] = useState(true);
 
   const parentTransaction = transactions.find(t => t.id === parentId);
   const linkedRefunds = transactions.filter(t => t.parent_id === editingTransaction?.id);
@@ -49,6 +51,14 @@ const AddTransactionScreen = () => {
       setNote(editingTransaction.note || "");
       setIsExcluded(editingTransaction.is_excluded === 1);
       setParentId(editingTransaction.parent_id || null);
+
+      if (editingTransaction.source_message_id) {
+        fetchMessageById(editingTransaction.source_message_id).then(msg => {
+          if (msg) setSmsContent({ sender: msg.sender, body: msg.body });
+        });
+      } else {
+        setSmsContent(null);
+      }
     } else {
       setType("expense");
       setKind("expense");
@@ -58,6 +68,7 @@ const AddTransactionScreen = () => {
       setNote("");
       setIsExcluded(false);
       setParentId(null);
+      setSmsContent(null);
     }
   }, [editingTransaction]);
 
@@ -401,6 +412,44 @@ const AddTransactionScreen = () => {
                     </TouchableOpacity>
                   )}
                 </View>
+
+                {/* SMS Content Section */}
+                {smsContent && (
+                  <View className="mb-6">
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => setIsSmsCollapsed(!isSmsCollapsed)}
+                      className="bg-white dark:bg-slate-900 rounded-[24px] px-5 py-4 border border-slate-100 dark:border-slate-800"
+                    >
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center">
+                          <View className="w-11 h-11 rounded-2xl bg-indigo-500/10 items-center justify-center mr-4">
+                            <MessageSquare size={22} color="#6366f1" />
+                          </View>
+                          <View>
+                            <Text className="font-black text-sm text-slate-900 dark:text-white">SMS Source</Text>
+                            <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
+                              From: {smsContent.sender}
+                            </Text>
+                          </View>
+                        </View>
+                        <ChevronDown 
+                          size={18} 
+                          color="#64748b" 
+                          style={{ transform: [{ rotate: isSmsCollapsed ? '0deg' : '180deg' }] }} 
+                        />
+                      </View>
+
+                      {!isSmsCollapsed && (
+                        <View className="mt-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                          <Text className="text-slate-600 dark:text-slate-400 text-sm leading-5 font-medium italic">
+                            "{smsContent.body}"
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
 
                 {/* Visibility Selection */}
                 <View className="mb-6">
