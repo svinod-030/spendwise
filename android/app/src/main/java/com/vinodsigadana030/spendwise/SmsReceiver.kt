@@ -35,6 +35,9 @@ class SmsReceiver : BroadcastReceiver() {
       } else {
         context.startService(serviceIntent)
       }
+
+      // Notify the active foreground app to refresh
+      SmsEventModule.sendEvent("onSmsReceived")
     }
   }
 }

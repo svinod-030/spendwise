@@ -564,37 +564,39 @@ async function ingestSmsMessages(
       const parsedBill = parseSmsForBill(message);
       if (parsedBill) {
         const hash = buildHash(parsedBill.sender, parsedBill.body, message.date);
-        const existingBill = await db.getFirstAsync<{ id: number }>("SELECT id FROM messages WHERE hash = ?", [hash]);
-        if (!existingBill) {
-          // Use a batch to ensure both are inserted or none
-          await db.withTransactionAsync(async () => {
+        const existingMessage = await db.getFirstAsync<{ id: number }>("SELECT id FROM messages WHERE hash = ?", [hash]);
+        
+        if (!existingMessage) {
+          // Use atomic inserts with OR IGNORE
+          const billMsgResult = await db.runAsync(
+            "INSERT OR IGNORE INTO messages (sender, body, received_at, hash, parse_confidence, processed_status) VALUES (?, ?, ?, ?, 1.0, 'processed')",
+            [parsedBill.sender, parsedBill.body, parsedBill.receivedAt, hash]
+          );
+
+          if (billMsgResult.changes > 0) {
             await db.runAsync(
               "INSERT INTO bills (sender, body, amount, due_date, status) VALUES (?, ?, ?, ?, 'unpaid')",
               [parsedBill.sender, parsedBill.body, parsedBill.amount, parsedBill.dueDate || new Date().toISOString()]
             );
-            await db.runAsync(
-              "INSERT INTO messages (sender, body, received_at, hash, parse_confidence, processed_status) VALUES (?, ?, ?, ?, 1.0, 'processed')",
-              [parsedBill.sender, parsedBill.body, parsedBill.receivedAt, hash]
-            );
-          });
-          imported += 1;
+            imported += 1;
+          }
         }
       }
       skipped += 1;
       continue;
     }
 
-    const existingHash = await db.getFirstAsync<{ id: number }>(
+    // 1. Check if message already processed (Fast check)
+    const existing = await db.getFirstAsync<{ id: number }>(
       "SELECT id FROM messages WHERE hash = ?",
       [parsed.hash]
     );
-
-    if (existingHash) {
+    if (existing) {
       skipped += 1;
       continue;
     }
 
-    // Advanced duplicate check (same reference ID or same amount/day/account)
+    // 2. Advanced duplicate check (same reference ID)
     if (parsed.referenceId) {
       const existingRef = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM transactions WHERE reference_id = ?",
@@ -604,24 +606,22 @@ async function ingestSmsMessages(
         skipped += 1;
         continue;
       }
-    } else {
-      // Check for same amount on the same day (naive similarity)
-      const existingSimilar = await db.getFirstAsync<{ id: number }>(
-        "SELECT id FROM transactions WHERE amount = ? AND date(date) = date(?) AND type = ?",
-        [parsed.amount, parsed.receivedAt, parsed.type]
-      );
-      if (existingSimilar) {
-        skipped += 1;
-        continue;
-      }
     }
 
+    // 3. Atomically insert message and get its ID
     const messageInsert = await db.runAsync(
-      `INSERT INTO messages (sender, body, received_at, hash, parse_confidence, processed_status)
+      `INSERT OR IGNORE INTO messages (sender, body, received_at, hash, parse_confidence, processed_status)
        VALUES (?, ?, ?, ?, ?, 'processed')`,
       [parsed.sender, parsed.body, parsed.receivedAt, parsed.hash, parsed.confidence]
     );
 
+    // If no message was inserted, it was a duplicate race condition
+    if (messageInsert.changes === 0) {
+      skipped += 1;
+      continue;
+    }
+
+    // 4. Insert the transaction
     const categoryId = await getCategoryIdForMessage(db, parsed.body, parsed.type);
     await db.runAsync(
       `INSERT INTO transactions

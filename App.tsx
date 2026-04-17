@@ -78,48 +78,48 @@ export default function App() {
     runLaunchImport();
   }, [isReady, didRunLaunchImport]);
 
-  // Sync recent SMS transactions
+  // Real-time SMS sync: Listen for native events instead of polling
   useEffect(() => {
     if (!isReady || Platform.OS !== "android") return;
+    
     const store = useExpenseStore.getState();
-    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const { DeviceEventEmitter } = require("react-native");
+
     let isSyncing = false;
     const runSync = async () => {
       if (isSyncing) return;
       isSyncing = true;
       try {
+        // We still fetch recent messages just in case some were missed
         await store.syncRecentSmsTransactions();
-      } catch {
-        // Intentionally ignore; next cycle retries.
+      } catch (err) {
+        console.error("Manual sync failed:", err);
       } finally {
         isSyncing = false;
       }
     };
-    const startPolling = () => {
-      if (intervalId) return;
-      intervalId = setInterval(() => {
-        runSync();
-      }, 15000);
-    };
-    const stopPolling = () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
-    };
+
+    // 1. Initial sync on launch
     runSync();
-    startPolling();
+
+    // 2. Listen for real-time SMS events from our native SmsReceiver
+    const subscription = DeviceEventEmitter.addListener("onSmsReceived", () => {
+      // Small delay to ensure the Headless Task has finished writing to the DB
+      setTimeout(() => {
+        runSync();
+      }, 1000);
+    });
+
+    // 3. Refresh on app return to foreground
     const appStateSubscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {
         runSync();
-        startPolling();
-      } else {
-        stopPolling();
       }
     });
+
     return () => {
+      subscription.remove();
       appStateSubscription.remove();
-      stopPolling();
     };
   }, [isReady]);
 
