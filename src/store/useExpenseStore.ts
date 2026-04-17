@@ -76,6 +76,7 @@ interface ExpenseState {
   bills: Bill[];
   currency: string;
   isLoading: boolean;
+  isSyncing: boolean;
   fetchCategories: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
   fetchCurrency: () => Promise<string>;
@@ -115,6 +116,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   bills: [],
   currency: "INR",
   isLoading: false,
+  isSyncing: false,
 
   getCurrencySymbol: (code?: string) => {
     const target = code || get().currency;
@@ -341,40 +343,58 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   importTransactionsFromSms: async () => {
-    const hasPermission = await requestSmsPermission();
-    if (!hasPermission) {
-      throw new Error("SMS permission denied");
+    set({ isSyncing: true });
+    try {
+      const hasPermission = await requestSmsPermission();
+      if (!hasPermission) {
+        throw new Error("SMS permission denied");
+      }
+
+      const db = await getDb();
+      const messages = await readInboxMessages();
+      const { imported, skipped } = await ingestSmsMessages(db, messages);
+
+      await get().fetchTransactions();
+      await get().fetchBills();
+      return { imported, skipped };
+    } finally {
+      set({ isSyncing: false });
     }
-
-    const db = await getDb();
-    const messages = await readInboxMessages();
-    const { imported, skipped } = await ingestSmsMessages(db, messages);
-
-    await get().fetchTransactions();
-    return { imported, skipped };
   },
 
   syncRecentSmsTransactions: async () => {
-    const hasPermission = await checkSmsPermission();
-    if (!hasPermission) return { imported: 0, skipped: 0 };
+    set({ isSyncing: true });
+    try {
+      const hasPermission = await checkSmsPermission();
+      if (!hasPermission) return { imported: 0, skipped: 0 };
 
-    const db = await getDb();
-    const messages = await readInboxMessages(30);
-    const result = await ingestSmsMessages(db, messages);
-    if (result.imported > 0) {
-      await get().fetchTransactions();
+      const db = await getDb();
+      const messages = await readInboxMessages(30);
+      const result = await ingestSmsMessages(db, messages);
+      if (result.imported > 0) {
+        await get().fetchTransactions();
+        await get().fetchBills();
+      }
+      return result;
+    } finally {
+      set({ isSyncing: false });
     }
-    return result;
   },
 
   processIncomingSmsMessage: async (message) => {
-    const db = await getDb();
-    const result = await ingestSmsMessages(db, [message]);
-    if (result.imported > 0) {
-      await get().fetchTransactions();
-      return true;
+    set({ isSyncing: true });
+    try {
+      const db = await getDb();
+      const result = await ingestSmsMessages(db, [message]);
+      if (result.imported > 0) {
+        await get().fetchTransactions();
+        await get().fetchBills();
+        return true;
+      }
+      return false;
+    } finally {
+      set({ isSyncing: false });
     }
-    return false;
   },
 
   runInitialSmsImportIfNeeded: async () => {

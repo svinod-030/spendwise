@@ -2,8 +2,8 @@ import { useMemo, useState, useEffect } from "react";
 import { View, Text, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore, Transaction, Bill } from "../store/useExpenseStore";
-import { Landmark } from "lucide-react-native";
-import Animated, { FadeInUp } from "react-native-reanimated";
+import { Landmark, RefreshCw } from "lucide-react-native";
+import Animated, { FadeInUp, useAnimatedStyle, withRepeat, withTiming, useSharedValue } from "react-native-reanimated";
 
 // Extracted Components
 import { MonthPicker } from "../components/dashboard/MonthPicker";
@@ -26,8 +26,25 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
   const {
     transactions, fetchTransactions, budgets, fetchBudgets,
     getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal,
-    getCurrencySymbol, fetchCurrency, bills, fetchBills, markBillAsPaid
+    getCurrencySymbol, fetchCurrency, bills, fetchBills, markBillAsPaid, isSyncing
   } = useExpenseStore();
+
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    if (isSyncing) {
+      rotation.value = 0;
+      rotation.value = withRepeat(withTiming(360, { duration: 1000 }), -1, false);
+    } else {
+      rotation.value = withTiming(0);
+    }
+  }, [isSyncing]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${rotation.value}deg` }],
+    };
+  });
 
   useEffect(() => {
     fetchCurrency()
@@ -98,16 +115,17 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
     if (isFocused) loadAll();
   }, [fetchTransactions, fetchBudgets, fetchBills, isFocused, selectedMonth]);
 
-  // Reactive Refresh: Only updates totals when transactions change
+  // Reactive Refresh: Updates totals and bills when store data changes
   useEffect(() => {
-    const refreshTotals = async () => {
+    const refreshData = async () => {
       const expense = await getCurrentMonthExpenseTotal(selectedMonth);
       const income = await getCurrentMonthIncomeTotal(selectedMonth);
       setCurrentMonthExpense(expense);
       setCurrentMonthIncome(income);
+      await fetchBills(selectedMonth);
     };
-    if (isFocused) refreshTotals();
-  }, [getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, isFocused, selectedMonth, transactions]);
+    if (isFocused) refreshData();
+  }, [getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, fetchBills, isFocused, selectedMonth, transactions]);
 
   const overallMonthlyBudget = useMemo(() => {
     return budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly");
@@ -145,11 +163,22 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <SafeAreaView className="flex-1">
         <View className="px-6 pt-8 pb-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
-          <View className="flex-row items-center mb-1">
-            <View className="w-9 h-9 bg-blue-600 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/40">
-              <Landmark size={20} color="white" />
+          <View className="flex-row items-center justify-between mb-1">
+            <View className="flex-row items-center">
+              <View className="w-9 h-9 bg-blue-600 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/40">
+                <Landmark size={20} color="white" />
+              </View>
+              <Text className="text-slate-900 dark:text-white text-2xl font-black tracking-tighter">SpendWise</Text>
             </View>
-            <Text className="text-slate-900 dark:text-white text-2xl font-black tracking-tighter">SpendWise</Text>
+
+            {isSyncing && (
+              <View className="flex-row items-center bg-blue-50 dark:bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-500/20">
+                <Animated.View style={animatedStyle}>
+                  <RefreshCw size={12} color="#2563eb" />
+                </Animated.View>
+                <Text className="text-blue-600 dark:text-blue-400 text-[10px] font-bold ml-2 uppercase tracking-wide">Syncing</Text>
+              </View>
+            )}
           </View>
         </View>
 
