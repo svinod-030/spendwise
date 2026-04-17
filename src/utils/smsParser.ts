@@ -75,9 +75,33 @@ export function parseSmsForBill(sms: { address: string; body: string; date: numb
   if (!amountMatch) return null;
   const amount = normalizeAmount(amountMatch[1]);
 
-  // Extract due date (very basic attempt)
+  // Extract due date
   let dueDate = new Date(sms.date).toISOString();
-  // Try to find a date in the future if possible, but for now just use message date
+
+  // Define possible date formats
+  const dateStrPattern = /\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4}/i;
+
+  // Patterns to look for in the message
+  const patterns = [
+    new RegExp(`(?:due|by|on)\\s*[:\\s]*(${dateStrPattern.source})`, "i"),
+    new RegExp(`(${dateStrPattern.source})`, "i")
+  ];
+
+  for (const pattern of patterns) {
+    const match = sms.body.match(pattern);
+    if (match && match[1]) {
+      const rawDate = match[1].trim();
+      const parsedDate = new Date(rawDate);
+      if (!isNaN(parsedDate.getTime())) {
+        // Handle 2-digit years
+        if (parsedDate.getFullYear() < 100) {
+          parsedDate.setFullYear(2000 + parsedDate.getFullYear());
+        }
+        dueDate = parsedDate.toISOString();
+        break; // Found a valid date
+      }
+    }
+  }
 
   return {
     sender: sms.address,

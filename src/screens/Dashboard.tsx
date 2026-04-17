@@ -33,7 +33,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
     fetchCurrency()
   }, []);
 
-  const upaidBills = useMemo(() => bills.filter((bill) => bill.status === "unpaid"), [bills]);
+  const unpaidBills = useMemo(() => bills.filter((bill) => bill.status === "unpaid"), [bills]);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
@@ -89,7 +89,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
     const loadAll = async () => {
       await fetchTransactions();
       await fetchBudgets();
-      await fetchBills();
+      await fetchBills(selectedMonth);
       const expense = await getCurrentMonthExpenseTotal(selectedMonth);
       const income = await getCurrentMonthIncomeTotal(selectedMonth);
       setCurrentMonthExpense(expense);
@@ -184,7 +184,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
             />
 
             {billFilter === "unpaid" && <BillsSection
-              bills={upaidBills}
+              bills={unpaidBills}
               billFilter={billFilter}
               setBillFilter={setBillFilter}
               onMarkPaid={(bill) => {

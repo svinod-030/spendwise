@@ -93,7 +93,7 @@ interface ExpenseState {
   getCurrentMonthCategorySpending: (month?: string) => Promise<CategorySpending[]>;
   getMonthlyTrends: () => Promise<MonthlyTrend[]>;
   getMerchantSpending: () => Promise<MerchantSpending[]>;
-  fetchBills: () => Promise<void>;
+  fetchBills: (month?: string) => Promise<void>;
   markBillAsPaid: (billId: number, transactionId?: number) => Promise<void>;
   cleanupDuplicateBills: () => Promise<void>;
   importTransactionsFromSms: () => Promise<{ imported: number; skipped: number }>;
@@ -457,8 +457,9 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     await get().fetchBills();
   },
 
-  fetchBills: async () => {
+  fetchBills: async (month?: string) => {
     const db = await getDb();
+    const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
 
     // Auto-cleanup duplicates if any exist from the previous bug
     await db.runAsync(`
@@ -469,7 +470,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     `);
 
     const bills = await db.getAllAsync<Bill>(
-      "SELECT * FROM bills ORDER BY due_date ASC"
+      `SELECT * FROM bills 
+       WHERE due_date >= ${dateQuery} 
+       AND due_date < date(${dateQuery}, '+1 month')
+       ORDER BY due_date ASC`
     );
     set({ bills });
   },
