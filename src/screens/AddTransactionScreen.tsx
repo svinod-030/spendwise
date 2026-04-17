@@ -325,107 +325,111 @@ const AddTransactionScreen = () => {
               )}
             </View>
 
-            {/* Refund Linking Section */}
-            <View className="mb-6">
-              <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase tracking-widest">
-                {type === "expense" ? "Linked Refunds" : "Refund Details"}
-              </Text>
+            {editingTransaction && (
+              <>
+                {/* Refund Linking Section */}
+                <View className="mb-6">
+                  <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase tracking-widest">
+                    {type === "expense" ? "Linked Refunds" : "Refund Details"}
+                  </Text>
 
-              {type === "expense" ? (
-                <View>
-                  {linkedRefunds.length > 0 ? (
-                    linkedRefunds.map(refund => (
-                      <View key={refund.id} className="bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-950/30 rounded-2xl p-4 mb-2 flex-row items-center justify-between">
-                        <View className="flex-row items-center flex-1">
-                          <View className="w-8 h-8 rounded-full bg-emerald-500/10 items-center justify-center mr-3">
-                            <RefreshCcw size={14} color="#10b981" />
+                  {type === "expense" ? (
+                    <View>
+                      {linkedRefunds.length > 0 ? (
+                        linkedRefunds.map(refund => (
+                          <View key={refund.id} className="bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-950/30 rounded-2xl p-4 mb-2 flex-row items-center justify-between">
+                            <View className="flex-row items-center flex-1">
+                              <View className="w-8 h-8 rounded-full bg-emerald-500/10 items-center justify-center mr-3">
+                                <RefreshCcw size={14} color="#10b981" />
+                              </View>
+                              <View>
+                                <Text className="text-slate-900 dark:text-white font-bold text-sm">{refund.note || "Refund"}</Text>
+                                <Text className="text-slate-500 text-[10px] uppercase font-bold tracking-widest">
+                                  {new Date(refund.date).toLocaleDateString()}
+                                </Text>
+                              </View>
+                            </View>
+                            <View className="flex-row items-center">
+                              <Text className="text-emerald-600 dark:text-emerald-400 font-black mr-4">+{getCurrencySymbol()}{refund.amount.toFixed(2)}</Text>
+                              <TouchableOpacity
+                                onPress={() => updateTransaction(refund.id, { parent_id: null })}
+                                className="w-8 h-8 rounded-full bg-rose-500/10 items-center justify-center"
+                              >
+                                <X size={14} color="#f43f5e" />
+                              </TouchableOpacity>
+                            </View>
                           </View>
-                          <View>
-                            <Text className="text-slate-900 dark:text-white font-bold text-sm">{refund.note || "Refund"}</Text>
-                            <Text className="text-slate-500 text-[10px] uppercase font-bold tracking-widest">
-                              {new Date(refund.date).toLocaleDateString()}
-                            </Text>
-                          </View>
-                        </View>
-                        <View className="flex-row items-center">
-                          <Text className="text-emerald-600 dark:text-emerald-400 font-black mr-4">+{getCurrencySymbol()}{refund.amount.toFixed(2)}</Text>
-                          <TouchableOpacity
-                            onPress={() => updateTransaction(refund.id, { parent_id: null })}
-                            className="w-8 h-8 rounded-full bg-rose-500/10 items-center justify-center"
-                          >
-                            <X size={14} color="#f43f5e" />
-                          </TouchableOpacity>
-                        </View>
+                        ))
+                      ) : null}
+
+                      <TouchableOpacity
+                        onPress={() => setIsLinkingModalOpen(true)}
+                        className="bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl py-4 items-center justify-center flex-row"
+                      >
+                        <LinkIcon size={16} color="#3b82f6" className="mr-2" />
+                        <Text className="text-blue-600 dark:text-blue-400 font-black text-sm uppercase tracking-widest">Link a Refund</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => setIsLinkingModalOpen(true)}
+                      className={`bg-white dark:bg-slate-900 rounded-[24px] px-5 py-4 flex-row items-center border ${parentId ? 'border-emerald-100 dark:border-emerald-950/30 bg-emerald-50/30 dark:bg-emerald-950/10' : 'border-slate-100 dark:border-slate-800'}`}
+                    >
+                      <View className={`w-11 h-11 rounded-2xl items-center justify-center mr-4 ${parentId ? 'bg-emerald-500/10' : 'bg-slate-500/10'}`}>
+                        <RefreshCcw size={22} color={parentId ? "#10b981" : "#64748b"} />
                       </View>
-                    ))
-                  ) : null}
-
-                  <TouchableOpacity
-                    onPress={() => setIsLinkingModalOpen(true)}
-                    className="bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl py-4 items-center justify-center flex-row"
-                  >
-                    <LinkIcon size={16} color="#3b82f6" className="mr-2" />
-                    <Text className="text-blue-600 dark:text-blue-400 font-black text-sm uppercase tracking-widest">Link a Refund</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setIsLinkingModalOpen(true)}
-                  className={`bg-white dark:bg-slate-900 rounded-[24px] px-5 py-4 flex-row items-center border ${parentId ? 'border-emerald-100 dark:border-emerald-950/30 bg-emerald-50/30 dark:bg-emerald-950/10' : 'border-slate-100 dark:border-slate-800'}`}
-                >
-                  <View className={`w-11 h-11 rounded-2xl items-center justify-center mr-4 ${parentId ? 'bg-emerald-500/10' : 'bg-slate-500/10'}`}>
-                    <RefreshCcw size={22} color={parentId ? "#10b981" : "#64748b"} />
-                  </View>
-                  <View className="flex-1">
-                    <Text className={`font-black text-sm ${parentId ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                      {parentId ? "Linked to Expense" : "Mark as Refund"}
-                    </Text>
-                    {parentTransaction ? (
-                      <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-                        {parentTransaction.note || "Expense"} • {getCurrencySymbol()}{parentTransaction.amount}
-                      </Text>
-                    ) : (
-                      <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-                        Link this to an original expense
-                      </Text>
-                    )}
-                  </View>
-                  {parentId && (
-                    <TouchableOpacity onPress={(e) => { e.stopPropagation(); setParentId(null); }} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 items-center justify-center">
-                      <X size={14} color="#64748b" />
+                      <View className="flex-1">
+                        <Text className={`font-black text-sm ${parentId ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                          {parentId ? "Linked to Expense" : "Mark as Refund"}
+                        </Text>
+                        {parentTransaction ? (
+                          <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
+                            {parentTransaction.note || "Expense"} • {getCurrencySymbol()}{parentTransaction.amount}
+                          </Text>
+                        ) : (
+                          <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
+                            Link this to an original expense
+                          </Text>
+                        )}
+                      </View>
+                      {parentId && (
+                        <TouchableOpacity onPress={(e) => { e.stopPropagation(); setParentId(null); }} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 items-center justify-center">
+                          <X size={14} color="#64748b" />
+                        </TouchableOpacity>
+                      )}
                     </TouchableOpacity>
                   )}
-                </TouchableOpacity>
-              )}
-            </View>
+                </View>
 
-            {/* Visibility Selection */}
-            <View className="mb-6">
-              <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase tracking-widest">Reporting Visibility</Text>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setIsExcluded(!isExcluded)}
-                className={`bg-white dark:bg-slate-900 rounded-[24px] px-5 py-4 flex-row items-center border ${isExcluded ? 'border-rose-100 dark:border-rose-950/30 bg-rose-50/30 dark:bg-rose-950/10' : 'border-slate-100 dark:border-slate-800'}`}
-              >
-                <View className={`w-11 h-11 rounded-2xl items-center justify-center mr-4 ${isExcluded ? 'bg-rose-500/10' : 'bg-blue-500/10'}`}>
-                  {isExcluded ? <EyeOff size={22} color="#f43f5e" /> : <Eye size={22} color="#3b82f6" />}
+                {/* Visibility Selection */}
+                <View className="mb-6">
+                  <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase tracking-widest">Reporting Visibility</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setIsExcluded(!isExcluded)}
+                    className={`bg-white dark:bg-slate-900 rounded-[24px] px-5 py-4 flex-row items-center border ${isExcluded ? 'border-rose-100 dark:border-rose-950/30 bg-rose-50/30 dark:bg-rose-950/10' : 'border-slate-100 dark:border-slate-800'}`}
+                  >
+                    <View className={`w-11 h-11 rounded-2xl items-center justify-center mr-4 ${isExcluded ? 'bg-rose-500/10' : 'bg-blue-500/10'}`}>
+                      {isExcluded ? <EyeOff size={22} color="#f43f5e" /> : <Eye size={22} color="#3b82f6" />}
+                    </View>
+                    <View className="flex-1">
+                      <Text className={`font-black text-sm ${isExcluded ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
+                        {isExcluded ? "Excluded from Budget" : "Included in Budget"}
+                      </Text>
+                      <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
+                        {isExcluded ? "Hidden from all calculations" : "Visible in charts & reports"}
+                      </Text>
+                    </View>
+                    <View className={`w-12 h-7 rounded-full px-1 justify-center ${isExcluded ? 'bg-rose-500' : 'bg-slate-200 dark:bg-slate-800'}`}>
+                      <View
+                        className={`w-5 h-5 bg-white rounded-full ${isExcluded ? 'self-end' : 'self-start'}`}
+                      />
+                    </View>
+                  </TouchableOpacity>
                 </View>
-                <View className="flex-1">
-                  <Text className={`font-black text-sm ${isExcluded ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                    {isExcluded ? "Excluded from Budget" : "Included in Budget"}
-                  </Text>
-                  <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-                    {isExcluded ? "Hidden from all calculations" : "Visible in charts & reports"}
-                  </Text>
-                </View>
-                <View className={`w-12 h-7 rounded-full px-1 justify-center ${isExcluded ? 'bg-rose-500' : 'bg-slate-200 dark:bg-slate-800'}`}>
-                  <View
-                    className={`w-5 h-5 bg-white rounded-full ${isExcluded ? 'self-end' : 'self-start'}`}
-                  />
-                </View>
-              </TouchableOpacity>
-            </View>
+              </>
+            )}
 
             {/* Categories */}
             <View className="mb-8">
