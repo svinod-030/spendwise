@@ -39,14 +39,17 @@ export async function requestSmsPermissionWithStatus(): Promise<"granted" | "den
   return "denied";
 }
 
-export async function readInboxMessages(maxCount = 1000): Promise<SmsMessage[]> {
+export async function readInboxMessages(maxCount?: number): Promise<SmsMessage[]> {
   if (Platform.OS !== "android") return [];
 
-  const filter = {
+  const filter: { box: string, indexFrom: number, maxCount?: number } = {
     box: "inbox",
-    maxCount,
     indexFrom: 0,
   };
+
+  if (maxCount) {
+    filter.maxCount = maxCount;
+  }
 
   return new Promise<SmsMessage[]>((resolve, reject) => {
     SmsAndroid.list(

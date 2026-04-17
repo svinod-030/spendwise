@@ -40,6 +40,17 @@ const transactionKeywords = [
   "txn",
   "transaction",
   "upi",
+  "withdrawn",
+  "withdrew",
+  "deposited",
+  "transfer",
+  "purchase",
+  "sent",
+  "added",
+  "neft",
+  "imps",
+  "rtgs",
+  "withdrawal",
 ];
 
 const excludeKeywords = [
@@ -50,8 +61,8 @@ const excludeKeywords = [
   "statement",
   "overdue",
   "will be debited",
-  "request",
-  "requested",
+  "payment request",
+  "requested a payment",
 ];
 
 const amountPattern = /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;

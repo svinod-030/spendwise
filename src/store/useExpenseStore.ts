@@ -369,7 +369,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       if (!hasPermission) return { imported: 0, skipped: 0 };
 
       const db = await getDb();
-      const messages = await readInboxMessages(30);
+      const messages = await readInboxMessages(100);
       const result = await ingestSmsMessages(db, messages);
       if (result.imported > 0) {
         await get().fetchTransactions();
