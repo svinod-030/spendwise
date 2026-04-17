@@ -94,12 +94,19 @@ export async function initDatabase() {
     await db.execAsync(`
       INSERT INTO categories (name, icon, color) VALUES 
       ('Food', 'utensils', '#FF6B6B'),
+      ('Groceries', 'shopping-cart', '#6BCB77'),
       ('Transport', 'car', '#4D96FF'),
-      ('Shopping', 'shopping-bag', '#6BCB77'),
+      ('Shopping', 'shopping-bag', '#FF8AAE'),
       ('Bills', 'credit-card', '#FFD93D'),
-      ('Health', 'heart', '#FF8AAE'),
+      ('Rent', 'home', '#f59e0b'),
+      ('Health', 'heart', '#fb7185'),
+      ('Education', 'book', '#f1c40f'),
       ('Entertainment', 'film', '#957DAD'),
-      ('Salary', 'banknote', '#1A535C');
+      ('Travel', 'plane', '#3498db'),
+      ('Subscriptions', 'refresh-cw', '#8b5cf6'),
+      ('Salary', 'banknote', '#10b981'),
+      ('Gifts', 'gift', '#ef4444'),
+      ('Other', 'more-horizontal', '#94a3b8');
     `);
   }
 }

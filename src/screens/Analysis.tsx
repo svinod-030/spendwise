@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, ScrollView, Dimensions, TextInput, TouchableOpacity, Alert } from "react-native";
+import { View, Text, ScrollView, Dimensions, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore, MonthlyTrend } from "../store/useExpenseStore";
 import { LineChart, PieChart } from "react-native-gifted-charts";
 import Animated, { FadeInUp } from "react-native-reanimated";
-import { BarChart3, PieChart as PieIcon, Plus, Tags, TrendingUp } from "lucide-react-native";
+import { BarChart3, PieChart as PieIcon, TrendingUp } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 
 const screenWidth = Dimensions.get("window").width;
@@ -16,15 +16,12 @@ const Analysis = ({ navigation }: { navigation: any }) => {
   const isDark = colorScheme === "dark";
 
   const {
-    categories,
     budgets,
     getMonthlyTrends,
     getCurrentMonthCategorySpending,
     getCurrentMonthExpenseTotal,
     fetchCategories,
     fetchBudgets,
-    addCategory,
-    upsertMonthlyBudget,
     transactions,
     getCurrencySymbol,
   } = useExpenseStore();
@@ -33,7 +30,6 @@ const Analysis = ({ navigation }: { navigation: any }) => {
   const [categorySpending, setCategorySpending] = useState<{ category_name: string; total: number; category_color?: string }[]>([]);
   const [totalExpense, setTotalExpense] = useState(0);
 
-  const [newCategoryName, setNewCategoryName] = useState("");
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
@@ -81,18 +77,6 @@ const Analysis = ({ navigation }: { navigation: any }) => {
     [budgets]
   );
 
-  const handleAddCategory = async () => {
-    const name = newCategoryName.trim();
-    if (!name) return;
-    await addCategory({
-      name,
-      icon: "circle",
-      color: fallbackColors[categories.length % fallbackColors.length],
-    });
-    setNewCategoryName("");
-    Alert.alert("Success", `Category "${name}" added.`);
-  };
-
   const lineChartData = trendData.map((t) => {
     const date = new Date(t.month + "-01");
     const label = date.toLocaleString('default', { month: 'short' });
@@ -104,7 +88,6 @@ const Analysis = ({ navigation }: { navigation: any }) => {
     color: cat.category_color || fallbackColors[index % fallbackColors.length],
   }));
 
-  const budgetProgress = monthlyBudget ? Math.min((totalExpense / monthlyBudget.limit_amount) * 100, 100) : 0;
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
@@ -203,36 +186,6 @@ const Analysis = ({ navigation }: { navigation: any }) => {
                       {Math.round((item.total / Math.max(1, totalExpense)) * 100)}%
                     </Text>
                   </View>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* Section 4: Category Management */}
-          <View className="bg-white dark:bg-slate-900/60 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 mb-6 shadow-sm dark:shadow-none">
-            <View className="flex-row items-center mb-6">
-              <Tags size={20} color="#8b5cf6" />
-              <Text className="text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider ml-2">Manage Categories</Text>
-            </View>
-
-            <View className="flex-row items-center mb-6">
-              <TextInput
-                value={newCategoryName}
-                onChangeText={setNewCategoryName}
-                placeholder="New category name..."
-                placeholderTextColor="#94a3b8"
-                className="flex-1 bg-slate-100 dark:bg-slate-800/80 text-slate-900 dark:text-white rounded-2xl px-4 py-3 mr-3 font-medium border border-slate-200 dark:border-slate-700/50"
-              />
-              <TouchableOpacity onPress={handleAddCategory} className="bg-slate-100 dark:bg-slate-800 rounded-2xl w-12 h-12 items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none">
-                <Plus size={24} color="#3b82f6" />
-              </TouchableOpacity>
-            </View>
-
-            <View className="flex-row flex-wrap">
-              {categories.map((category, index) => (
-                <View key={category.id || index} className="px-3 py-1.5 bg-slate-100/50 dark:bg-slate-800/40 rounded-xl mr-2 mb-2 border border-slate-200 dark:border-slate-800/60 flex-row items-center">
-                  <View className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: category.color || fallbackColors[index % fallbackColors.length] }} />
-                  <Text className="text-slate-500 dark:text-slate-400 text-[11px] font-bold">{category.name}</Text>
                 </View>
               ))}
             </View>

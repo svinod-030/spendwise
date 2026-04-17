@@ -7,12 +7,14 @@ import {
   Shield, Trash2,
   MessageSquare,
   Sun, Moon, Monitor,
-  TrendingUp, Search, Globe, ChevronRight, CheckCircle2
+  TrendingUp, Search, Globe, ChevronRight, CheckCircle2, Tags, Plus
 } from "lucide-react-native";
-import { Modal, FlatList, TextInput as RNTextInput } from "react-native";
+import { Modal, FlatList, TextInput as RNTextInput, TextInput } from "react-native";
 import * as Localization from "expo-localization";
 
 import { ALL_CURRENCY_CODES } from "../constants/currencies";
+
+const fallbackColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4"];
 
 const deviceLocales = Localization.getLocales();
 const commonCurrencies = deviceLocales
@@ -41,15 +43,29 @@ if (commonCurrencies.length < 3) {
 const allCurrencyCodes = ALL_CURRENCY_CODES;
 
 const Settings = () => {
-  const { importTransactionsFromSms, currency, updateCurrency, fetchCurrency, clearAllData, getCurrencySymbol } = useExpenseStore();
+  const { importTransactionsFromSms, currency, updateCurrency, fetchCurrency, clearAllData, getCurrencySymbol, categories, fetchCategories, addCategory } = useExpenseStore();
   const { theme, setTheme } = useThemeStore();
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [isCurrencyModalVisible, setIsCurrencyModalVisible] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [newCategoryName, setNewCategoryName] = React.useState("");
 
   useEffect(() => {
-    fetchCurrency()
+    fetchCurrency();
+    fetchCategories();
   }, []);
+
+  const handleAddCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    await addCategory({
+      name,
+      icon: "circle",
+      color: fallbackColors[categories.length % fallbackColors.length],
+    });
+    setNewCategoryName("");
+    Alert.alert("Success", `Category "${name}" added.`);
+  };
 
   const filteredCurrencies = allCurrencyCodes.filter(code =>
     code.toLowerCase().includes(searchQuery.toLowerCase())
@@ -164,6 +180,31 @@ const Settings = () => {
           </View>
           <ChevronRight size={20} color="#64748b" />
         </TouchableOpacity>
+
+        <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Manage Categories</Text>
+        <View className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 mb-8 shadow-sm dark:shadow-none">
+          <View className="flex-row items-center mb-6">
+            <TextInput
+              value={newCategoryName}
+              onChangeText={setNewCategoryName}
+              placeholder="New category name..."
+              placeholderTextColor="#94a3b8"
+              className="flex-1 bg-slate-100 dark:bg-slate-800/80 text-slate-900 dark:text-white rounded-2xl px-4 py-3 mr-3 font-medium border border-slate-200 dark:border-slate-700/50"
+            />
+            <TouchableOpacity onPress={handleAddCategory} className="bg-slate-100 dark:bg-slate-800 rounded-2xl w-12 h-12 items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none">
+              <Plus size={24} color="#3b82f6" />
+            </TouchableOpacity>
+          </View>
+
+          <View className="flex-row flex-wrap">
+            {categories.map((category, index) => (
+              <View key={category.id || index} className="px-3 py-1.5 bg-slate-100/50 dark:bg-slate-800/40 rounded-xl mr-2 mb-2 border border-slate-200 dark:border-slate-800/60 flex-row items-center">
+                <View className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: category.color || fallbackColors[index % fallbackColors.length] }} />
+                <Text className="text-slate-500 dark:text-slate-400 text-[11px] font-bold">{category.name}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
 
         <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Data Management</Text>
 
