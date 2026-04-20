@@ -130,7 +130,7 @@ function detectType(body: string): ParsedTransactionType | null {
   // Exclude non-transactional messages
   if (excludeKeywords.some(keyword => lower.includes(keyword))) return null;
 
-  if (/(debited|spent|paid|purchase|withdrawn|minus|taken out)/.test(lower)) return "expense";
+  if (/(debited|spent|paid|purchase|withdrawn|withdrawal|minus|taken out|sent)/.test(lower)) return "expense";
   if (/(credited|received|deposited|refund|plus|added to)/.test(lower)) return "income";
   if (/(transfer|neft|imps|rtgs)/.test(lower)) return "expense";
   return null;
