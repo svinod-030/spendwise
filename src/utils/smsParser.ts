@@ -155,34 +155,70 @@ export function buildHash(sender: string, body: string, date: number): string {
   return `msg_${Math.abs(hash)}`;
 }
 
-// ─── Bill parsing (regex-only, unchanged) ─────────────────────────────────────
-
-export function parseSmsForBill(sms: SmsMessage): ParsedSmsBill | null {
+/**
+ * Async version of bill parser — uses ML Kit (Android) with Regex fallback.
+ */
+export async function parseSmsForBill(sms: SmsMessage): Promise<ParsedSmsBill | null> {
   const body = sms.body.toLowerCase();
   const billKeywords = ['due', 'outstanding', 'reminder', 'overdue'];
   if (!billKeywords.some(kw => body.includes(kw))) return null;
 
-  const amountMatch = sms.body.match(amountPattern);
-  if (!amountMatch) return null;
-  const amount = normalizeAmount(amountMatch[1]);
+  // ── 1. Try ML Kit (Android only) ──────────────────────────────────────────
+  let aiAmount: number | null = null;
+  let aiDueDate: string | null = null;
 
-  let dueDate = new Date(sms.date).toISOString();
-  const dateStrPattern =
-    /\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4}/i;
-  const patterns = [
-    new RegExp(`(?:due|by|on)\\s*[:\\s]*(${dateStrPattern.source})`, 'i'),
-    new RegExp(`(${dateStrPattern.source})`, 'i'),
-  ];
-  for (const pattern of patterns) {
-    const match = sms.body.match(pattern);
-    if (match?.[1]) {
-      const parsed = new Date(match[1].trim());
-      if (!isNaN(parsed.getTime())) {
-        if (parsed.getFullYear() < 100) parsed.setFullYear(2000 + parsed.getFullYear());
-        dueDate = parsed.toISOString();
-        break;
+  if (Platform.OS === 'android' && SMSParserModule) {
+    try {
+      const entities = await SMSParserModule.extractEntities(sms.body);
+      const money = entities.find(e => e.type === 'TYPE_MONEY');
+      const date = entities.find(e => e.type === 'TYPE_DATE_TIME');
+
+      if (money?.value != null && money.value > 0) aiAmount = money.value;
+      if (date?.text) {
+        // Try to parse the date text extracted by AI
+        const parsed = new Date(date.text.trim());
+        if (!isNaN(parsed.getTime())) {
+          // Normalize year if AI extracted something like "24" instead of "2024"
+          if (parsed.getFullYear() < 100) parsed.setFullYear(2000 + parsed.getFullYear());
+          aiDueDate = parsed.toISOString();
+        }
+      }
+    } catch {
+      // AI failed — fall through
+      console.log('AI failed for bill parsing — fall through');
+    }
+  }
+
+  // ── 2. Regex fallback for amount ──────────────────────────────────────────
+  let amount = aiAmount;
+  if (!amount) {
+    const amountMatch = sms.body.match(amountPattern);
+    if (!amountMatch) return null;
+    amount = normalizeAmount(amountMatch[1]);
+  }
+
+  // ── 3. Regex fallback for due date ────────────────────────────────────────
+  let dueDate = aiDueDate;
+  if (!dueDate) {
+    const dateStrPattern =
+      /\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4}/i;
+    const patterns = [
+      new RegExp(`(?:due|by|on)\\s*[:\\s]*(${dateStrPattern.source})`, 'i'),
+      new RegExp(`(${dateStrPattern.source})`, 'i'),
+    ];
+    for (const pattern of patterns) {
+      const match = sms.body.match(pattern);
+      if (match?.[1]) {
+        const parsed = new Date(match[1].trim());
+        if (!isNaN(parsed.getTime())) {
+          if (parsed.getFullYear() < 100) parsed.setFullYear(2000 + parsed.getFullYear());
+          dueDate = parsed.toISOString();
+          break;
+        }
       }
     }
+    // Final fallback to message date if no date found at all
+    if (!dueDate) dueDate = new Date(sms.date).toISOString();
   }
 
   return {

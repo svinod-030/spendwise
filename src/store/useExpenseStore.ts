@@ -570,7 +570,7 @@ async function ingestSmsMessages(
     const parsed = await parseSmsForTransaction(message);
     if (!parsed) {
       // Try parsing as a bill if it's not a transaction
-      const parsedBill = parseSmsForBill(message);
+      const parsedBill = await parseSmsForBill(message);
       if (parsedBill) {
         const hash = buildHash(parsedBill.sender, parsedBill.body, message.date);
         const existingMessage = await db.getFirstAsync<{ id: number }>("SELECT id FROM messages WHERE hash = ?", [hash]);
