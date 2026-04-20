@@ -99,7 +99,7 @@ const Settings = () => {
   const handleSmsImport = async () => {
     setIsSyncing(true);
     try {
-      const result = await importTransactionsFromSms();
+      const result = await importTransactionsFromSms(100);
       Alert.alert(
         "SMS import complete",
         `Imported ${result.imported} transaction(s).\nSkipped ${result.skipped} message(s).`

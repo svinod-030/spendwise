@@ -12,32 +12,34 @@ class SmsReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     if (intent.action != "android.provider.Telephony.SMS_RECEIVED") return
 
-    val bundle: Bundle = intent.extras ?: return
-    val pdus = bundle.get("pdus") as? Array<*> ?: return
-    val format = bundle.getString("format")
+    val messages = android.provider.Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
+    if (messages.isEmpty()) return
 
-    for (pdu in pdus) {
-      val sms = if (format != null) {
-        SmsMessage.createFromPdu(pdu as ByteArray, format)
-      } else {
-        @Suppress("DEPRECATION")
-        SmsMessage.createFromPdu(pdu as ByteArray)
-      }
+    val fullBody = StringBuilder()
+    for (sms in messages) {
+      fullBody.append(sms.displayMessageBody)
+    }
 
-      val serviceIntent = Intent(context, SmsHeadlessService::class.java).apply {
-        putExtra("address", sms.displayOriginatingAddress ?: "")
-        putExtra("body", sms.displayMessageBody ?: "")
-        putExtra("timestamp", sms.timestampMillis)
-      }
-      HeadlessJsTaskService.acquireWakeLockNow(context)
+    val firstSms = messages[0]
+    val address = firstSms.displayOriginatingAddress ?: "Unknown"
+    val timestamp = firstSms.timestampMillis
+
+    val serviceIntent = Intent(context, SmsHeadlessService::class.java).apply {
+      putExtra("address", address)
+      putExtra("body", fullBody.toString())
+      putExtra("timestamp", timestamp)
+    }
+
+    HeadlessJsTaskService.acquireWakeLockNow(context)
+    try {
+      context.startService(serviceIntent)
+    } catch (e: Exception) {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         context.startForegroundService(serviceIntent)
-      } else {
-        context.startService(serviceIntent)
       }
-
-      // Notify the active foreground app to refresh
-      SmsEventModule.sendEvent("onSmsReceived")
     }
+
+    // Notify the active foreground app to refresh
+    SmsEventModule.sendEvent("onSmsReceived")
   }
 }

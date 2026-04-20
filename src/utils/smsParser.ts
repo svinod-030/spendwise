@@ -146,7 +146,12 @@ function extractMerchantViaRegex(body: string): string | undefined {
 }
 
 export function buildHash(sender: string, body: string, date: number): string {
-  const key = `${sender}|${date}|${body}`;
+  // Normalize sender (remove non-alphanumeric like +) and body (trim)
+  const cleanSender = (sender || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  const cleanBody = (body || "").trim();
+  // Use seconds instead of ms to avoid small drift between intent and inbox
+  const cleanDate = Math.floor(date / 1000);
+  const key = `${cleanSender}|${cleanBody}|${cleanDate}`;
   let hash = 0;
   for (let i = 0; i < key.length; i += 1) {
     hash = (hash << 5) - hash + key.charCodeAt(i);

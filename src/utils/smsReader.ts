@@ -9,33 +9,39 @@ interface SmsQueryResult {
 
 export async function requestSmsPermission(): Promise<boolean> {
   if (Platform.OS !== "android") return false;
-  const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_SMS, {
-    title: "SMS access required",
-    message: "Expense tracker needs SMS access to import bank and UPI transactions.",
-    buttonPositive: "Allow",
-    buttonNegative: "Deny",
-    buttonNeutral: "Ask me later",
-  });
-  return granted === PermissionsAndroid.RESULTS.GRANTED;
+  const granted = await PermissionsAndroid.requestMultiple([
+    PermissionsAndroid.PERMISSIONS.READ_SMS,
+    PermissionsAndroid.PERMISSIONS.RECEIVE_SMS
+  ]);
+  return (
+    granted[PermissionsAndroid.PERMISSIONS.READ_SMS] === PermissionsAndroid.RESULTS.GRANTED &&
+    granted[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS] === PermissionsAndroid.RESULTS.GRANTED
+  );
 }
 
 export async function checkSmsPermission(): Promise<boolean> {
   if (Platform.OS !== "android") return false;
-  return PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS);
+  const readGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS);
+  const receiveGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
+  return readGranted && receiveGranted;
 }
 
 export async function requestSmsPermissionWithStatus(): Promise<"granted" | "denied" | "blocked"> {
   if (Platform.OS !== "android") return "denied";
-  const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_SMS, {
-    title: "SMS access required",
-    message: "Expense tracker needs SMS access to import bank and UPI transactions.",
-    buttonPositive: "Allow",
-    buttonNegative: "Deny",
-    buttonNeutral: "Ask me later",
-  });
+  const granted = await PermissionsAndroid.requestMultiple([
+    PermissionsAndroid.PERMISSIONS.READ_SMS,
+    PermissionsAndroid.PERMISSIONS.RECEIVE_SMS
+  ]);
 
-  if (granted === PermissionsAndroid.RESULTS.GRANTED) return "granted";
-  if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) return "blocked";
+  const readStatus = granted[PermissionsAndroid.PERMISSIONS.READ_SMS];
+  const receiveStatus = granted[PermissionsAndroid.PERMISSIONS.RECEIVE_SMS];
+
+  if (readStatus === PermissionsAndroid.RESULTS.GRANTED && receiveStatus === PermissionsAndroid.RESULTS.GRANTED) {
+    return "granted";
+  }
+  if (readStatus === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN || receiveStatus === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+    return "blocked";
+  }
   return "denied";
 }
 

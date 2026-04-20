@@ -97,7 +97,7 @@ interface ExpenseState {
   fetchBills: (month?: string) => Promise<void>;
   markBillAsPaid: (billId: number, transactionId?: number) => Promise<void>;
   cleanupDuplicateBills: () => Promise<void>;
-  importTransactionsFromSms: () => Promise<{ imported: number; skipped: number }>;
+  importTransactionsFromSms: (limit?: number) => Promise<{ imported: number; skipped: number }>;
   syncRecentSmsTransactions: () => Promise<{ imported: number; skipped: number }>;
   processIncomingSmsMessage: (message: { address: string; body: string; date: number }) => Promise<boolean>;
   runInitialSmsImportIfNeeded: () => Promise<{ ran: boolean; imported: number; skipped: number }>;
@@ -351,7 +351,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     return rows;
   },
 
-  importTransactionsFromSms: async () => {
+  importTransactionsFromSms: async (limit?: number) => {
     set({ isSyncing: true });
     try {
       const hasPermission = await requestSmsPermission();
@@ -380,10 +380,9 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       const db = await getDb();
       const messages = await readInboxMessages(100);
       const result = await ingestSmsMessages(db, messages);
-      if (result.imported > 0) {
-        await get().fetchTransactions();
-        await get().fetchBills();
-      }
+      // Always refresh to catch changes made by the Headless task
+      await get().fetchTransactions();
+      await get().fetchBills();
       return result;
     } finally {
       set({ isSyncing: false });
@@ -419,7 +418,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
 
     try {
-      const result = await get().importTransactionsFromSms();
+      const result = await get().importTransactionsFromSms();   // No limit since it's a one time import on app launch
       await db.runAsync(
         "INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)",
         [importMetaKey, "true"]

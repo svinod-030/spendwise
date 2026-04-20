@@ -86,7 +86,7 @@ export default function App() {
   // Real-time SMS sync: Listen for native events instead of polling
   useEffect(() => {
     if (!isReady || Platform.OS !== "android") return;
-    
+
     const store = useExpenseStore.getState();
     const { DeviceEventEmitter } = require("react-native");
 
@@ -107,17 +107,17 @@ export default function App() {
     // 1. Initial sync on launch
     runSync();
 
-    // 2. Listen for real-time SMS events from our native SmsReceiver
     const subscription = DeviceEventEmitter.addListener("onSmsReceived", () => {
-      // Small delay to ensure the Headless Task has finished writing to the DB
-      setTimeout(() => {
-        runSync();
-      }, 1000);
+      if (isReady) {
+        store.fetchTransactions();
+        store.fetchBills();
+        setTimeout(runSync, 2000);
+      }
     });
 
     // 3. Refresh on app return to foreground
     const appStateSubscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active") {
+      if (nextState === "active" && isReady) {
         runSync();
       }
     });
