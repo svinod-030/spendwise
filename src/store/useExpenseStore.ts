@@ -498,10 +498,14 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       )
     `);
 
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const showFuture = !month || month >= currentMonth;
+
     const bills = await db.getAllAsync<Bill>(
       `SELECT * FROM bills 
        WHERE due_date >= ${dateQuery} 
-       AND due_date < date(${dateQuery}, '+1 month')
+       ${showFuture ? "" : `AND due_date < date(${dateQuery}, '+1 month')`}
        ORDER BY due_date ASC`
     );
     set({ bills });
