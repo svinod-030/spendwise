@@ -88,43 +88,32 @@ export default function App() {
     if (!isReady || Platform.OS !== "android") return;
 
     const store = useExpenseStore.getState();
-    const { DeviceEventEmitter } = require("react-native");
+    const { DeviceEventEmitter, AppState } = require("react-native");
 
-    let isSyncing = false;
+    // 1. Define sync logic
     const runSync = async () => {
-      if (isSyncing) return;
-      isSyncing = true;
       try {
-        // We still fetch recent messages just in case some were missed
         await store.syncRecentSmsTransactions();
       } catch (err) {
-        console.error("Manual sync failed:", err);
-      } finally {
-        isSyncing = false;
+        console.error("Sync failed:", err);
       }
     };
 
-    // 1. Initial sync on launch
-    runSync();
-
+    // 2. Real-time Refresh
     const subscription = DeviceEventEmitter.addListener("onSmsReceived", () => {
       if (isReady) {
-        store.fetchTransactions();
-        store.fetchBills();
-        setTimeout(runSync, 2000);
+        setTimeout(() => {
+          store.fetchTransactions();
+          store.fetchBills();
+        }, 2000);
       }
     });
 
-    // 3. Refresh on app return to foreground
-    const appStateSubscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active" && isReady) {
-        runSync();
-      }
-    });
+    // 4. Run once on mount
+    runSync();
 
     return () => {
       subscription.remove();
-      appStateSubscription.remove();
     };
   }, [isReady]);
 
