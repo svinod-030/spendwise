@@ -567,14 +567,14 @@ async function ingestSmsMessages(
   let skipped = 0;
 
   for (const message of messages) {
-    const parsed = parseSmsForTransaction(message);
+    const parsed = await parseSmsForTransaction(message);
     if (!parsed) {
       // Try parsing as a bill if it's not a transaction
       const parsedBill = parseSmsForBill(message);
       if (parsedBill) {
         const hash = buildHash(parsedBill.sender, parsedBill.body, message.date);
         const existingMessage = await db.getFirstAsync<{ id: number }>("SELECT id FROM messages WHERE hash = ?", [hash]);
-        
+
         if (!existingMessage) {
           // Use atomic inserts with OR IGNORE
           const billMsgResult = await db.runAsync(

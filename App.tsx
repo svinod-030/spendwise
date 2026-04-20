@@ -8,6 +8,7 @@ import { useColorScheme } from "nativewind";
 import { initDatabase } from "./src/db/database";
 import { useExpenseStore } from "./src/store/useExpenseStore";
 import { checkSmsPermission, requestSmsPermissionWithStatus } from "./src/utils/smsReader";
+import { preloadMLKitModel } from "./src/utils/smsParser";
 import UpdateModal from './src/components/UpdateModal';
 import { checkVersion, VersionCheckResult } from './src/utils/versionCheckService';
 import RootNavigator, { darkTheme, lightTheme } from "./src/navigation/RootNavigator";
@@ -29,6 +30,10 @@ export default function App() {
       try {
         await initDatabase();
         setIsReady(true);
+        // Phase 3: Pre-load the ML Kit model (~10 MB) silently in background
+        // so the first real SMS parse via AI is instant rather than waiting
+        // for a lazy download when the first message arrives.
+        preloadMLKitModel().catch(() => { /* non-fatal */ });
         if (!__DEV__) {
           const result = await checkVersion();
           if (result.isUpdateAvailable) {
