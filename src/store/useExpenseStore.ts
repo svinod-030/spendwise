@@ -708,8 +708,9 @@ async function getCategoryIdForMessage(
       "electricity", "broadband", "wifi", "recharge", "bill", "emi",
       "water", "gas", "mobile", "dth", "utility", "power", "energy",
       "bsnl", "airtel", "jio", "vi", "vodafone", "idea",
-      "tata power", "bescom", "mseb", "rent", "maintenance"
+      "tata power", "bescom", "mseb", "maintenance"
     ],
+    Rent: ["rent", "housing", "apartment", "flat", "pg", "hostel"],
     Shopping: [
       "amazon", "flipkart", "myntra", "ajio", "meesho", "nykaa",
       "purplle", "tatacliq", "snapdeal", "mall", "shopping",
@@ -723,17 +724,19 @@ async function getCategoryIdForMessage(
     Entertainment: [
       "netflix", "prime", "hotstar", "disney", "sony", "zee5",
       "spotify", "youtube", "music", "movie", "cinema", "pvr",
-      "inox", "bookmyshow", "game", "gaming", "subscription", "ott"
+      "inox", "bookmyshow", "game", "gaming"
     ],
+    Subscriptions: ["subscription", "subscriptions", "recurring", "monthly", "annual", "ott"],
     Education: [
       "course", "tuition", "fee", "exam", "book", "udemy",
       "coursera", "byju", "unacademy", "vedantu", "upgrad",
       "learning", "study", "school", "college"
     ],
-    "Fuel": [
+    Fuel: [
       "fuel", "petrol", "diesel", "hpcl", "bpcl", "iocl", "shell",
       "vehicle", "car", "bike", "scooter", "parking", "toll", "fastag"
-    ]
+    ],
+    Gifts: ["gift", "present", "donation", "charity", "celebration", "festival"]
   };
 
   for (const [categoryName, words] of Object.entries(categoryKeywords)) {
@@ -746,7 +749,10 @@ async function getCategoryIdForMessage(
     }
   }
 
-  return null;
+  const other = await db.getFirstAsync<{ id: number }>(
+    "SELECT id FROM categories WHERE LOWER(name) = 'other' LIMIT 1"
+  );
+  return other?.id ?? null;
 }
 
 export function getCategoryIcon(categoryName?: string | null, merchant?: string | null, note?: string | null): string {

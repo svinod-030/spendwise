@@ -105,6 +105,7 @@ export async function initDatabase() {
       ('Travel', 'plane', '#3498db'),
       ('Subscriptions', 'calendar-check', '#8b5cf6'),
       ('Salary', 'banknote', '#10b981'),
+      ('Fuel', 'fuel', '#f97316'),
       ('Gifts', 'gift', '#ef4444'),
       ('Other', 'more-horizontal', '#94a3b8');
     `);
@@ -114,6 +115,12 @@ export async function initDatabase() {
       UPDATE categories SET icon = 'graduation-cap' WHERE name = 'Education' AND (icon = 'book' OR icon IS NULL);
       UPDATE categories SET icon = 'calendar-check' WHERE name = 'Subscriptions' AND (icon = 'refresh-cw' OR icon IS NULL);
     `);
+    
+    // Ensure Fuel category exists
+    const fuelCategory = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'Fuel'");
+    if (!fuelCategory) {
+      await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('Fuel', 'fuel', '#f97316')");
+    }
   }
 }
 
