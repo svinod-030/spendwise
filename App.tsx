@@ -1,7 +1,7 @@
 import "./global.css";
 import React, { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Alert, Platform, AppState } from "react-native";
+import { Alert, Platform, DeviceEventEmitter } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from "nativewind";
@@ -88,7 +88,6 @@ export default function App() {
     if (!isReady || Platform.OS !== "android") return;
 
     const store = useExpenseStore.getState();
-    const { DeviceEventEmitter, AppState } = require("react-native");
 
     // 1. Define sync logic
     const runSync = async () => {
