@@ -14,11 +14,11 @@ interface TransactionItemProps {
 }
 
 export const TransactionItem = ({ 
-  item, 
-  index, 
-  onPress, 
+  item,
+  index,
+  onPress,
   currencySymbol,
-  isLinked = false 
+  isLinked = false
 }: TransactionItemProps) => {
   const display = getTransactionDisplay(item);
   

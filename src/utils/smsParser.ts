@@ -131,17 +131,50 @@ function cleanMerchant(name: string): string {
 }
 
 function extractMerchantViaRegex(body: string): string | undefined {
+  const lower = body.toLowerCase();
+
+  // Direct merchant keywords (highest priority)
+  const directMerchants = [
+    'blinkit', 'bigbasket', 'zepto', 'swiggy', 'zomato', 'uber', 'ola',
+    'amazon', 'flipkart', 'myntra', 'ajio', 'meesho', 'nykaa',
+    'netflix', 'prime', 'hotstar', 'spotify', 'youtube',
+    'pharmeasy', '1mg', 'apollo', 'uber eats', 'dominos',
+    'makemytrip', 'goibibo', 'irctc', 'bookmyshow', 'pvr',
+    'airtel', 'jio', 'vi ', 'vodafone', 'bsnl',
+    'paytm', 'phonepe', 'gpay', 'google pay', 'cred',
+    'tata power', 'bescom', 'mseb', 'hpcl', 'bpcl', 'shell'
+  ];
+
+  for (const merchant of directMerchants) {
+    if (lower.includes(merchant)) {
+      return merchant.charAt(0).toUpperCase() + merchant.slice(1).toLowerCase();
+    }
+  }
+
   // Pattern 1: to/at/from/towards <Merchant> (on|for|using|…)
   const toAtMatch = body.match(
-    /(?:to|at|from|towards)\s+([A-Za-z0-9 .&-]{2,50}?)(\s+(?:on|for|using|via|ref|id|balance|bal|date|is|at|towards)|$)/i
+    /(?:to|at|from|towards)\s+([A-Za-z0-9 .&'-]{2,50}?)\s+(?:on|for|using|via|ref|id|balance|bal|date|is|at|towards|$)/i
   );
+
   // Pattern 2: info/memo/vpa field
-  const infoMatch = body.match(/(?:info|memo|vpa)[:*]?\s*([A-Za-z0-9 .&-]{2,40})/i);
-  // Pattern 3: all-caps word cluster (common in bank SMSes)
-  const capsMatch = body.match(/([A-Z]{3,20}(?:\s+[A-Z]{2,20})*)/);
+  const infoMatch = body.match(/(?:info|memo|vpa|upi)[:*]?\s*([A-Za-z0-9 .&'-]{2,40})/i);
+
+  // Pattern 3: all-caps word cluster (common in bank SMSes) - but filter out common noise
+  const capsMatch = body.match(/([A-Z][A-Za-z0-9]*(?:\s+[A-Z][A-Za-z0-9]*){0,2})/g);
+  let bestCapsMatch: string | undefined;
+  if (capsMatch) {
+    const noiseWords = ['SMS', 'MSG', 'REF', 'ID', 'TXN', 'UPI', 'NEFT', 'IMPS', 'RTGS', 'ATM', 'POS', 'ECOM', 'A/C', 'ACCT', 'BAL', 'AVAIL'];
+    for (const match of capsMatch) {
+      if (match.length >= 3 && !noiseWords.some(w => match.toUpperCase().includes(w))) {
+        bestCapsMatch = match;
+        break;
+      }
+    }
+  }
 
   let merchant = toAtMatch?.[1] || infoMatch?.[1];
-  if (!merchant || merchant.length < 3) merchant = merchant || capsMatch?.[0];
+  if (!merchant || merchant.length < 3) merchant = merchant || bestCapsMatch;
+
   return merchant ? cleanMerchant(merchant) || undefined : undefined;
 }
 

@@ -68,8 +68,11 @@ const Transactions = ({ navigation }: { navigation: any }) => {
         className="flex-row items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl mb-3 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
       >
         <View className="flex-row items-center flex-1">
-          <View className="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-xl items-center justify-center mr-3">
-            <IconLoader name={display.icon} size={18} color="#64748b" />
+          <View
+            className="w-10 h-10 rounded-xl items-center justify-center mr-3 border border-slate-200 dark:border-slate-700"
+            style={{ backgroundColor: `${item.category_color ?? "#3b82f6"}15` }}
+          >
+            <IconLoader name={display.icon} size={18} color={item.category_color ?? "#3b82f6"} />
           </View>
           <View className="flex-1">
             <View className="flex-row items-center">

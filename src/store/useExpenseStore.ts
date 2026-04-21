@@ -641,7 +641,7 @@ async function ingestSmsMessages(
     }
 
     // 4. Insert the transaction
-    const categoryId = await getCategoryIdForMessage(db, parsed.body, parsed.type);
+    const categoryId = await getCategoryIdForMessage(db, parsed.body, parsed.merchant, parsed.type);
     await db.runAsync(
       `INSERT INTO transactions
         (category_id, amount, type, kind, date, note, source_message_id, merchant, currency, account_ref, reference_id, raw_sender)
@@ -670,8 +670,13 @@ async function ingestSmsMessages(
 async function getCategoryIdForMessage(
   db: Awaited<ReturnType<typeof getDb>>,
   body: string,
+  merchant: string | undefined,
   type: "expense" | "income"
 ) {
+  const normalized = body.toLowerCase();
+  const merchantText = (merchant || "").toLowerCase();
+  const combined = `${normalized} ${merchantText}`;
+
   if (type === "income") {
     const salary = await db.getFirstAsync<{ id: number }>(
       "SELECT id FROM categories WHERE LOWER(name) = 'salary' LIMIT 1"
@@ -679,49 +684,230 @@ async function getCategoryIdForMessage(
     return salary?.id ?? null;
   }
 
-  const normalized = body.toLowerCase();
+  // Comprehensive category keywords matching getCategoryIcon
   const categoryKeywords: Record<string, string[]> = {
-    Food: ["swiggy", "zomato", "restaurant", "food", "cafe"],
-    Transport: ["uber", "ola", "metro", "fuel", "petrol"],
-    Bills: ["electricity", "broadband", "recharge", "bill", "emi"],
-    Shopping: ["amazon", "flipkart", "mall", "shopping"],
-    Health: ["pharmacy", "hospital", "health", "medic"],
-    Entertainment: ["netflix", "movie", "spotify", "bookmyshow"],
+    Food: [
+      "swiggy", "zomato", "restaurant", "food", "cafe", "coffee",
+      "pizza", "burger", "dominos", "starbucks", "eat", "meal",
+      "lunch", "dinner", "dining", "uber eats"
+    ],
+    Groceries: [
+      "blinkit", "bigbasket", "zepto", "grocery", "groceries",
+      "supermarket", "dmart", "reliance fresh", "spencer", "mart",
+      "kirana", "vegetable", "fruit", "dairy", "milk"
+    ],
+    Transport: [
+      "uber", "ola", "rapido", "metro", "train", "bus", "auto",
+      "taxi", "cab", "irctc", "travel", "booking"
+    ],
+    Travel: [
+      "flight", "airline", "hotel", "stay", "makemytrip", "goibibo",
+      "airbnb", "oyo", "trivago"
+    ],
+    Bills: [
+      "electricity", "broadband", "wifi", "recharge", "bill", "emi",
+      "water", "gas", "mobile", "dth", "utility", "power", "energy",
+      "bsnl", "airtel", "jio", "vi", "vodafone", "idea",
+      "tata power", "bescom", "mseb", "rent", "maintenance"
+    ],
+    Shopping: [
+      "amazon", "flipkart", "myntra", "ajio", "meesho", "nykaa",
+      "purplle", "tatacliq", "snapdeal", "mall", "shopping",
+      "fashion", "clothing", "electronics", "gadget"
+    ],
+    Health: [
+      "pharmacy", "hospital", "health", "medic", "doctor", "clinic",
+      "apollo", "pharmeasy", "1mg", "netmeds", "diagnostic",
+      "lab", "test", "fitness", "gym", "wellness"
+    ],
+    Entertainment: [
+      "netflix", "prime", "hotstar", "disney", "sony", "zee5",
+      "spotify", "youtube", "music", "movie", "cinema", "pvr",
+      "inox", "bookmyshow", "game", "gaming", "subscription", "ott"
+    ],
+    Education: [
+      "course", "tuition", "fee", "exam", "book", "udemy",
+      "coursera", "byju", "unacademy", "vedantu", "upgrad",
+      "learning", "study", "school", "college"
+    ],
+    "Fuel": [
+      "fuel", "petrol", "diesel", "hpcl", "bpcl", "iocl", "shell",
+      "vehicle", "car", "bike", "scooter", "parking", "toll", "fastag"
+    ]
   };
 
   for (const [categoryName, words] of Object.entries(categoryKeywords)) {
-    if (words.some((word) => normalized.includes(word))) {
+    if (words.some((word) => combined.includes(word))) {
       const category = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM categories WHERE LOWER(name) = LOWER(?) LIMIT 1",
         [categoryName]
       );
-      return category?.id ?? null;
+      if (category?.id) return category.id;
     }
   }
 
   return null;
 }
 
-export function getCategoryIcon(categoryName?: string | null) {
+export function getCategoryIcon(categoryName?: string | null, merchant?: string | null, note?: string | null): string {
   const name = (categoryName || "").toLowerCase().trim();
-  if (!name) return "Package";
+  const merch = (merchant || "").toLowerCase().trim();
+  const noteText = (note || "").toLowerCase().trim();
+  const combined = `${name} ${merch} ${noteText}`;
 
-  if (name.includes("food") || name.includes("dining") || name.includes("utensils")) return "Utensils";
-  if (name.includes("transport") || name.includes("car") || name.includes("fuel")) return "Car";
-  if (name.includes("bill") || name.includes("recharge") || name.includes("electricity") || name.includes("zap")) return "Zap";
-  if (name.includes("shopping") || name.includes("amazon")) return "ShoppingBag";
-  if (name.includes("health") || name.includes("med") || name.includes("activity")) return "Activity";
-  if (name.includes("entertainment") || name.includes("movie") || name.includes("play")) return "Play";
-  if (name.includes("salary") || name.includes("income") || name.includes("briefcase")) return "Briefcase";
-  if (name.includes("transfer") || name.includes("refresh")) return "RefreshCw";
+  if (!name && !merch) return "CircleDollarSign";
 
-  return "Package"; // Default
+  // Food & Dining
+  if (combined.includes("food") || combined.includes("dining") || combined.includes("restaurant") || 
+      combined.includes("swiggy") || combined.includes("zomato") || combined.includes("uber eats") ||
+      combined.includes("pizza") || combined.includes("burger") || combined.includes("cafe") ||
+      combined.includes("coffee") || combined.includes("starbucks") || combined.includes("dominos") ||
+      combined.includes("eat") || combined.includes("meal") || combined.includes("lunch") || combined.includes("dinner"))
+    return "UtensilsCrossed";
+
+  // Groceries
+  if (combined.includes("grocery") || combined.includes("groceries") || combined.includes("supermarket") ||
+      combined.includes("bigbasket") || combined.includes("blinkit") || combined.includes("zepto") ||
+      combined.includes("dmart") || combined.includes("reliance fresh") || combined.includes("spencer") ||
+      combined.includes("mart") || combined.includes("kirana") || combined.includes("vegetable") ||
+      combined.includes("fruit") || combined.includes("dairy") || combined.includes("milk"))
+    return "ShoppingCart";
+
+  // Transport (local commuting)
+  if (combined.includes("transport") || combined.includes("cab") ||
+      combined.includes("uber") || combined.includes("ola") || combined.includes("rapido") ||
+      combined.includes("bus") || combined.includes("metro") || combined.includes("auto") ||
+      combined.includes("taxi"))
+    return "Car";
+
+  // Travel (long distance trips)
+  if (combined.includes("travel") || combined.includes("train") || combined.includes("flight") ||
+      combined.includes("irctc") || combined.includes("makemytrip") || combined.includes("goibibo") ||
+      combined.includes("booking") || combined.includes("hotel") || combined.includes("stay") ||
+      combined.includes("airbnb") || combined.includes("oyo") || combined.includes("trivago"))
+    return "Plane";
+
+  // Fuel & Vehicle
+  if (combined.includes("fuel") || combined.includes("petrol") || combined.includes("diesel") ||
+      combined.includes("hpcl") || combined.includes("bpcl") || combined.includes("iocl") ||
+      combined.includes("shell") || combined.includes("vehicle") || combined.includes("car") ||
+      combined.includes("bike") || combined.includes("scooter") || combined.includes("parking") ||
+      combined.includes("toll") || combined.includes("fastag"))
+    return "Fuel";
+
+  // Bills & Utilities
+  if (combined.includes("bill") || combined.includes("recharge") || combined.includes("electricity") ||
+      combined.includes("water") || combined.includes("gas") || combined.includes("broadband") ||
+      combined.includes("wifi") || combined.includes("mobile") || combined.includes("dth") ||
+      combined.includes("utility") || combined.includes("power") || combined.includes("energy") ||
+      combined.includes("bsnl") || combined.includes("airtel") || combined.includes("jio") ||
+      combined.includes("vi ") || combined.includes("vodafone") || combined.includes("idea") ||
+      combined.includes("tata power") || combined.includes("bescom") || combined.includes("mseb") ||
+      combined.includes("rent") || combined.includes("maintenance"))
+    return "Receipt";
+
+  // Shopping
+  if (combined.includes("shopping") || combined.includes("amazon") || combined.includes("flipkart") ||
+      combined.includes("myntra") || combined.includes("ajio") || combined.includes("meesho") ||
+      combined.includes("nykaa") || combined.includes("purplle") || combined.includes("tatacliq") ||
+      combined.includes("snapdeal") || combined.includes("shopify") || combined.includes("store") ||
+      combined.includes("mall") || combined.includes("retail") || combined.includes("fashion") ||
+      combined.includes("clothing") || combined.includes("electronics") || combined.includes("gadget"))
+    return "ShoppingBag";
+
+  // Health & Medical
+  if (combined.includes("health") || combined.includes("medical") || combined.includes("hospital") ||
+      combined.includes("pharmacy") || combined.includes("medicine") || combined.includes("doctor") ||
+      combined.includes("clinic") || combined.includes("apollo") || combined.includes("pharmeasy") ||
+      combined.includes("1mg") || combined.includes("netmeds") || combined.includes("diagnostic") ||
+      combined.includes("lab") || combined.includes("test") || combined.includes("fitness") ||
+      combined.includes("gym") || combined.includes("wellness"))
+    return "HeartPulse";
+
+  // Entertainment
+  if (combined.includes("entertainment") || combined.includes("movie") || combined.includes("cinema") ||
+      combined.includes("pvr") || combined.includes("inox") || combined.includes("bookmyshow") ||
+      combined.includes("netflix") || combined.includes("prime") || combined.includes("hotstar") ||
+      combined.includes("disney") || combined.includes("sony") || combined.includes("zee5") ||
+      combined.includes("spotify") || combined.includes("youtube") || combined.includes("music") ||
+      combined.includes("game") || combined.includes("gaming") || combined.includes("play") ||
+      combined.includes("ott"))
+    return "Clapperboard";
+
+  // Subscriptions (separate from entertainment)
+  if (combined.includes("subscription") || combined.includes("subscriptions") || combined.includes("recurring") ||
+      combined.includes("monthly") || combined.includes("annual"))
+    return "CalendarCheck";
+
+  // Education
+  if (combined.includes("education") || combined.includes("school") || combined.includes("college") ||
+      combined.includes("university") || combined.includes("course") || combined.includes("tuition") ||
+      combined.includes("fee") || combined.includes("exam") || combined.includes("book") ||
+      combined.includes("udemy") || combined.includes("coursera") || combined.includes("byju") ||
+      combined.includes("unacademy") || combined.includes("vedantu") || combined.includes("upgrad") ||
+      combined.includes("learning") || combined.includes("study"))
+    return "GraduationCap";
+
+  // Rent & Housing
+  if (combined.includes("rent") || combined.includes("housing") || combined.includes("apartment") ||
+      combined.includes("flat") || combined.includes("pg") || combined.includes("hostel") ||
+      combined.includes("accommodation") || combined.includes("lease"))
+    return "Home";
+
+  // Salary & Income
+  if (combined.includes("salary") || combined.includes("income") || combined.includes("payroll") ||
+      combined.includes("stipend") || combined.includes("wage") || combined.includes("earned") ||
+      combined.includes("deposit") || combined.includes("credited") || combined.includes("received"))
+    return "Banknote";
+
+  // Investment
+  if (combined.includes("invest") || combined.includes("mutual fund") || combined.includes("stock") ||
+      combined.includes("share") || combined.includes("demat") || combined.includes("trading") ||
+      combined.includes("zerodha") || combined.includes("groww") || combined.includes("upstox") ||
+      combined.includes("etmoney") || combined.includes("savings") || combined.includes("fd") ||
+      combined.includes("fixed deposit") || combined.includes("rd") || combined.includes("ppf") ||
+      combined.includes("nps") || combined.includes("insurance") || combined.includes("lic"))
+    return "TrendingUp";
+
+  // Transfer
+  if (combined.includes("transfer") || combined.includes("sent") || combined.includes("received") ||
+      combined.includes("upi") || combined.includes("neft") || combined.includes("imps") ||
+      combined.includes("rtgs") || combined.includes("paytm") || combined.includes("phonepe") ||
+      combined.includes("gpay") || combined.includes("google pay") || combined.includes("bhim") ||
+      combined.includes("cred") || combined.includes("mobikwik") || combined.includes("freecharge"))
+    return "ArrowLeftRight";
+
+  // Refund
+  if (combined.includes("refund") || combined.includes("return") || combined.includes("reversal") ||
+      combined.includes("cashback"))
+    return "RotateCcw";
+
+  // Insurance
+  if (combined.includes("insurance") || combined.includes("policy") || combined.includes("premium") ||
+      combined.includes("lic") || combined.includes("star health") || combined.includes("icici lombard") ||
+      combined.includes("hdfc ergo") || combined.includes("bajaj allianz"))
+    return "Shield";
+
+  // Personal & Family
+  if (combined.includes("gift") || combined.includes("donation") || combined.includes("charity") ||
+      combined.includes("family") || combined.includes("personal") || combined.includes("wedding") ||
+      combined.includes("celebration") || combined.includes("festival") || combined.includes("puja"))
+    return "Gift";
+
+  // Business & Professional
+  if (combined.includes("business") || combined.includes("office") || combined.includes("professional") ||
+      combined.includes("consulting") || combined.includes("freelance") || combined.includes("service") ||
+      combined.includes("repair") || combined.includes("maintenance"))
+    return "Briefcase";
+
+  // Default
+  return "CircleDollarSign";
 }
 
-export function getTransactionDisplay(transaction: Partial<Pick<Transaction, "kind" | "type" | "category_name">>) {
+export function getTransactionDisplay(transaction: Partial<Pick<Transaction, "kind" | "type" | "category_name" | "merchant" | "note">>) {
   const type = transaction.type || "expense";
   const kind = transaction.kind || (type === "income" ? "income" : "expense");
-  const icon = getCategoryIcon(transaction.category_name);
+  const icon = getCategoryIcon(transaction.category_name, transaction.merchant, transaction.note);
 
   if (kind === "transfer") return { sign: "", colorClass: "text-amber-400", label: "Transfer", icon };
   if (kind === "refund") return { sign: "+", colorClass: "text-cyan-400", label: "Refund", icon };
