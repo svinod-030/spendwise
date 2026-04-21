@@ -37,7 +37,7 @@ const Transactions = ({ navigation }: { navigation: any }) => {
   }, [fetchTransactions]);
 
   const handleEditTransaction = (tx: Transaction) => {
-    navigation.navigate("AddTransaction", { editingTransaction: tx });
+    navigation.navigate("AddTransaction", { editingTransaction: tx, returnTo: "Transactions" });
   };
 
   const filtered = useMemo(() => {

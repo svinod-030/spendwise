@@ -14,6 +14,15 @@ const AddTransactionScreen = () => {
   const route = useRoute<any>();
   const isFocused = useIsFocused();
   const editingTransaction: Transaction | undefined = route.params?.editingTransaction;
+  const returnTo = route.params?.returnTo;
+
+  const handleNavigateBack = () => {
+    if (returnTo) {
+      navigation.navigate(returnTo);
+    } else {
+      navigation.goBack();
+    }
+  };
 
   const { addTransaction, updateTransaction, deleteTransaction, categories, fetchCategories, getCurrencySymbol, transactions, fetchMessageById } = useExpenseStore();
 
@@ -97,7 +106,7 @@ const AddTransactionScreen = () => {
           style: "destructive",
           onPress: async () => {
             await deleteTransaction(editingTransaction.id);
-            navigation.goBack();
+            handleNavigateBack();
           }
         }
       ]
@@ -123,7 +132,7 @@ const AddTransactionScreen = () => {
     if (editingTransaction) {
       await updateTransaction(editingTransaction.id, transactionData);
       navigation.setParams({ editingTransaction: undefined });
-      navigation.goBack();
+      handleNavigateBack();
     } else {
       await addTransaction(transactionData);
       // Reset form
@@ -134,7 +143,7 @@ const AddTransactionScreen = () => {
       setNote("");
       setIsExcluded(false);
       setParentId(null);
-      navigation.navigate("Transactions");
+      handleNavigateBack();
     }
   };
 
@@ -175,7 +184,7 @@ const AddTransactionScreen = () => {
         >
           <View className="px-4 py-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900 flex-row items-center justify-between">
             <View className="flex-row items-center">
-              <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 -ml-2 mr-2">
+              <TouchableOpacity onPress={() => handleNavigateBack()} className="p-2 -ml-2 mr-2">
                 <ArrowLeft size={24} color="#64748b" />
               </TouchableOpacity>
               <Text className="text-slate-900 dark:text-white text-xl font-black tracking-tighter">
@@ -433,10 +442,10 @@ const AddTransactionScreen = () => {
                             </Text>
                           </View>
                         </View>
-                        <ChevronDown 
-                          size={18} 
-                          color="#64748b" 
-                          style={{ transform: [{ rotate: isSmsCollapsed ? '0deg' : '180deg' }] }} 
+                        <ChevronDown
+                          size={18}
+                          color="#64748b"
+                          style={{ transform: [{ rotate: isSmsCollapsed ? '0deg' : '180deg' }] }}
                         />
                       </View>
 

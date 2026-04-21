@@ -16,12 +16,9 @@ import { BillDetailModal } from "../components/dashboard/BillDetailModal";
 const Dashboard = ({ navigation }: { navigation: any }) => {
   const [isFocused, setIsFocused] = useState(true);
 
-  const handleAddItem = () => {
-    navigation.navigate("AddTransaction", { editingTransaction: null });
-  };
 
   const handleEditItem = (tx: Transaction) => {
-    navigation.navigate("AddTransaction", { editingTransaction: tx });
+    navigation.navigate("AddTransaction", { editingTransaction: tx, returnTo: "Overview" });
   };
 
   const {
