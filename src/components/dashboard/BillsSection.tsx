@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { Check, Landmark } from "lucide-react-native";
+import { Check, Landmark, ChevronRight } from "lucide-react-native";
 import { Bill } from "../../store/useExpenseStore";
 
 interface BillsSectionProps {
@@ -8,6 +8,7 @@ interface BillsSectionProps {
   billFilter: "unpaid" | "paid";
   setBillFilter: (filter: "unpaid" | "paid") => void;
   onMarkPaid: (bill: Bill) => void;
+  onViewDetails: (bill: Bill) => void;
   currencySymbol: string;
 }
 
@@ -16,6 +17,7 @@ export const BillsSection = ({
   billFilter,
   setBillFilter,
   onMarkPaid,
+  onViewDetails,
   currencySymbol
 }: BillsSectionProps) => {
   return (
@@ -45,8 +47,10 @@ export const BillsSection = ({
       <View className="px-3 pb-2">
         {bills.length > 0 ? (
           bills.map((bill, index, arr) => (
-            <View
+            <TouchableOpacity
               key={bill.id}
+              onPress={() => onViewDetails(bill)}
+              activeOpacity={0.7}
               className={`flex-row items-center justify-between py-4 ${index !== arr.length - 1 ? 'border-b border-slate-50 dark:border-slate-800/50' : ''}`}
             >
               <View className="flex-row items-center flex-1">
@@ -68,26 +72,14 @@ export const BillsSection = ({
               </View>
 
               <View className="flex-row items-center">
-                <View className="mr-4 items-end">
+                <View className="mr-3 items-end">
                   <Text className={`text-slate-900 dark:text-white font-black text-sm ${bill.status === "paid" ? "opacity-50" : ""}`}>
                     {currencySymbol}{bill.amount.toFixed(2)}
                   </Text>
                 </View>
-                {bill.status === "unpaid" ? (
-                  <TouchableOpacity
-                    onPress={() => onMarkPaid(bill)}
-                    activeOpacity={0.7}
-                    className="bg-blue-600 px-3 py-2 rounded-xl shadow-lg shadow-blue-500/20"
-                  >
-                    <Text className="text-white font-black text-[10px] uppercase tracking-tighter">Mark Paid</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View className="bg-emerald-500/20 px-3 py-2 rounded-xl">
-                    <Text className="text-emerald-600 dark:text-emerald-400 font-black text-[10px] uppercase tracking-tighter">Paid</Text>
-                  </View>
-                )}
+                <ChevronRight size={16} color="#94a3b8" />
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         ) : (
           <View className="py-10 items-center justify-center">

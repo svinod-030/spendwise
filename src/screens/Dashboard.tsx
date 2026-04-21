@@ -11,6 +11,7 @@ import { PerformanceSummary } from "../components/dashboard/PerformanceSummary";
 import { RecentActivity } from "../components/dashboard/RecentActivity";
 import { BillsSection } from "../components/dashboard/BillsSection";
 import { BillLinkingModal } from "../components/dashboard/BillLinkingModal";
+import { BillDetailModal } from "../components/dashboard/BillDetailModal";
 
 const Dashboard = ({ navigation }: { navigation: any }) => {
   const [isFocused, setIsFocused] = useState(true);
@@ -26,7 +27,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
   const {
     transactions, fetchTransactions, budgets, fetchBudgets,
     getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal,
-    getCurrencySymbol, fetchCurrency, bills, fetchBills, markBillAsPaid, isSyncing
+    getCurrencySymbol, fetchCurrency, bills, fetchBills, markBillAsPaid, deleteBill, isSyncing
   } = useExpenseStore();
 
   const rotation = useSharedValue(0);
@@ -66,6 +67,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
 
   // Bill Linking States
   const [isBillModalOpen, setIsBillModalOpen] = useState(false);
+  const [isBillDetailOpen, setIsBillDetailOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [billSearch, setBillSearch] = useState("");
   const [billFilter, setBillFilter] = useState<"unpaid" | "paid">("unpaid");
@@ -220,6 +222,10 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
                 setSelectedBill(bill);
                 setIsBillModalOpen(true);
               }}
+              onViewDetails={(bill) => {
+                setSelectedBill(bill);
+                setIsBillDetailOpen(true);
+              }}
               currencySymbol={getCurrencySymbol()}
             />}
 
@@ -230,6 +236,10 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
               onMarkPaid={(bill) => {
                 setSelectedBill(bill);
                 setIsBillModalOpen(true);
+              }}
+              onViewDetails={(bill) => {
+                setSelectedBill(bill);
+                setIsBillDetailOpen(true);
               }}
               currencySymbol={getCurrencySymbol()}
             />}
@@ -255,6 +265,19 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
           }}
           transactions={transactions}
           currencySymbol={getCurrencySymbol()}
+        />
+
+        <BillDetailModal
+          isVisible={isBillDetailOpen}
+          onClose={() => setIsBillDetailOpen(false)}
+          bill={selectedBill}
+          currencySymbol={getCurrencySymbol()}
+          onMarkPaid={(bill) => {
+            setSelectedBill(bill);
+            setIsBillDetailOpen(false);
+            setIsBillModalOpen(true);
+          }}
+          onDeleteBill={deleteBill}
         />
 
       </SafeAreaView>

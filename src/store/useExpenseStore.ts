@@ -96,6 +96,7 @@ interface ExpenseState {
   getMerchantSpending: () => Promise<MerchantSpending[]>;
   fetchBills: (month?: string) => Promise<void>;
   markBillAsPaid: (billId: number, transactionId?: number) => Promise<void>;
+  deleteBill: (billId: number) => Promise<void>;
   cleanupDuplicateBills: () => Promise<void>;
   importTransactionsFromSms: (limit?: number) => Promise<{ imported: number; skipped: number }>;
   syncRecentSmsTransactions: () => Promise<{ imported: number; skipped: number }>;
@@ -553,6 +554,12 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       await get().fetchTransactions();
     }
 
+    await get().fetchBills();
+  },
+
+  deleteBill: async (billId: number) => {
+    const db = await getDb();
+    await db.runAsync("DELETE FROM bills WHERE id = ?", [billId]);
     await get().fetchBills();
   },
 }));

@@ -1,103 +1,194 @@
-# offline-expense-tracker
+# SpendWise - Offline Expense Tracker
 
-## Implementation Plan
+A privacy-first, offline expense tracker for Android that automatically reads and categorizes financial SMS messages (bank, UPI, cards) using on-device ML Kit. Built with React Native, Expo, and SQLite.
 
-This document outlines how to build an offline-first expense tracker that:
-- reads transaction-related SMS messages from the device,
-- extracts and shows all transactions,
-- includes must-have features expected in a production-ready expense tracker.
+## Features
 
-## 1) Product Goals
+### Automatic SMS Transaction Import
+- **Smart SMS Parsing**: Automatically detects and extracts transaction details from bank, UPI, and wallet SMS messages
+- **ML Kit Integration**: Uses Google's on-device ML Kit for intelligent entity extraction (amounts, dates, merchants)
+- **Real-time Sync**: Listens for new SMS messages and automatically imports transactions in real-time
+- **Initial Import**: One-time bulk import of existing SMS messages on first launch
+- **Deduplication**: Smart hash-based deduplication prevents duplicate transactions
 
-- Parse financial SMS messages (bank, UPI, card, wallet) into structured transactions.
-- Provide a single transaction timeline with search and filters.
-- Work reliably offline, with local-first storage and optional sync later.
-- Give users clear budget visibility and spending insights.
+### Transaction Management
+- **Unified Timeline**: View all transactions in a chronological list with search and filters
+- **Transaction Types**: Supports expense, income, refund, and transfer types
+- **Manual Entry**: Add transactions manually when SMS import isn't available
+- **Edit & Delete**: Full CRUD operations for all transactions
+- **Transaction Linking**: Link refunds to original transactions for better tracking
+- **Exclude Transactions**: Hide specific transactions from calculations without deleting them
+- **SMS Preview**: View original SMS message that generated the transaction
 
-## 2) Scope and Assumptions
+### Categories & Organization
+- **Default Categories**: Pre-configured categories (Food, Groceries, Transport, Shopping, Bills, Entertainment, Health, Travel, Salary, Other)
+- **Custom Categories**: Create and manage your own categories with custom icons and colors
+- **Category Icons**: Visual category identification with Lucide icons
 
-- Platform: Android first (SMS access is practical and permission-driven on Android).
-- iOS note: direct SMS inbox access is restricted; use manual import/push/email alternatives in future.
-- Default storage: on-device database (no required cloud dependency for v1).
-- Privacy-first approach: keep SMS processing local by default.
+### Budgeting
+- **Monthly Budgets**: Set overall monthly spending limits
+- **Budget Tracking**: Visual progress indicators showing spending vs budget
+- **Budget Alerts**: Notifications when approaching budget limits
 
-## 3) Architecture (High Level)
+### Bills & Payments
+- **Bill Detection**: Automatically detects bill reminders and payment due dates from SMS
+- **Bill Management**: Track unpaid and paid bills
+- **Bill Linking**: Link bill payments to transactions for complete tracking
+- **Due Date Tracking**: Never miss a payment with due date reminders
 
-### Client App Layers
+### Analytics & Insights
+- **Monthly Trends**: Line chart showing spending patterns over time
+- **Category Breakdown**: Pie chart visualization of spending by category
+- **Performance Summary**: Compare current month spending vs previous month
+- **Merchant Analysis**: Track spending by merchant/payee
 
-1. **Permissions + SMS Reader**
-   - Request and manage SMS read permission.
-   - Read existing inbox history and observe new incoming SMS.
+### Data Management
+- **Local SQLite Database**: All data stored locally for privacy and offline access
+- **Export Data**: Export all transactions and categories as JSON
+- **Import Data**: Restore data from JSON backup files
+- **Clear All Data**: Option to wipe all data and start fresh
 
-2. **Message Processing Pipeline**
-   - Normalize SMS text.
-   - Detect whether message is transaction-related.
-   - Extract fields: amount, debit/credit, merchant/payee, account hint, reference id, date/time, balance (optional).
-   - Confidence scoring and fallback to manual review.
+### Customization
+- **Multi-Currency Support**: Support for multiple currencies (USD, INR, EUR, and more)
+- **Dark/Light Theme**: Automatic and manual theme switching
+- **Localization**: Currency symbols based on device locale
 
-3. **Transaction Engine**
-   - Deduplicate entries.
-   - Categorize transaction (food, bills, transport, etc.).
-   - Store and index transactions.
+### App Updates
+- **Version Check**: Automatic check for app updates
+- **In-app Updates**: Notification when new version is available on Play Store
 
-4. **Local Data Layer**
-   - SQLite (or equivalent) with migrations and indexes.
-   - Repository layer for queries, filters, summaries.
+## Tech Stack
 
-5. **UI Layer**
-   - Dashboard, transaction list, transaction details, budgets, reports, settings.
+- **Framework**: React Native with Expo
+- **Navigation**: React Navigation (Bottom Tabs + Native Stack)
+- **State Management**: Zustand
+- **Database**: SQLite (expo-sqlite)
+- **Styling**: NativeWind (Tailwind CSS for React Native)
+- **Charts**: react-native-gifted-charts
+- **Icons**: Lucide React Native
+- **Animations**: React Native Reanimated
+- **ML/AI**: Google ML Kit (on-device entity extraction)
+- **Authentication**: Firebase Auth + Google Sign-In
+- **Cloud Storage**: Google Drive API
 
-## 4) Data Model (Minimum)
+## Project Structure
 
-### Core Tables
+```
+spendwise/
+├── src/
+│   ├── components/          # Reusable UI components
+│   │   ├── dashboard/     # Dashboard-specific components
+│   │   ├── IconLoader.tsx
+│   │   └── UpdateModal.tsx
+│   ├── constants/         # App constants (currencies, etc.)
+│   ├── context/           # React context providers
+│   ├── db/                # Database initialization and management
+│   ├── navigation/        # Navigation configuration
+│   ├── screens/           # Main app screens
+│   │   ├── Dashboard.tsx
+│   │   ├── Transactions.tsx
+│   │   ├── AddTransactionScreen.tsx
+│   │   ├── Analysis.tsx
+│   │   └── Settings.tsx
+│   ├── store/             # Zustand stores
+│   │   ├── useExpenseStore.ts
+│   │   ├── useAuthStore.ts
+│   │   └── useThemeStore.ts
+│   ├── types/             # TypeScript type definitions
+│   └── utils/             # Utility functions
+│       ├── smsParser.ts   # SMS parsing logic
+│       ├── smsReader.ts   # SMS reading permissions & native bridge
+│       ├── backupService.ts
+│       ├── googleAuth.ts
+│       ├── versionCheckService.ts
+│       └── constants.ts
+├── android/               # Android native code
+├── ios/                   # iOS native code
+├── assets/                # App icons and images
+└── scripts/               # Build scripts
+```
 
-- `messages`
-  - id, sender, body, received_at, hash, processed_status, parse_confidence
-- `transactions`
-  - id, source_message_id, type (debit/credit), amount, currency, merchant, account_ref, category_id, occurred_at, note, is_manual, created_at, updated_at
-- `categories`
-  - id, name, icon, color, is_default
-- `budgets`
-  - id, category_id (nullable for overall), period_type (monthly/weekly), limit_amount, start_date
-- `accounts` (optional for v1 if account hints are available)
-  - id, display_name, masked_number, provider
+## Database Schema
 
-### Indexes
+### Tables
 
-- `transactions(occurred_at)`
-- `transactions(category_id, occurred_at)`
-- `messages(hash)` for deduplication
+- **categories**: id, name, icon, color
+- **transactions**: id, category_id, amount, type, kind, date, note, source_message_id, merchant, currency, account_ref, reference_id, raw_sender, is_excluded, parent_id
+- **messages**: id, sender, body, received_at, hash, parse_confidence, processed_status
+- **budgets**: id, category_id, period_type, limit_amount, start_date
+- **bills**: id, sender, body, amount, due_date, status, category_id, transaction_id
+- **app_meta**: key, value (for app settings and setup status)
 
-## 5) Feature Requirements
+## Getting Started
 
-### A. Read All Text Messages (Android)
+### Prerequisites
+- Node.js
+- Expo CLI
+- Android Studio (for Android development)
+- Xcode (for iOS development, macOS only)
 
-- Request `READ_SMS` permission with clear onboarding copy.
-- Initial import:
-  - batched read of inbox/sent transaction-relevant messages,
-  - progress indicator and cancel support.
-- Incremental import:
-  - periodic background scan for new messages,
-  - optional manual "Rescan SMS" action.
-- Permission denied flow:
-  - show manual entry and import alternatives.
+### Installation
 
-### B. Show All Transactions
+1. Clone the repository
+```bash
+git clone <repository-url>
+cd spendwise
+```
 
-- Unified timeline sorted by date/time.
-- Filters:
-  - date range, debit/credit, category, account, merchant, amount range.
-- Search:
-  - merchant, note, reference id, amount text.
-- Transaction details screen:
-  - original SMS preview,
-  - parsed fields and edit capability.
+2. Install dependencies
+```bash
+npm install
+```
 
-### C. Must-Have Expense Tracker Features
+3. Start the development server
+```bash
+npm start
+```
 
-1. **Manual transaction add/edit/delete**
-2. **Category management** (default + custom)
-3. **Budgets and alerts**
+4. Run on Android
+```bash
+npm run android
+```
+
+5. Run on iOS
+```bash
+npm run ios
+```
+
+### Building for Production
+
+**Android APK (Preview)**
+```bash
+npm run android:apk
+```
+
+**Android AAB (Production)**
+```bash
+npm run android:aab
+```
+
+**Local Android Build**
+```bash
+npm run local:apk    # APK
+npm run local:aab    # AAB
+```
+
+## Permissions
+
+The app requires the following permissions on Android:
+- **READ_SMS**: To read financial SMS messages
+- **RECEIVE_SMS**: To listen for new SMS messages in real-time
+
+## Privacy
+
+- All SMS processing happens locally on the device
+- No SMS data is sent to external servers
+- ML Kit entity extraction runs entirely on-device
+- Optional Google Drive backup is user-initiated
+
+## License
+
+MIT License - see LICENSE file for details
    - monthly total budget
    - category-level budget alerts
 4. **Dashboard**
