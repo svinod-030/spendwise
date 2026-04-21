@@ -5,7 +5,7 @@ import {
   Activity, Briefcase, Car, Play, RefreshCw, ShoppingBag, Utensils, Zap, Package,
   Heart, Film, Banknote, CreditCard, Plane, Bus, Train, Fuel, RotateCcw,
   ArrowLeftRight, Shield, Gift, GraduationCap, Clapperboard, Receipt,
-  CircleDollarSign, UtensilsCrossed, ShoppingCart, HeartPulse, Home, CalendarCheck
+  CircleDollarSign, UtensilsCrossed, ShoppingCart, HeartPulse, Home, CalendarCheck, Book
 } from "lucide-react-native";
 
 export const IconLoader = ({ name, size, color }: { name: string, size: number, color: string }) => {
@@ -15,7 +15,7 @@ export const IconLoader = ({ name, size, color }: { name: string, size: number, 
     Activity, Briefcase, Car, Play, RefreshCw, ShoppingBag, Utensils, Zap, Package,
     Heart, Film, Banknote, CreditCard, Plane, Bus, Train, Fuel, RotateCcw,
     ArrowLeftRight, Shield, Gift, GraduationCap, Clapperboard, Receipt,
-    CircleDollarSign, UtensilsCrossed, ShoppingCart, HeartPulse, Home, CalendarCheck,
+    CircleDollarSign, UtensilsCrossed, ShoppingCart, HeartPulse, Home, CalendarCheck, Book,
     // Aliases for kebab-case and lowercase
     'credit-card': CreditCard, 'shopping-bag': ShoppingBag,
     'film': Film, 'banknote': Banknote, 'heart': Heart, 'utensils': Utensils,
@@ -24,16 +24,16 @@ export const IconLoader = ({ name, size, color }: { name: string, size: number, 
     'shield': Shield, 'gift': Gift, 'graduation-cap': GraduationCap,
     'clapperboard': Clapperboard, 'receipt': Receipt,
     'circle-dollar-sign': CircleDollarSign, 'utensils-crossed': UtensilsCrossed,
-    'shopping-cart': ShoppingCart, 'heart-pulse': HeartPulse,
-    'home': Home, 'calendar-check': CalendarCheck
+    'home': Home, 'calendar-check': CalendarCheck, 'book': Book,
+    'refresh-cw': RefreshCw, 'shopping-cart': ShoppingCart
   };
-  
+
   // Normalize key (handle lowercase and kebab-case)
-  const normalizedKey = name && name.length > 0 
+  const normalizedKey = name && name.length > 0
     ? name.charAt(0).toUpperCase() + name.slice(1)
     : "";
-  
+
   const IconComponent = (name && Icons[normalizedKey]) || Icons[name] || Icons.Package;
-  
+
   return <IconComponent size={size} color={color} />;
 };

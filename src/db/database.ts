@@ -100,13 +100,19 @@ export async function initDatabase() {
       ('Bills', 'credit-card', '#FFD93D'),
       ('Rent', 'home', '#f59e0b'),
       ('Health', 'heart', '#fb7185'),
-      ('Education', 'book', '#f1c40f'),
+      ('Education', 'graduation-cap', '#f1c40f'),
       ('Entertainment', 'film', '#957DAD'),
       ('Travel', 'plane', '#3498db'),
-      ('Subscriptions', 'refresh-cw', '#8b5cf6'),
+      ('Subscriptions', 'calendar-check', '#8b5cf6'),
       ('Salary', 'banknote', '#10b981'),
       ('Gifts', 'gift', '#ef4444'),
       ('Other', 'more-horizontal', '#94a3b8');
+    `);
+  } else {
+    // Migration for existing users who already have categories seeded with old icons
+    await db.execAsync(`
+      UPDATE categories SET icon = 'graduation-cap' WHERE name = 'Education' AND (icon = 'book' OR icon IS NULL);
+      UPDATE categories SET icon = 'calendar-check' WHERE name = 'Subscriptions' AND (icon = 'refresh-cw' OR icon IS NULL);
     `);
   }
 }
