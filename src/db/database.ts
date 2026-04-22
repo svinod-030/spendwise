@@ -107,6 +107,9 @@ export async function initDatabase() {
       ('Salary', 'banknote', '#10b981'),
       ('Fuel', 'fuel', '#f97316'),
       ('Gifts', 'gift', '#ef4444'),
+      ('EMI', 'landmark', '#6366f1'),
+      ('Investment', 'trending-up', '#8b5cf6'),
+      ('Transfer', 'arrow-left-right', '#64748b'),
       ('Other', 'more-horizontal', '#94a3b8');
     `);
   } else {
@@ -121,6 +124,16 @@ export async function initDatabase() {
     if (!fuelCategory) {
       await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('Fuel', 'fuel', '#f97316')");
     }
+
+    // Ensure EMI, Investment, Transfer exist
+    const emi = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'EMI'");
+    if (!emi) await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('EMI', 'landmark', '#6366f1')");
+    
+    const investment = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'Investment'");
+    if (!investment) await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('Investment', 'trending-up', '#8b5cf6')");
+    
+    const transfer = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'Transfer'");
+    if (!transfer) await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('Transfer', 'arrow-left-right', '#64748b')");
   }
 }
 

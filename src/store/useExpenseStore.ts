@@ -772,7 +772,7 @@ async function getCategoryIdForMessage(
       "airbnb", "oyo", "trivago"
     ],
     Bills: [
-      "electricity", "broadband", "wifi", "recharge", "bill", "emi",
+      "electricity", "broadband", "wifi", "recharge", "bill",
       "water", "gas", "mobile", "dth", "utility", "power", "energy",
       "bsnl", "airtel", "jio", "vi", "vodafone", "idea",
       "tata power", "bescom", "mseb", "maintenance"
@@ -803,7 +803,17 @@ async function getCategoryIdForMessage(
       "fuel", "petrol", "diesel", "hpcl", "bpcl", "iocl", "shell",
       "vehicle", "car", "bike", "scooter", "parking", "toll", "fastag"
     ],
-    Gifts: ["gift", "present", "donation", "charity", "celebration", "festival"]
+    Gifts: ["gift", "present", "donation", "charity", "celebration", "festival"],
+    EMI: ["emi", "loan", "mortgage"],
+    Investment: [
+      "invest", "mutual fund", "stock", "share", "demat", "trading",
+      "zerodha", "groww", "upstox", "etmoney", "savings", "fd",
+      "fixed deposit", "rd", "ppf", "nps", "insurance", "lic"
+    ],
+    Transfer: [
+      "transfer", "sent", "received", "upi", "neft", "imps", "rtgs",
+      "paytm", "phonepe", "gpay", "google pay", "bhim", "cred"
+    ]
   };
 
   for (const [categoryName, words] of Object.entries(categoryKeywords)) {
