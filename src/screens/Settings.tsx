@@ -293,7 +293,7 @@ const Settings = () => {
           <View className="px-6 py-3">
             <View className="flex-row items-center bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800">
               <Search size={18} color="#64748b" />
-              <RNTextInput
+              <TextInput
                 className="flex-1 ml-2 text-slate-900 dark:text-white py-1.5"
                 placeholder="Search currency code (e.g. USD, INR)..."
                 placeholderTextColor="#64748b"

@@ -1,8 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
-import { View, Text, ScrollView } from "react-native";
+import { View, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore, Transaction, Bill } from "../store/useExpenseStore";
-import { Landmark, RefreshCw } from "lucide-react-native";
 import Animated, { FadeInUp, useAnimatedStyle, withRepeat, withTiming, useSharedValue } from "react-native-reanimated";
 
 // Extracted Components
@@ -161,101 +160,100 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['bottom', 'left', 'right']}>
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: 120 }}>
-          <Animated.View entering={FadeInUp}>
+        <Animated.View entering={FadeInUp}>
 
-            <MonthPicker
-              months={months}
-              selectedMonth={selectedMonth}
-              onSelectMonth={setSelectedMonth}
-            />
+          <MonthPicker
+            months={months}
+            selectedMonth={selectedMonth}
+            onSelectMonth={setSelectedMonth}
+          />
 
-            <PerformanceSummary
-              isCurrentMonth={isCurrentMonth}
-              isEditingBudget={isEditingBudget}
-              setIsEditingBudget={setIsEditingBudget}
-              budgetInput={budgetInput}
-              setBudgetInput={setBudgetInput}
-              limitAmount={limitAmount}
-              currentMonthExpense={currentMonthExpense}
-              currentMonthIncome={currentMonthIncome}
-              safeToSpend={safeToSpend}
-              currencySymbol={getCurrencySymbol()}
-              onSaveBudget={handleSaveBudget}
-            />
+          <PerformanceSummary
+            isCurrentMonth={isCurrentMonth}
+            isEditingBudget={isEditingBudget}
+            setIsEditingBudget={setIsEditingBudget}
+            budgetInput={budgetInput}
+            setBudgetInput={setBudgetInput}
+            limitAmount={limitAmount}
+            currentMonthExpense={currentMonthExpense}
+            currentMonthIncome={currentMonthIncome}
+            safeToSpend={safeToSpend}
+            currencySymbol={getCurrencySymbol()}
+            onSaveBudget={handleSaveBudget}
+          />
 
-            <RecentActivity
-              transactions={recentTransactions}
-              onViewAll={() => navigation.navigate("Transactions")}
-              onEditTransaction={handleEditItem}
-              currencySymbol={getCurrencySymbol()}
-            />
+          <RecentActivity
+            transactions={recentTransactions}
+            onViewAll={() => navigation.navigate("Transactions")}
+            onEditTransaction={handleEditItem}
+            currencySymbol={getCurrencySymbol()}
+          />
 
-            {billFilter === "unpaid" && <BillsSection
-              bills={unpaidBills}
-              billFilter={billFilter}
-              setBillFilter={setBillFilter}
-              onMarkPaid={(bill) => {
-                setSelectedBill(bill);
-                setIsBillModalOpen(true);
-              }}
-              onViewDetails={(bill) => {
-                setSelectedBill(bill);
-                setIsBillDetailOpen(true);
-              }}
-              currencySymbol={getCurrencySymbol()}
-            />}
+          {billFilter === "unpaid" && <BillsSection
+            bills={unpaidBills}
+            billFilter={billFilter}
+            setBillFilter={setBillFilter}
+            onMarkPaid={(bill) => {
+              setSelectedBill(bill);
+              setIsBillModalOpen(true);
+            }}
+            onViewDetails={(bill) => {
+              setSelectedBill(bill);
+              setIsBillDetailOpen(true);
+            }}
+            currencySymbol={getCurrencySymbol()}
+          />}
 
-            {billFilter === "paid" && <BillsSection
-              bills={bills}
-              billFilter={billFilter}
-              setBillFilter={setBillFilter}
-              onMarkPaid={(bill) => {
-                setSelectedBill(bill);
-                setIsBillModalOpen(true);
-              }}
-              onViewDetails={(bill) => {
-                setSelectedBill(bill);
-                setIsBillDetailOpen(true);
-              }}
-              currencySymbol={getCurrencySymbol()}
-            />}
+          {billFilter === "paid" && <BillsSection
+            bills={bills}
+            billFilter={billFilter}
+            setBillFilter={setBillFilter}
+            onMarkPaid={(bill) => {
+              setSelectedBill(bill);
+              setIsBillModalOpen(true);
+            }}
+            onViewDetails={(bill) => {
+              setSelectedBill(bill);
+              setIsBillDetailOpen(true);
+            }}
+            currencySymbol={getCurrencySymbol()}
+          />}
 
-            <View className="h-10" />
+          <View className="h-10" />
 
-          </Animated.View>
-        </ScrollView>
+        </Animated.View>
+      </ScrollView>
 
-        <BillLinkingModal
-          isVisible={isBillModalOpen}
-          onClose={() => setIsBillModalOpen(false)}
-          selectedBill={selectedBill}
-          billSearch={billSearch}
-          onSearchChange={setBillSearch}
-          onMarkPaidManually={async () => {
-            if (selectedBill) await markBillAsPaid(selectedBill.id);
-            setIsBillModalOpen(false);
-          }}
-          onLinkTransaction={async (tx) => {
-            if (selectedBill) await markBillAsPaid(selectedBill.id, tx.id);
-            setIsBillModalOpen(false);
-          }}
-          transactions={transactions}
-          currencySymbol={getCurrencySymbol()}
-        />
+      <BillLinkingModal
+        isVisible={isBillModalOpen}
+        onClose={() => setIsBillModalOpen(false)}
+        selectedBill={selectedBill}
+        billSearch={billSearch}
+        onSearchChange={setBillSearch}
+        onMarkPaidManually={async () => {
+          if (selectedBill) await markBillAsPaid(selectedBill.id);
+          setIsBillModalOpen(false);
+        }}
+        onLinkTransaction={async (tx) => {
+          if (selectedBill) await markBillAsPaid(selectedBill.id, tx.id);
+          setIsBillModalOpen(false);
+        }}
+        transactions={transactions}
+        currencySymbol={getCurrencySymbol()}
+      />
 
-        <BillDetailModal
-          isVisible={isBillDetailOpen}
-          onClose={() => setIsBillDetailOpen(false)}
-          bill={selectedBill}
-          currencySymbol={getCurrencySymbol()}
-          onMarkPaid={(bill) => {
-            setSelectedBill(bill);
-            setIsBillDetailOpen(false);
-            setIsBillModalOpen(true);
-          }}
-          onDeleteBill={deleteBill}
-        />
-
+      <BillDetailModal
+        isVisible={isBillDetailOpen}
+        onClose={() => setIsBillDetailOpen(false)}
+        bill={selectedBill}
+        currencySymbol={getCurrencySymbol()}
+        onMarkPaid={(bill) => {
+          setSelectedBill(bill);
+          setIsBillDetailOpen(false);
+          setIsBillModalOpen(true);
+        }}
+        onDeleteBill={deleteBill}
+      />
     </SafeAreaView>
   );
 };

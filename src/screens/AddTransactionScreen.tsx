@@ -182,7 +182,7 @@ const AddTransactionScreen = () => {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
         >
-        <ScrollView className="flex-1 px-6 pt-4" showsVerticalScrollIndicator={false}>
+          <ScrollView className="flex-1 px-6 pt-4" showsVerticalScrollIndicator={false}>
             {/* Type Selector Dropdown */}
             <View className="mb-6 z-10">
               <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase tracking-widest">Transaction Type</Text>
@@ -587,9 +587,9 @@ const AddTransactionScreen = () => {
               </Text>
             </TouchableOpacity>
           </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 };
 
