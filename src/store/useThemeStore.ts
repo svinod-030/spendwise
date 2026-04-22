@@ -13,7 +13,7 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      theme: "dark", // Default to dark as it's the brand style
+      theme: "system", // Default to system theme
       setTheme: (theme: AppTheme) => {
         set({ theme });
         // Apply to NativeWind

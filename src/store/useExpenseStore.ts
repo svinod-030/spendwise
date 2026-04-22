@@ -199,7 +199,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   fetchCurrency: async () => {
     const db = await getDb();
     const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM app_meta WHERE key = 'currency'");
-    const currency = row?.value || "USD";
+    const currency = row?.value || "INR";
     set({ currency });
     return currency;
   },
