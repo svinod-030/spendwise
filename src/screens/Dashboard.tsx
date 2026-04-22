@@ -159,29 +159,8 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
   }, []);
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <SafeAreaView className="flex-1">
-        <View className="px-6 pt-8 pb-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
-          <View className="flex-row items-center justify-between mb-1">
-            <View className="flex-row items-center">
-              <View className="w-9 h-9 bg-blue-600 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/40">
-                <Landmark size={20} color="white" />
-              </View>
-              <Text className="text-slate-900 dark:text-white text-2xl font-black tracking-tighter">SpendWise</Text>
-            </View>
-
-            {isSyncing && (
-              <View className="flex-row items-center bg-blue-50 dark:bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-500/20">
-                <Animated.View style={animatedStyle}>
-                  <RefreshCw size={12} color="#2563eb" />
-                </Animated.View>
-                <Text className="text-blue-600 dark:text-blue-400 text-[10px] font-bold ml-2 uppercase tracking-wide">Syncing</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: 120 }}>
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['bottom', 'left', 'right']}>
+      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: 120 }}>
           <Animated.View entering={FadeInUp}>
 
             <MonthPicker
@@ -277,8 +256,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
           onDeleteBill={deleteBill}
         />
 
-      </SafeAreaView>
-    </View>
+    </SafeAreaView>
   );
 };
 

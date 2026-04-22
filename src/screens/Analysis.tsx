@@ -90,16 +90,7 @@ const Analysis = ({ navigation }: { navigation: any }) => {
 
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <View className="px-6 pt-6 pb-2 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
-        <View className="flex-row items-center mb-1">
-          <View className="w-8 h-8 bg-emerald-500 rounded-xl items-center justify-center mr-3 shadow-lg shadow-emerald-500/30">
-            <TrendingUp size={18} color="white" />
-          </View>
-          <Text className="text-slate-900 dark:text-white text-xl font-black tracking-tighter">SpendWise</Text>
-        </View>
-      </View>
-
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['bottom', 'left', 'right']}>
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 16, paddingBottom: 120 }}>
         <Animated.View entering={FadeInUp}>
 

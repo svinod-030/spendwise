@@ -133,16 +133,7 @@ const Settings = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <View className="px-6 py-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
-        <View className="flex-row items-center mb-0.5">
-          <View className="w-7 h-7 bg-slate-100 dark:bg-slate-800 rounded-lg items-center justify-center mr-2.5 shadow-sm dark:shadow-slate-900/30">
-            <Shield size={16} color="#64748b" />
-          </View>
-          <Text className="text-slate-900 dark:text-white text-lg font-black tracking-tighter">SpendWise</Text>
-        </View>
-      </View>
-
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['bottom', 'left', 'right']}>
       <ScrollView
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}

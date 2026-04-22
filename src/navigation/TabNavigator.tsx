@@ -9,6 +9,8 @@ import Transactions from "../screens/Transactions";
 import Settings from "../screens/Settings";
 import AddTransactionScreen from "../screens/AddTransactionScreen";
 
+import { CommonHeader } from "../components/common/CommonHeader";
+
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
@@ -19,7 +21,8 @@ export default function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
+        headerShown: true,
+        header: () => <CommonHeader />,
         tabBarStyle: {
           backgroundColor: isDark ? "#0f172a" : "#ffffff",
           borderTopWidth: 1,
@@ -49,10 +52,10 @@ export default function TabNavigator() {
     >
       <Tab.Screen name="Overview" component={Dashboard} />
       <Tab.Screen name="Analysis" component={Analysis} />
-      <Tab.Screen 
-        name="AddTransaction" 
-        component={AddTransactionScreen} 
-        options={{ title: '' }} 
+      <Tab.Screen
+        name="AddTransaction"
+        component={AddTransactionScreen}
+        options={{ title: '' }}
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             navigation.setParams({ editingTransaction: undefined });

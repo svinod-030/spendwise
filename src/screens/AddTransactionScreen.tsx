@@ -177,28 +177,12 @@ const AddTransactionScreen = () => {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <SafeAreaView className="flex-1">
+      <SafeAreaView className="flex-1" edges={['bottom', 'left', 'right']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
         >
-          <View className="px-4 py-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900 flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <TouchableOpacity onPress={() => handleNavigateBack()} className="p-2 -ml-2 mr-2">
-                <ArrowLeft size={24} color="#64748b" />
-              </TouchableOpacity>
-              <Text className="text-slate-900 dark:text-white text-xl font-black tracking-tighter">
-                {editingTransaction ? "Edit Transaction" : "New Transaction"}
-              </Text>
-            </View>
-            {editingTransaction && (
-              <TouchableOpacity onPress={handleDelete} className="p-2 -mr-2">
-                <Trash2 size={20} color="#f43f5e" />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <ScrollView className="flex-1 px-6 pt-4" showsVerticalScrollIndicator={false}>
+        <ScrollView className="flex-1 px-6 pt-4" showsVerticalScrollIndicator={false}>
             {/* Type Selector Dropdown */}
             <View className="mb-6 z-10">
               <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase tracking-widest">Transaction Type</Text>
@@ -603,9 +587,9 @@ const AddTransactionScreen = () => {
               </Text>
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  </View>
   );
 };
 

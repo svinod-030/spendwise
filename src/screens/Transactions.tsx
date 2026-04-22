@@ -135,18 +135,8 @@ const Transactions = ({ navigation }: { navigation: any }) => {
   };
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <SafeAreaView className="flex-1">
-        <View className="px-6 pt-6 pb-2 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-900">
-          <View className="flex-row items-center mb-1">
-            <View className="w-8 h-8 bg-blue-500 rounded-xl items-center justify-center mr-3 shadow-lg shadow-blue-500/30">
-              <Clock size={18} color="white" />
-            </View>
-            <Text className="text-slate-900 dark:text-white text-xl font-black tracking-tighter">SpendWise</Text>
-          </View>
-        </View>
-
-        {/* Month Picker */}
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['bottom', 'left', 'right']}>
+      {/* Month Picker */}
         <View className="px-6 py-4">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-2">
             {months.map((m) => {
@@ -269,8 +259,7 @@ const Transactions = ({ navigation }: { navigation: any }) => {
             </Pressable>
           </Pressable>
         </Modal>
-      </SafeAreaView>
-    </View>
+    </SafeAreaView>
   );
 };
 
