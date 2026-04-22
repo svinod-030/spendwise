@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, Modal, Pressable, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useColorScheme } from "nativewind";
 import { Calendar as CalendarIcon, ChevronRight, ChevronDown, Check, TrendingUp, Clock as ClockIcon, Trash2, Eye, EyeOff, Link as LinkIcon, RefreshCcw, Search, X, ArrowLeft, MessageSquare } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useExpenseStore, Transaction } from "../store/useExpenseStore";
@@ -15,6 +16,8 @@ const AddTransactionScreen = () => {
   const isFocused = useIsFocused();
   const editingTransaction: Transaction | undefined = route.params?.editingTransaction;
   const returnTo = route.params?.returnTo;
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   const handleNavigateBack = () => {
     if (returnTo) {
@@ -177,12 +180,35 @@ const AddTransactionScreen = () => {
 
   return (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <SafeAreaView className="flex-1" edges={['bottom', 'left', 'right']}>
+      <SafeAreaView className="flex-1" edges={['top', 'bottom', 'left', 'right']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1"
         >
           <ScrollView className="flex-1 px-6 pt-4" showsVerticalScrollIndicator={false}>
+            {/* Header */}
+            <View className="flex-row items-center justify-between mb-8">
+              <TouchableOpacity
+                onPress={handleNavigateBack}
+                className="w-12 h-12 bg-white dark:bg-slate-900 rounded-2xl items-center justify-center border border-slate-100 dark:border-slate-800 shadow-sm"
+              >
+                <ArrowLeft size={20} color={isDark ? "white" : "#0f172a"} />
+              </TouchableOpacity>
+              <Text className="text-slate-900 dark:text-white font-black text-xl">
+                {editingTransaction ? "Edit Transaction" : "Add Transaction"}
+              </Text>
+              {editingTransaction ? (
+                <TouchableOpacity
+                  onPress={handleDelete}
+                  className="w-12 h-12 bg-rose-500/10 rounded-2xl items-center justify-center border border-rose-100 dark:border-rose-900/30 shadow-sm"
+                >
+                  <Trash2 size={20} color="#f43f5e" />
+                </TouchableOpacity>
+              ) : (
+                <View className="w-12" />
+              )}
+            </View>
+
             {/* Type Selector Dropdown */}
             <View className="mb-6 z-10">
               <Text className="text-slate-500 text-[10px] font-bold mb-2 uppercase tracking-widest">Transaction Type</Text>

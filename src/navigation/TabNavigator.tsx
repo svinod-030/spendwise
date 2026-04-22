@@ -55,7 +55,7 @@ export default function TabNavigator() {
       <Tab.Screen
         name="AddTransaction"
         component={AddTransactionScreen}
-        options={{ title: '' }}
+        options={{ title: '', headerShown: false }}
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             navigation.setParams({ editingTransaction: undefined });
