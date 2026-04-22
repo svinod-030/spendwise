@@ -516,9 +516,12 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   fetchBills: async (month?: string) => {
     const db = await getDb();
-    const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const targetMonth = month || currentMonth;
+    const dateQuery = `date('${targetMonth}-01')`;
 
-    // Auto-cleanup duplicates if any exist from the previous bug
+    // Auto-cleanup duplicates if any exist from previous bug
     await db.runAsync(`
       DELETE FROM bills 
       WHERE status = 'unpaid' AND id NOT IN (
@@ -526,14 +529,17 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       )
     `);
 
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const showFuture = !month || month >= currentMonth;
+    // Boundary logic:
+    // If current month is selected: show this month + next month.
+    // Otherwise: show only the respective month.
+    const isCurrent = targetMonth === currentMonth;
+    const endBoundary = isCurrent ? `date(${dateQuery}, '+2 months')` : `date(${dateQuery}, '+1 month')`;
 
     const bills = await db.getAllAsync<Bill>(
       `SELECT * FROM bills 
        WHERE due_date >= ${dateQuery} 
-       ${showFuture ? "" : `AND due_date < date(${dateQuery}, '+1 month')`}
+       AND due_date < ${endBoundary}
+       AND NOT (amount = 0 AND due_date >= date('now', 'start of month', '+2 months'))
        ORDER BY due_date ASC`
     );
     set({ bills });
@@ -609,7 +615,7 @@ async function ingestSmsMessages(
     if (!parsed) {
       // Try parsing as a bill if it's not a transaction
       const parsedBill = await parseSmsForBill(message);
-      if (parsedBill) {
+      if (parsedBill && parsedBill.amount > 0) {
         const hash = buildHash(parsedBill.sender, parsedBill.body, message.date);
         const existingMessage = await db.getFirstAsync<{ id: number }>("SELECT id FROM messages WHERE hash = ?", [hash]);
 
