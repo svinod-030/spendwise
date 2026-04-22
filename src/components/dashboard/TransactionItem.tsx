@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import Animated, { FadeInRight } from "react-native-reanimated";
-import { RefreshCcw } from "lucide-react-native";
+import { RefreshCcw, Eye, EyeOff } from "lucide-react-native";
 import { IconLoader } from "../IconLoader";
 import { Transaction, getTransactionDisplay, useExpenseStore } from "../../store/useExpenseStore";
 
@@ -21,7 +21,7 @@ export const TransactionItem = ({
   isLinked = false
 }: TransactionItemProps) => {
   const display = getTransactionDisplay(item);
-  const { transactions } = useExpenseStore();
+  const { transactions, updateTransaction } = useExpenseStore();
 
   const totalRefunded = React.useMemo(() => {
     return transactions
@@ -31,6 +31,12 @@ export const TransactionItem = ({
 
   const hasLinkedRefund = totalRefunded > 0;
   const remainingAmount = item.amount - totalRefunded;
+
+  const isExcluded = item.is_excluded === 1;
+  const handleToggleVisibility = async (e: any) => {
+    e.stopPropagation();
+    await updateTransaction(item.id, { is_excluded: isExcluded ? 0 : 1 });
+  };
 
   return (
     <Animated.View
@@ -61,7 +67,7 @@ export const TransactionItem = ({
                   </Text>
                 </View>
               )}
-              {item.is_excluded === 1 && <Text className="text-rose-500 text-[10px] italic font-bold ml-1"> (Hidden)</Text>}
+              
             </View>
             <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest mt-0.5">
               {new Date(item.date).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })} • {new Date(item.date).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: true })}
@@ -69,9 +75,21 @@ export const TransactionItem = ({
           </View>
         </View>
         <View className="items-end">
-          <Text className={`font-black text-base ${item.is_excluded === 1 ? 'text-slate-400 line-through' : display.colorClass}`}>
-            {display.sign}{currencySymbol}{(hasLinkedRefund ? remainingAmount : item.amount).toFixed(2)}
-          </Text>
+          <View className="flex-row items-center">
+            <TouchableOpacity
+              onPress={handleToggleVisibility}
+              className={`p-2 rounded-xl mr-1 ${isExcluded ? 'bg-rose-500/10' : 'bg-slate-100 dark:bg-slate-800'}`}
+            >
+              {isExcluded ? (
+                <EyeOff size={14} color="#f43f5e" />
+              ) : (
+                <Eye size={14} color="#64748b" />
+              )}
+            </TouchableOpacity>
+            <Text className={`font-black text-base ${isExcluded ? 'text-slate-400 line-through' : display.colorClass}`}>
+              {display.sign}{currencySymbol}{(hasLinkedRefund ? remainingAmount : item.amount).toFixed(2)}
+            </Text>
+          </View>
           {hasLinkedRefund && (
             <Text className="text-slate-400 text-[9px] font-bold uppercase tracking-tighter">
               {currencySymbol}{item.amount.toFixed(0)}

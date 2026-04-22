@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FlatList, ScrollView, Text, TextInput, TouchableOpacity, View, Modal, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, Clock, RefreshCcw, ArrowUpDown, ArrowUp, Check, Filter, ChevronDown } from "lucide-react-native";
+import { Clock, RefreshCcw, ArrowUpDown, Check, ChevronDown, Eye, EyeOff } from "lucide-react-native";
 import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../utils/smsParser";
 import { IconLoader } from "../components/IconLoader";
 
 const Transactions = ({ navigation }: { navigation: any }) => {
-  const { transactions, fetchTransactions, getCurrencySymbol } = useExpenseStore();
+  const { transactions, fetchTransactions, getCurrencySymbol, updateTransaction } = useExpenseStore();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | TransactionKind>("all");
   const [sortBy, setSortBy] = useState<"date" | "amount">("date");
@@ -87,6 +87,12 @@ const Transactions = ({ navigation }: { navigation: any }) => {
     const hasLinkedRefund = totalRefunded > 0;
     const isRefund = item.kind === "refund" || !!item.parent_id;
 
+    const isExcluded = item.is_excluded === 1;
+    const handleToggleVisibility = async (e: any) => {
+      e.stopPropagation();
+      await updateTransaction(item.id, { is_excluded: isExcluded ? 0 : 1 });
+    };
+
     return (
       <TouchableOpacity
         onPress={() => handleEditTransaction(item)}
@@ -113,7 +119,7 @@ const Transactions = ({ navigation }: { navigation: any }) => {
                   </Text>
                 </View>
               )}
-              {item.is_excluded === 1 && <Text className="text-rose-500 text-[10px] italic font-bold ml-1"> (Hidden)</Text>}
+
             </View>
             <Text className="text-slate-500 dark:text-slate-400 text-[9px] font-bold uppercase tracking-widest mt-0.5">
               {new Date(item.date).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })} • {new Date(item.date).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: true })}
@@ -121,9 +127,21 @@ const Transactions = ({ navigation }: { navigation: any }) => {
           </View>
         </View>
         <View className="items-end">
-          <Text className={`font-black italic text-base tracking-tighter ${item.is_excluded === 1 ? 'text-slate-400 line-through' : display.colorClass}`}>
-            {display.sign} {getCurrencySymbol()} {(hasLinkedRefund ? remainingAmount : item.amount).toFixed(2)}
-          </Text>
+          <View className="flex-row items-center">
+            <TouchableOpacity
+              onPress={handleToggleVisibility}
+              className={`p-2 rounded-xl mr-1 ${isExcluded ? 'bg-rose-500/10' : 'bg-slate-100 dark:bg-slate-800'}`}
+            >
+              {isExcluded ? (
+                <EyeOff size={14} color="#f43f5e" />
+              ) : (
+                <Eye size={14} color="#64748b" />
+              )}
+            </TouchableOpacity>
+            <Text className={`font-black italic text-base tracking-tighter ${isExcluded ? 'text-slate-400 line-through' : display.colorClass}`}>
+              {display.sign} {getCurrencySymbol()} {(hasLinkedRefund ? remainingAmount : item.amount).toFixed(2)}
+            </Text>
+          </View>
           {hasLinkedRefund && (
             <Text className="text-slate-400 text-[9px] font-bold uppercase tracking-tighter">
               {getCurrencySymbol()}{item.amount.toFixed(0)}
@@ -137,128 +155,128 @@ const Transactions = ({ navigation }: { navigation: any }) => {
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['bottom', 'left', 'right']}>
       {/* Month Picker */}
-        <View className="px-6 py-4">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-2">
-            {months.map((m) => {
-              const isSelected = selectedMonth === m.key;
-              return (
-                <TouchableOpacity
-                  key={m.key}
-                  onPress={() => setSelectedMonth(m.key)}
-                  className={`mr-3 px-6 py-2.5 rounded-2xl border ${isSelected
-                    ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20'
-                    : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
-                    }`}
-                >
-                  <Text className={`font-black uppercase tracking-tighter text-[11px] ${isSelected ? 'text-white' : 'text-slate-500'}`}>
-                    {m.label} {m.year}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+      <View className="px-6 py-4">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-2">
+          {months.map((m) => {
+            const isSelected = selectedMonth === m.key;
+            return (
+              <TouchableOpacity
+                key={m.key}
+                onPress={() => setSelectedMonth(m.key)}
+                className={`mr-3 px-6 py-2.5 rounded-2xl border ${isSelected
+                  ? 'bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20'
+                  : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
+                  }`}
+              >
+                <Text className={`font-black uppercase tracking-tighter text-[11px] ${isSelected ? 'text-white' : 'text-slate-500'}`}>
+                  {m.label} {m.year}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
-        <View className="px-6 py-2">
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search note, category, etc..."
-            placeholderTextColor="#94a3b8"
-            className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl px-4 py-4 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
-          />
-        </View>
-        <View className="px-6 py-3 flex-row items-center justify-between">
-          <View className="flex-row flex-1 flex-wrap">
-            {(["all", "expense", "income", "refund", "transfer"] as const).map((filter) => {
-              const isActive = activeFilter === filter;
-              return (
-                <TouchableOpacity
-                  key={filter}
-                  onPress={() => setActiveFilter(filter)}
-                  className={`px-3 py-2 rounded-xl mr-2 mb-2 border ${isActive
-                    ? "bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20"
-                    : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
-                    }`}
-                >
-                  <Text className={`text-xs capitalize font-bold ${isActive ? 'text-white' : 'text-slate-500'}`}>
-                    {filter}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <TouchableOpacity
-            onPress={() => setIsSortModalVisible(true)}
-            className="flex-row items-center bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-xl mb-2"
-          >
-            <ArrowUpDown size={12} color="#64748b" className="mr-2" />
-            <Text className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 mr-1">
-              {sortBy === 'date' ? (sortOrder === 'desc' ? 'Newest' : 'Oldest') : (sortOrder === 'desc' ? 'Highest' : 'Lowest')}
-            </Text>
-            <ChevronDown size={12} color="#64748b" />
-          </TouchableOpacity>
-        </View>
-
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
-          showsVerticalScrollIndicator={false}
+      <View className="px-6 py-2">
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search note, category, etc..."
+          placeholderTextColor="#94a3b8"
+          className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl px-4 py-4 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
         />
+      </View>
+      <View className="px-6 py-3 flex-row items-center justify-between">
+        <View className="flex-row flex-1 flex-wrap">
+          {(["all", "expense", "income", "refund", "transfer"] as const).map((filter) => {
+            const isActive = activeFilter === filter;
+            return (
+              <TouchableOpacity
+                key={filter}
+                onPress={() => setActiveFilter(filter)}
+                className={`px-3 py-2 rounded-xl mr-2 mb-2 border ${isActive
+                  ? "bg-blue-600 border-blue-500 shadow-lg shadow-blue-500/20"
+                  : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
+                  }`}
+              >
+                <Text className={`text-xs capitalize font-bold ${isActive ? 'text-white' : 'text-slate-500'}`}>
+                  {filter}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-        {/* Sort Modal */}
-        <Modal
-          visible={isSortModalVisible}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsSortModalVisible(false)}
+        <TouchableOpacity
+          onPress={() => setIsSortModalVisible(true)}
+          className="flex-row items-center bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-xl mb-2"
         >
-          <Pressable
-            className="flex-1 bg-slate-900/40 backdrop-blur-sm justify-center px-6"
-            onPress={() => setIsSortModalVisible(false)}
-          >
-            <Pressable className="bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800">
-              <View className="px-6 py-4 border-b border-slate-50 dark:border-slate-800 items-center">
-                <Text className="text-slate-900 dark:text-white font-black">Sort Transactions</Text>
-              </View>
+          <ArrowUpDown size={12} color="#64748b" className="mr-2" />
+          <Text className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 mr-1">
+            {sortBy === 'date' ? (sortOrder === 'desc' ? 'Newest' : 'Oldest') : (sortOrder === 'desc' ? 'Highest' : 'Lowest')}
+          </Text>
+          <ChevronDown size={12} color="#64748b" />
+        </TouchableOpacity>
+      </View>
 
-              {[
-                { label: "Newest First", field: "date", order: "desc" },
-                { label: "Oldest First", field: "date", order: "asc" },
-                { label: "Highest Amount", field: "amount", order: "desc" },
-                { label: "Lowest Amount", field: "amount", order: "asc" },
-              ].map((opt, idx, arr) => {
-                const isSelected = sortBy === opt.field && sortOrder === opt.order;
-                return (
-                  <TouchableOpacity
-                    key={opt.label}
-                    className={`flex-row items-center px-6 py-5 ${idx !== arr.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}
-                    onPress={() => {
-                      setSortBy(opt.field as any);
-                      setSortOrder(opt.order as any);
-                      setIsSortModalVisible(false);
-                    }}
-                  >
-                    <View className={`w-8 h-8 rounded-xl items-center justify-center mr-4 ${isSelected ? 'bg-blue-500/10' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                      {opt.field === "date" ? (
-                        <Clock size={16} color={isSelected ? "#3b82f6" : "#64748b"} />
-                      ) : (
-                        <ArrowUpDown size={16} color={isSelected ? "#3b82f6" : "#64748b"} />
-                      )}
-                    </View>
-                    <Text className={`flex-1 font-bold ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`}>
-                      {opt.label}
-                    </Text>
-                    {isSelected && <Check size={18} color="#3b82f6" />}
-                  </TouchableOpacity>
-                );
-              })}
-            </Pressable>
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={renderItem}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      />
+
+      {/* Sort Modal */}
+      <Modal
+        visible={isSortModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsSortModalVisible(false)}
+      >
+        <Pressable
+          className="flex-1 bg-slate-900/40 backdrop-blur-sm justify-center px-6"
+          onPress={() => setIsSortModalVisible(false)}
+        >
+          <Pressable className="bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800">
+            <View className="px-6 py-4 border-b border-slate-50 dark:border-slate-800 items-center">
+              <Text className="text-slate-900 dark:text-white font-black">Sort Transactions</Text>
+            </View>
+
+            {[
+              { label: "Newest First", field: "date", order: "desc" },
+              { label: "Oldest First", field: "date", order: "asc" },
+              { label: "Highest Amount", field: "amount", order: "desc" },
+              { label: "Lowest Amount", field: "amount", order: "asc" },
+            ].map((opt, idx, arr) => {
+              const isSelected = sortBy === opt.field && sortOrder === opt.order;
+              return (
+                <TouchableOpacity
+                  key={opt.label}
+                  className={`flex-row items-center px-6 py-5 ${idx !== arr.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}
+                  onPress={() => {
+                    setSortBy(opt.field as any);
+                    setSortOrder(opt.order as any);
+                    setIsSortModalVisible(false);
+                  }}
+                >
+                  <View className={`w-8 h-8 rounded-xl items-center justify-center mr-4 ${isSelected ? 'bg-blue-500/10' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                    {opt.field === "date" ? (
+                      <Clock size={16} color={isSelected ? "#3b82f6" : "#64748b"} />
+                    ) : (
+                      <ArrowUpDown size={16} color={isSelected ? "#3b82f6" : "#64748b"} />
+                    )}
+                  </View>
+                  <Text className={`flex-1 font-bold ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                    {opt.label}
+                  </Text>
+                  {isSelected && <Check size={18} color="#3b82f6" />}
+                </TouchableOpacity>
+              );
+            })}
           </Pressable>
-        </Modal>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 };
