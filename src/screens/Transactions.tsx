@@ -70,9 +70,21 @@ const Transactions = ({ navigation }: { navigation: any }) => {
     });
   }, [search, transactions, activeFilter, selectedMonth, sortBy, sortOrder]);
 
+  const refundMap = useMemo(() => {
+    const map: Record<number, number> = {};
+    transactions.forEach(t => {
+      if (t.parent_id) {
+        map[t.parent_id] = (map[t.parent_id] || 0) + t.amount;
+      }
+    });
+    return map;
+  }, [transactions]);
+
   const renderItem = ({ item }: { item: Transaction }) => {
     const display = getTransactionDisplay(item);
-    const hasLinkedRefund = transactions.some(t => t.parent_id === item.id);
+    const totalRefunded = refundMap[item.id] || 0;
+    const remainingAmount = item.amount - totalRefunded;
+    const hasLinkedRefund = totalRefunded > 0;
     const isRefund = item.kind === "refund" || !!item.parent_id;
 
     return (
@@ -110,8 +122,13 @@ const Transactions = ({ navigation }: { navigation: any }) => {
         </View>
         <View className="items-end">
           <Text className={`font-black italic text-base tracking-tighter ${item.is_excluded === 1 ? 'text-slate-400 line-through' : display.colorClass}`}>
-            {display.sign} {getCurrencySymbol()} {item.amount.toFixed(2)}
+            {display.sign} {getCurrencySymbol()} {(hasLinkedRefund ? remainingAmount : item.amount).toFixed(2)}
           </Text>
+          {hasLinkedRefund && (
+            <Text className="text-slate-400 text-[9px] font-bold uppercase tracking-tighter">
+              {getCurrencySymbol()}{item.amount.toFixed(0)}
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -182,7 +199,7 @@ const Transactions = ({ navigation }: { navigation: any }) => {
             })}
           </View>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => setIsSortModalVisible(true)}
             className="flex-row items-center bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-xl mb-2"
           >
@@ -209,7 +226,7 @@ const Transactions = ({ navigation }: { navigation: any }) => {
           animationType="fade"
           onRequestClose={() => setIsSortModalVisible(false)}
         >
-          <Pressable 
+          <Pressable
             className="flex-1 bg-slate-900/40 backdrop-blur-sm justify-center px-6"
             onPress={() => setIsSortModalVisible(false)}
           >

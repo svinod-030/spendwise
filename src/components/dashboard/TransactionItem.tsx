@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import Animated, { FadeInRight } from "react-native-reanimated";
 import { RefreshCcw } from "lucide-react-native";
 import { IconLoader } from "../IconLoader";
-import { Transaction, getTransactionDisplay } from "../../store/useExpenseStore";
+import { Transaction, getTransactionDisplay, useExpenseStore } from "../../store/useExpenseStore";
 
 interface TransactionItemProps {
   item: Transaction;
@@ -13,7 +13,7 @@ interface TransactionItemProps {
   isLinked?: boolean;
 }
 
-export const TransactionItem = ({ 
+export const TransactionItem = ({
   item,
   index,
   onPress,
@@ -21,7 +21,17 @@ export const TransactionItem = ({
   isLinked = false
 }: TransactionItemProps) => {
   const display = getTransactionDisplay(item);
-  
+  const { transactions } = useExpenseStore();
+
+  const totalRefunded = React.useMemo(() => {
+    return transactions
+      .filter(t => t.parent_id === item.id)
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions, item.id]);
+
+  const hasLinkedRefund = totalRefunded > 0;
+  const remainingAmount = item.amount - totalRefunded;
+
   return (
     <Animated.View
       entering={FadeInRight.delay(index * 50)}
@@ -43,7 +53,7 @@ export const TransactionItem = ({
               <Text className="text-slate-900 dark:text-slate-100 font-bold text-base leading-5">
                 {item.note || item.category_name || "Transaction"}
               </Text>
-              {(isLinked || item.kind === "refund" || !!item.parent_id) && (
+              {(isLinked || hasLinkedRefund || item.kind === "refund" || !!item.parent_id) && (
                 <View className="ml-2 bg-emerald-500/10 px-1.5 py-0.5 rounded-md flex-row items-center">
                   <RefreshCcw size={10} color="#10b981" />
                   <Text className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 ml-1 uppercase">
@@ -60,8 +70,13 @@ export const TransactionItem = ({
         </View>
         <View className="items-end">
           <Text className={`font-black text-base ${item.is_excluded === 1 ? 'text-slate-400 line-through' : display.colorClass}`}>
-            {display.sign}{currencySymbol}{item.amount.toFixed(2)}
+            {display.sign}{currencySymbol}{(hasLinkedRefund ? remainingAmount : item.amount).toFixed(2)}
           </Text>
+          {hasLinkedRefund && (
+            <Text className="text-slate-400 text-[9px] font-bold uppercase tracking-tighter">
+              {currencySymbol}{item.amount.toFixed(0)}
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     </Animated.View>
