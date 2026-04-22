@@ -13,10 +13,12 @@ import UpdateModal from './src/components/UpdateModal';
 import { checkVersion, VersionCheckResult } from './src/utils/versionCheckService';
 import RootNavigator, { darkTheme, lightTheme } from "./src/navigation/RootNavigator";
 import { NavigationContainer } from "@react-navigation/native";
+import { AnimatedSplashScreen } from "./src/components/common/AnimatedSplashScreen";
 
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
+  const [animationFinished, setAnimationFinished] = useState(false);
   const [didRunLaunchImport, setDidRunLaunchImport] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<VersionCheckResult | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -115,6 +117,10 @@ export default function App() {
       subscription.remove();
     };
   }, [isReady]);
+
+  if (!animationFinished) {
+    return <AnimatedSplashScreen onAnimationComplete={() => setAnimationFinished(true)} />;
+  }
 
   return (
     <NavigationContainer theme={isDark ? darkTheme : lightTheme}>
