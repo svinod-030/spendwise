@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { getDb } from "../db/database";
 import * as FileSystem from "expo-file-system";
+import { File } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { parseSmsForTransaction, TransactionKind, parseSmsForBill, buildHash } from "../utils/smsParser";
 import { checkSmsPermission, readInboxMessages, requestSmsPermission } from "../utils/smsReader";
@@ -103,6 +104,7 @@ interface ExpenseState {
   processIncomingSmsMessage: (message: { address: string; body: string; date: number }) => Promise<boolean>;
   runInitialSmsImportIfNeeded: () => Promise<{ ran: boolean; imported: number; skipped: number }>;
   exportData: () => Promise<void>;
+  generateExportTxt: () => Promise<string>;
   importData: (jsonData: string) => Promise<void>;
   clearAllData: () => Promise<void>;
   getCurrencySymbol: (code?: string) => string;
@@ -464,17 +466,70 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const categories = await db.getAllAsync("SELECT * FROM categories");
     const data = JSON.stringify({ transactions, categories }, null, 2);
 
-    // Casting to any to avoid library-specific type mismatches in this environment
-    const FS = FileSystem as any;
-    const dir = FS.documentDirectory || FS.cacheDirectory;
+    const dir = FileSystem.Directory.pickDirectoryAsync();
     if (!dir) throw new Error("No storage directory available");
 
     const fileUri = dir + "expense_backup.json";
-    await FileSystem.writeAsStringAsync(fileUri, data);
+    const file = new File(fileUri);
+    file.write(data);
 
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(fileUri);
     }
+  },
+
+  generateExportTxt: async () => {
+    const db = await getDb();
+    const transactions = await db.getAllAsync<any>("SELECT * FROM transactions ORDER BY date DESC");
+    const bills = await db.getAllAsync<any>("SELECT * FROM bills ORDER BY due_date DESC");
+    const categories = await db.getAllAsync<any>("SELECT * FROM categories");
+    const messages = await db.getAllAsync<any>("SELECT * FROM messages ORDER BY received_at DESC");
+
+    const categoryMap = categories.reduce((acc, cat) => {
+      acc[cat.id] = cat.name;
+      return acc;
+    }, {} as Record<number, string>);
+
+    let content = "SPENDWISE DATA EXPORT\n";
+    content += `Exported on: ${new Date().toLocaleString()}\n`;
+    content += "=====================\n\n";
+
+    content += "TRANSACTIONS\n";
+    content += "------------\n";
+    if (transactions.length === 0) {
+      content += "No transactions found.\n";
+    } else {
+      transactions.forEach((t: any) => {
+        const catName = t.category_id ? categoryMap[t.category_id] || "Unknown" : "Uncategorized";
+        const msgIdStr = t.source_message_id ? ` [MsgID: ${t.source_message_id}]` : "";
+        content += `ID: ${t.id}${msgIdStr} | Date: ${t.date} | Amount: ${t.amount} | Type: ${t.type} | Kind: ${t.kind} | Cat: ${catName} | Merchant: ${t.merchant || "N/A"} | Note: ${t.note || ""}\n`;
+      });
+    }
+
+    content += "\nBILLS\n";
+    content += "-----\n";
+    if (bills.length === 0) {
+      content += "No bills found.\n";
+    } else {
+      bills.forEach((b: any) => {
+        const catName = b.category_id ? categoryMap[b.category_id] || "Unknown" : "Uncategorized";
+        content += `ID: ${b.id} | Due: ${b.due_date} | Amount: ${b.amount} | Status: ${b.status} | Sender: ${b.sender || "N/A"} | Cat: ${catName}\n`;
+      });
+    }
+
+    content += "\nRAW MESSAGES\n";
+    content += "------------\n";
+    if (messages.length === 0) {
+      content += "No raw messages found.\n";
+    } else {
+      messages.forEach((m: any) => {
+        content += `ID: ${m.id} | From: ${m.sender} | Date: ${m.received_at} | Conf: ${m.parse_confidence}\n`;
+        content += `Body: ${m.body}\n`;
+        content += "-------------------\n";
+      });
+    }
+
+    return content;
   },
 
   importData: async (jsonData) => {

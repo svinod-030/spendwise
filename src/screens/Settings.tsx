@@ -7,10 +7,12 @@ import {
   Shield, Trash2,
   MessageSquare,
   Sun, Moon, Monitor,
-  TrendingUp, Search, Globe, ChevronRight, CheckCircle2, Tags, Plus
+  TrendingUp, Search, Globe, ChevronRight, CheckCircle2, Tags, Plus,
+  FileText, Download, Copy, X, Check
 } from "lucide-react-native";
-import { Modal, FlatList, TextInput as RNTextInput, TextInput } from "react-native";
+import { Modal, FlatList, TextInput as RNTextInput, TextInput, Pressable } from "react-native";
 import * as Localization from "expo-localization";
+import * as Clipboard from "expo-clipboard";
 
 import { ALL_CURRENCY_CODES } from "../constants/currencies";
 
@@ -43,12 +45,15 @@ if (commonCurrencies.length < 3) {
 const allCurrencyCodes = ALL_CURRENCY_CODES;
 
 const Settings = () => {
-  const { importTransactionsFromSms, currency, updateCurrency, fetchCurrency, clearAllData, getCurrencySymbol, categories, fetchCategories, addCategory } = useExpenseStore();
+  const { importTransactionsFromSms, currency, updateCurrency, fetchCurrency, clearAllData, getCurrencySymbol, categories, fetchCategories, addCategory, exportData, generateExportTxt } = useExpenseStore();
   const { theme, setTheme } = useThemeStore();
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [isCurrencyModalVisible, setIsCurrencyModalVisible] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [newCategoryName, setNewCategoryName] = React.useState("");
+  const [isExportModalVisible, setIsExportModalVisible] = React.useState(false);
+  const [exportContent, setExportContent] = React.useState("");
+  const [copied, setCopied] = React.useState(false);
 
   useEffect(() => {
     fetchCurrency();
@@ -112,6 +117,26 @@ const Settings = () => {
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleExportToTxt = async () => {
+    setIsSyncing(true);
+    try {
+      const content = await generateExportTxt();
+      setExportContent(content);
+      setIsExportModalVisible(true);
+      setCopied(false);
+    } catch (error) {
+      Alert.alert("Error", "Failed to generate export data.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const copyToClipboard = async () => {
+    await Clipboard.setStringAsync(exportContent);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const ThemeOption = ({ type, label, icon: Icon }: { type: AppTheme, label: string, icon: any }) => {
@@ -214,9 +239,22 @@ const Settings = () => {
         </TouchableOpacity>
 
         <TouchableOpacity
+          onPress={exportData}
+          className="flex-row items-center bg-blue-500/5 dark:bg-blue-500/10 p-4 rounded-2xl border border-blue-500/10 dark:border-blue-500/20 mb-3"
+        >
+          <View className="w-10 h-10 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl items-center justify-center">
+            <Download size={20} color="#3b82f6" />
+          </View>
+          <View className="ml-3.5 flex-1">
+            <Text className="text-slate-900 dark:text-white font-bold text-base">Backup Data (JSON)</Text>
+            <Text className="text-slate-500 dark:text-slate-400 text-xs">Export all records for backup</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           onPress={handleClearData}
           disabled={isSyncing}
-          className="flex-row items-center bg-rose-500/5 p-4 rounded-2xl border border-rose-500/10 mb-8"
+          className="flex-row items-center bg-rose-500/5 p-4 rounded-2xl border border-rose-500/10 mb-3"
         >
           <View className="w-10 h-10 bg-rose-500/10 dark:bg-rose-500/20 rounded-xl items-center justify-center">
             <Trash2 size={20} color="#f43f5e" />
@@ -224,6 +262,19 @@ const Settings = () => {
           <View className="ml-3.5">
             <Text className="text-rose-600 dark:text-rose-500 font-bold text-base">Clear All Data</Text>
             <Text className="text-slate-500 text-xs">Permanently delete all records</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handleExportToTxt}
+          className="flex-row items-center bg-slate-100/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 mb-8"
+        >
+          <View className="w-10 h-10 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-xl items-center justify-center">
+            <FileText size={20} color="#6366f1" />
+          </View>
+          <View className="ml-3.5 flex-1">
+            <Text className="text-slate-900 dark:text-white font-bold text-base">Export Data as TXT</Text>
+            <Text className="text-slate-500 text-xs">View and copy formatted data</Text>
           </View>
         </TouchableOpacity>
 
@@ -262,7 +313,7 @@ const Settings = () => {
                 const result = await useExpenseStore.getState().processIncomingSmsMessage(mockSms);
                 Alert.alert(result ? "Success" : "Already exists or failed", "Mock income processed.");
               }}
-              className="flex-row items-center bg-slate-100/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800"
+              className="flex-row items-center bg-slate-100/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 mb-3"
             >
               <View className="w-10 h-10 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl items-center justify-center">
                 <TrendingUp size={20} color="#10b981" />
@@ -275,6 +326,43 @@ const Settings = () => {
           </>
         )}
       </ScrollView>
+
+      {/* Export Data Modal */}
+      <Modal
+        visible={isExportModalVisible}
+        animationType="slide"
+        onRequestClose={() => setIsExportModalVisible(false)}
+      >
+        <SafeAreaView className="flex-1 bg-white dark:bg-slate-950">
+          <View className="px-6 py-4 border-b border-slate-100 dark:border-slate-900 flex-row items-center justify-between">
+            <Text className="text-xl font-black text-slate-900 dark:text-white">Data Export</Text>
+            <TouchableOpacity onPress={() => setIsExportModalVisible(false)} className="p-2">
+              <X size={24} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          <View className="flex-1 p-6">
+            <View className="flex-1 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+              <TextInput
+                multiline
+                readOnly
+                value={exportContent}
+                style={{ textAlignVertical: 'top', padding: 20, flex: 1, color: theme === 'dark' ? 'white' : '#0f172a', fontSize: 13, fontFamily: 'monospace' }}
+              />
+            </View>
+
+            <TouchableOpacity
+              onPress={copyToClipboard}
+              className={`mt-6 flex-row items-center justify-center p-4 rounded-2xl ${copied ? 'bg-emerald-500' : 'bg-blue-600 shadow-lg shadow-blue-500/30'}`}
+            >
+              {copied ? <Check size={20} color="white" /> : <Copy size={20} color="white" />}
+              <Text className="text-white font-bold text-base ml-2">
+                {copied ? 'Copied to Clipboard!' : 'Copy to Clipboard'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
 
       {/* Currency Selector Modal */}
       <Modal
