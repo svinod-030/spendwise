@@ -112,6 +112,7 @@ interface ExpenseState {
 }
 
 import { CURRENCY_SYMBOLS } from "../constants/currencies";
+import { Alert } from "react-native";
 
 export const useExpenseStore = create<ExpenseState>((set, get) => ({
   transactions: [],
@@ -461,20 +462,32 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   exportData: async () => {
-    const db = await getDb();
-    const transactions = await db.getAllAsync("SELECT * FROM transactions");
-    const categories = await db.getAllAsync("SELECT * FROM categories");
-    const data = JSON.stringify({ transactions, categories }, null, 2);
+    try {
+      const db = await getDb();
+      const transactions = await db.getAllAsync("SELECT * FROM transactions");
+      const categories = await db.getAllAsync("SELECT * FROM categories");
+      const bills = await db.getAllAsync("SELECT * FROM bills");
+      const messages = await db.getAllAsync<any>("SELECT * FROM messages ORDER BY received_at DESC");
+      const data = JSON.stringify({ transactions, categories, bills, messages }, null, 2);
 
-    const dir = FileSystem.Directory.pickDirectoryAsync();
-    if (!dir) throw new Error("No storage directory available");
+      const dir = await FileSystem.Directory.pickDirectoryAsync();
+      if (!dir) throw new Error("No storage directory available");
 
-    const fileUri = dir + "expense_backup.json";
-    const file = new File(fileUri);
-    file.write(data);
+      const fileName = `spendwise_backup_${new Date().getTime()}.json`;
+      const file = dir.createFile(fileName, "application/json");
 
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri);
+      file.write(data);
+
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (isSharingAvailable) {
+        await Sharing.shareAsync(file.contentUri);
+      } else {
+        console.log("File saved to:", file.uri);
+        Alert.alert("Sharing Unavailable", `Sharing is not supported on this device. File saved at: ${file.uri}`);
+      }
+    } catch (error: any) {
+      console.error("Export error:", error);
+      Alert.alert("Export Failed", error.message || "An unknown error occurred during export.");
     }
   },
 
