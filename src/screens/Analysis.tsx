@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, ScrollView, Dimensions } from "react-native";
+import { View, Text, ScrollView, Dimensions, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore, MonthlyTrend } from "../store/useExpenseStore";
 import { LineChart, PieChart } from "react-native-gifted-charts";
@@ -169,23 +169,35 @@ const Analysis = ({ navigation }: { navigation: any }) => {
             )}
 
             <View>
-              {categorySpending.map((item, index) => (
-                <View key={item.category_name + index} className="flex-row items-center justify-between mb-4 last:mb-0">
-                  <View className="flex-row items-center flex-1 mr-4">
-                    <View
-                      className="w-3 h-3 rounded-full mr-3"
-                      style={{ backgroundColor: item.category_color || fallbackColors[index % fallbackColors.length] }}
-                    />
-                    <Text className="text-slate-700 dark:text-slate-200 font-bold" numberOfLines={1}>{item.category_name}</Text>
-                  </View>
-                  <View className="items-end">
-                    <Text className="text-slate-900 dark:text-white font-black">{getCurrencySymbol()}{item.total.toFixed(0)}</Text>
-                    <Text className="text-[10px] text-slate-500 font-bold">
-                      {Math.round((item.total / Math.max(1, totalExpense)) * 100)}%
-                    </Text>
-                  </View>
-                </View>
-              ))}
+              {categorySpending.map((item, index) => {
+                const percentage = Math.round((item.total / Math.max(1, totalExpense)) * 100);
+                const color = item.category_color || fallbackColors[index % fallbackColors.length];
+                return (
+                  <TouchableOpacity
+                    key={item.category_name + index}
+                    className="my-1 last:mb-0 bg-white dark:bg-slate-900 p-4 rounded-2xl mb-3 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
+                    onPress={() => navigation.navigate("Transactions", { searchQuery: item.category_name })}
+                  >
+                    <View className="flex-row items-center justify-between mb-1.5">
+                      <View className="flex-row items-center flex-1 mr-4">
+                        <View className="w-3 h-3 rounded-full mr-3" style={{ backgroundColor: color }} />
+                        <Text className="text-slate-700 dark:text-slate-200 font-bold" numberOfLines={1}>{item.category_name}</Text>
+                      </View>
+                      <View className="items-end">
+                        <Text className="text-slate-900 dark:text-white font-black">{getCurrencySymbol()}{item.total.toFixed(0)}</Text>
+                      </View>
+                    </View>
+                    <View className="flex-row items-center">
+                      <View className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mr-3">
+                        <View style={{ width: `${percentage}%`, backgroundColor: color }} className="h-full rounded-full" />
+                      </View>
+                      <Text className="text-[10px] text-slate-500 font-bold w-8 text-right">
+                        {percentage}%
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 

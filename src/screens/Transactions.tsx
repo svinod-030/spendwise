@@ -6,7 +6,7 @@ import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/us
 import { TransactionKind } from "../utils/smsParser";
 import { IconLoader } from "../components/IconLoader";
 
-const Transactions = ({ navigation }: { navigation: any }) => {
+const Transactions = ({ navigation, route }: { navigation: any; route: any }) => {
   const { transactions, fetchTransactions, getCurrencySymbol, updateTransaction } = useExpenseStore();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | TransactionKind>("all");
@@ -35,6 +35,14 @@ const Transactions = ({ navigation }: { navigation: any }) => {
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions]);
+
+  useEffect(() => {
+    if (route.params?.searchQuery) {
+      setSearch(route.params.searchQuery);
+      // Clear params after applying so it doesn't stick forever
+      navigation.setParams({ searchQuery: undefined });
+    }
+  }, [route.params?.searchQuery, navigation]);
 
   const handleEditTransaction = (tx: Transaction) => {
     navigation.navigate("AddTransaction", { editingTransaction: tx, returnTo: "Transactions" });
