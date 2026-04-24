@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, ScrollView, Dimensions, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore, MonthlyTrend } from "../store/useExpenseStore";
 import { LineChart, PieChart } from "react-native-gifted-charts";
 import Animated, { FadeInUp } from "react-native-reanimated";
-import { BarChart3, PieChart as PieIcon, TrendingUp } from "lucide-react-native";
+import { BarChart3, PieChart as PieIcon } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
+import ForecastComponent from "../components/ForecastComponent";
 
 const screenWidth = Dimensions.get("window").width;
 const fallbackColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4"];
@@ -20,6 +21,7 @@ const Analysis = ({ navigation }: { navigation: any }) => {
     getMonthlyTrends,
     getCurrentMonthCategorySpending,
     getCurrentMonthExpenseTotal,
+    getCurrentMonthIncomeTotal,
     fetchCategories,
     fetchBudgets,
     transactions,
@@ -29,6 +31,7 @@ const Analysis = ({ navigation }: { navigation: any }) => {
   const [trendData, setTrendData] = useState<MonthlyTrend[]>([]);
   const [categorySpending, setCategorySpending] = useState<{ category_name: string; total: number; category_color?: string }[]>([]);
   const [totalExpense, setTotalExpense] = useState(0);
+  const [totalIncome, setTotalIncome] = useState(0);
 
 
   useEffect(() => {
@@ -52,9 +55,11 @@ const Analysis = ({ navigation }: { navigation: any }) => {
       const trends = await getMonthlyTrends();
       const categoriesData = await getCurrentMonthCategorySpending();
       const total = await getCurrentMonthExpenseTotal();
+      const income = await getCurrentMonthIncomeTotal();
       setTrendData(trends);
       setCategorySpending(categoriesData);
       setTotalExpense(total);
+      setTotalIncome(income);
     };
     if (isFocused) init();
   }, [fetchCategories, fetchBudgets, isFocused]);
@@ -65,12 +70,14 @@ const Analysis = ({ navigation }: { navigation: any }) => {
       const trends = await getMonthlyTrends();
       const categoriesData = await getCurrentMonthCategorySpending();
       const total = await getCurrentMonthExpenseTotal();
+      const income = await getCurrentMonthIncomeTotal();
       setTrendData(trends);
       setCategorySpending(categoriesData);
       setTotalExpense(total);
+      setTotalIncome(income);
     };
     if (isFocused) refresh();
-  }, [getMonthlyTrends, getCurrentMonthCategorySpending, getCurrentMonthExpenseTotal, isFocused, transactions]);
+  }, [getMonthlyTrends, getCurrentMonthCategorySpending, getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, isFocused, transactions]);
 
   const monthlyBudget = useMemo(
     () => budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly"),
@@ -180,6 +187,11 @@ const Analysis = ({ navigation }: { navigation: any }) => {
                 </View>
               ))}
             </View>
+          </View>
+
+          {/* Forecast Section */}
+          <View className="bg-white dark:bg-slate-900/60 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 mb-6 shadow-sm dark:shadow-none">
+            <ForecastComponent trends={trendData} currentIncome={totalIncome} />
           </View>
 
         </Animated.View>
