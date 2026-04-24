@@ -186,7 +186,7 @@ const ForecastComponent: React.FC<ForecastComponentProps> = ({ trends, currentIn
         <View className="flex-row items-center">
           <TrendingUp size={20} color="#6366f1" />
           <Text className="text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider ml-2">
-            AI Forecast
+            Forecast
           </Text>
         </View>
         <View className="flex-row bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
