@@ -7,11 +7,12 @@ import {
   Shield, Trash2,
   MessageSquare,
   Sun, Moon, Monitor,
-  TrendingUp, Search, Globe, ChevronRight, CheckCircle2, Tags, Plus,
-  FileText, Download, Copy, X, Check
+  TrendingUp, Search, Globe, ChevronRight, ChevronDown, CheckCircle2, Tags, Plus,
+  FileText, Download, Copy, X, Check, Star, Mail, Info
 } from "lucide-react-native";
-import { Modal, FlatList, TextInput as RNTextInput, TextInput, Pressable } from "react-native";
+import { Modal, FlatList, TextInput as RNTextInput, TextInput, Pressable, Linking } from "react-native";
 import * as Localization from "expo-localization";
+import packageJson from "../../package.json";
 import * as Clipboard from "expo-clipboard";
 
 import { ALL_CURRENCY_CODES } from "../constants/currencies";
@@ -54,6 +55,7 @@ const Settings = () => {
   const [isExportModalVisible, setIsExportModalVisible] = React.useState(false);
   const [exportContent, setExportContent] = React.useState("");
   const [copied, setCopied] = React.useState(false);
+  const [isCategoriesExpanded, setIsCategoriesExpanded] = React.useState(false);
 
   useEffect(() => {
     fetchCurrency();
@@ -197,30 +199,39 @@ const Settings = () => {
           <ChevronRight size={20} color="#64748b" />
         </TouchableOpacity>
 
-        <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Manage Categories</Text>
-        <View className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 mb-8 shadow-sm dark:shadow-none">
-          <View className="flex-row items-center mb-6">
-            <TextInput
-              value={newCategoryName}
-              onChangeText={setNewCategoryName}
-              placeholder="New category name..."
-              placeholderTextColor="#94a3b8"
-              className="flex-1 bg-slate-100 dark:bg-slate-800/80 text-slate-900 dark:text-white rounded-2xl px-4 py-3 mr-3 font-medium border border-slate-200 dark:border-slate-700/50"
-            />
-            <TouchableOpacity onPress={handleAddCategory} className="bg-slate-100 dark:bg-slate-800 rounded-2xl w-12 h-12 items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none">
-              <Plus size={24} color="#3b82f6" />
-            </TouchableOpacity>
-          </View>
+        <TouchableOpacity 
+          onPress={() => setIsCategoriesExpanded(!isCategoriesExpanded)}
+          className={`flex-row items-center justify-between mx-2 ${isCategoriesExpanded ? 'mb-3' : 'mb-8'}`}
+        >
+          <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Manage Categories</Text>
+          {isCategoriesExpanded ? <ChevronDown size={16} color="#64748b" /> : <ChevronRight size={16} color="#64748b" />}
+        </TouchableOpacity>
+        
+        {isCategoriesExpanded && (
+          <View className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 mb-8 shadow-sm dark:shadow-none">
+            <View className="flex-row items-center mb-6">
+              <TextInput
+                value={newCategoryName}
+                onChangeText={setNewCategoryName}
+                placeholder="New category name..."
+                placeholderTextColor="#94a3b8"
+                className="flex-1 bg-slate-100 dark:bg-slate-800/80 text-slate-900 dark:text-white rounded-2xl px-4 py-3 mr-3 font-medium border border-slate-200 dark:border-slate-700/50"
+              />
+              <TouchableOpacity onPress={handleAddCategory} className="bg-slate-100 dark:bg-slate-800 rounded-2xl w-12 h-12 items-center justify-center border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none">
+                <Plus size={24} color="#3b82f6" />
+              </TouchableOpacity>
+            </View>
 
-          <View className="flex-row flex-wrap">
-            {categories.map((category, index) => (
-              <View key={category.id || index} className="px-3 py-1.5 bg-slate-100/50 dark:bg-slate-800/40 rounded-xl mr-2 mb-2 border border-slate-200 dark:border-slate-800/60 flex-row items-center">
-                <View className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: category.color || fallbackColors[index % fallbackColors.length] }} />
-                <Text className="text-slate-500 dark:text-slate-400 text-[11px] font-bold">{category.name}</Text>
-              </View>
-            ))}
+            <View className="flex-row flex-wrap">
+              {categories.map((category, index) => (
+                <View key={category.id || index} className="px-3 py-1.5 bg-slate-100/50 dark:bg-slate-800/40 rounded-xl mr-2 mb-2 border border-slate-200 dark:border-slate-800/60 flex-row items-center">
+                  <View className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: category.color || fallbackColors[index % fallbackColors.length] }} />
+                  <Text className="text-slate-500 dark:text-slate-400 text-[11px] font-bold">{category.name}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Data Management</Text>
 
@@ -233,7 +244,7 @@ const Settings = () => {
             <MessageSquare size={20} color="#8b5cf6" />
           </View>
           <View className="ml-3.5 flex-1">
-            <Text className="text-slate-900 dark:text-white font-bold text-base">Import SMS Transactions</Text>
+            <Text className="text-slate-900 dark:text-white font-bold text-base">Scan Messages</Text>
             <Text className="text-slate-500 dark:text-slate-400 text-xs">Scan inbox and auto-create transactions</Text>
           </View>
         </TouchableOpacity>
@@ -246,7 +257,7 @@ const Settings = () => {
             <Download size={20} color="#3b82f6" />
           </View>
           <View className="ml-3.5 flex-1">
-            <Text className="text-slate-900 dark:text-white font-bold text-base">Backup Data (JSON)</Text>
+            <Text className="text-slate-900 dark:text-white font-bold text-base">Backup Data</Text>
             <Text className="text-slate-500 dark:text-slate-400 text-xs">Export all records for backup</Text>
           </View>
         </TouchableOpacity>
@@ -265,18 +276,44 @@ const Settings = () => {
           </View>
         </TouchableOpacity>
 
+        <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] my-3 ml-2">Support & Feedback</Text>
+
         <TouchableOpacity
-          onPress={handleExportToTxt}
-          className="flex-row items-center bg-slate-100/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 mb-8"
+          onPress={() => Linking.openURL('market://details?id=com.vinodsigadana030.spendwise').catch(() => Linking.openURL('https://play.google.com/store/apps/details?id=com.vinodsigadana030.spendwise'))}
+          className="flex-row items-center bg-amber-500/5 dark:bg-amber-500/10 p-4 rounded-2xl border border-amber-500/10 dark:border-amber-500/20 mb-3"
         >
-          <View className="w-10 h-10 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-xl items-center justify-center">
-            <FileText size={20} color="#6366f1" />
+          <View className="w-10 h-10 bg-amber-500/10 dark:bg-amber-500/20 rounded-xl items-center justify-center">
+            <Star size={20} color="#f59e0b" />
           </View>
           <View className="ml-3.5 flex-1">
-            <Text className="text-slate-900 dark:text-white font-bold text-base">Export Data as TXT</Text>
-            <Text className="text-slate-500 text-xs">View and copy formatted data</Text>
+            <Text className="text-slate-900 dark:text-white font-bold text-base">Rate Us</Text>
+            <Text className="text-slate-500 dark:text-slate-400 text-xs">Love the app? Leave a review</Text>
           </View>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => Linking.openURL(`mailto:vinod.sigadana.labs@gmail.com?subject=SpendWise Feedback - ${packageJson.version}`)}
+          className="flex-row items-center bg-teal-500/5 dark:bg-teal-500/10 p-4 rounded-2xl border border-teal-500/10 dark:border-teal-500/20 mb-8"
+        >
+          <View className="w-10 h-10 bg-teal-500/10 dark:bg-teal-500/20 rounded-xl items-center justify-center">
+            <Mail size={20} color="#14b8a6" />
+          </View>
+          <View className="ml-3.5 flex-1">
+            <Text className="text-slate-900 dark:text-white font-bold text-base">Send Feedback</Text>
+            <Text className="text-slate-500 dark:text-slate-400 text-xs">Report issues or suggest features</Text>
+          </View>
+        </TouchableOpacity>
+
+        <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">About</Text>
+        <View className="flex-row items-center bg-slate-100/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 mb-8">
+          <View className="w-10 h-10 bg-slate-200 dark:bg-slate-800 rounded-xl items-center justify-center">
+            <Info size={20} color="#64748b" />
+          </View>
+          <View className="ml-3.5 flex-1">
+            <Text className="text-slate-900 dark:text-white font-bold text-base">App Version</Text>
+            <Text className="text-slate-500 dark:text-slate-400 text-xs">v{packageJson.version}</Text>
+          </View>
+        </View>
 
         {__DEV__ && (
           <>
