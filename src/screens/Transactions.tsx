@@ -37,12 +37,20 @@ const Transactions = ({ navigation, route }: { navigation: any; route: any }) =>
   }, [fetchTransactions]);
 
   useEffect(() => {
-    if (route.params?.searchQuery) {
+    let updateParams: any = {};
+    if (route.params?.searchQuery !== undefined) {
       setSearch(route.params.searchQuery);
-      // Clear params after applying so it doesn't stick forever
-      navigation.setParams({ searchQuery: undefined });
+      updateParams.searchQuery = undefined;
     }
-  }, [route.params?.searchQuery, navigation]);
+    if (route.params?.selectedMonth !== undefined) {
+      setSelectedMonth(route.params.selectedMonth);
+      updateParams.selectedMonth = undefined;
+    }
+    
+    if (Object.keys(updateParams).length > 0) {
+      navigation.setParams(updateParams);
+    }
+  }, [route.params?.searchQuery, route.params?.selectedMonth, navigation]);
 
   const handleEditTransaction = (tx: Transaction) => {
     navigation.navigate("AddTransaction", { editingTransaction: tx, returnTo: "Transactions" });
