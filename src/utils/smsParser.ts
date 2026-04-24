@@ -115,10 +115,13 @@ function cleanMerchant(name: string): string {
     'bank', 'ac', 'acct', 'available', 'bal', 'balance', 'txn', 'vpa', 'upi',
   ];
   let cleaned = name
-    .replace(/(?:vpa|upi|info|id|ref|txn|a\/c|acct|acc|date).*$/i, '')
+    .replace(/\b(?:vpa|upi|info|id|ref|txn|a\/c|acct|acc|date)\b.*$/i, '')
     .replace(/[*\-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // Strip trailing .Avl or Avl or Cheque
+  cleaned = cleaned.replace(/(?:\.Avl|\bAvl\b|\bCheque\b).*$/i, '').trim();
 
   const words = cleaned.split(' ');
   if (words.length > 0) {
@@ -127,7 +130,8 @@ function cleanMerchant(name: string): string {
     cleaned = words.join(' ');
   }
   if (/^[0-9 ]+$/.test(cleaned) && cleaned.length < 4) return '';
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  if (/^rs\.?\s*[0-9]/i.test(cleaned)) return ''; // Reject if it starts with Rs
+  return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : '';
 }
 
 function extractMerchantViaRegex(body: string): string | undefined {
@@ -151,19 +155,19 @@ function extractMerchantViaRegex(body: string): string | undefined {
     }
   }
 
-  // Pattern 1: to/at/from/towards <Merchant> (on|for|using|…)
+  // Pattern 1: to/at/from/towards/for/by <Merchant> (on|for|using|…)
   const toAtMatch = body.match(
-    /(?:to|at|from|towards)\s+([A-Za-z0-9 .&'-]{2,50}?)\s+(?:on|for|using|via|ref|id|balance|bal|date|is|at|towards|$)/i
+    /(?:to|at|from|towards|for|by)\s+([A-Za-z0-9 .&'-]{2,70}?)\s+(?:on|for|using|via|ref|id|balance|bal|date|is|at|towards|\.Avl|\. Avl|Avl\b|Cheque|\n|$)/i
   );
 
   // Pattern 2: info/memo/vpa field
-  const infoMatch = body.match(/(?:info|memo|vpa|upi)[:*]?\s*([A-Za-z0-9 .&'-]{2,40})/i);
+  const infoMatch = body.match(/(?:info|memo|vpa|upi)[:*]?\s*([A-Za-z0-9 .&'-]{2,50})/i);
 
   // Pattern 3: all-caps word cluster (common in bank SMSes) - but filter out common noise
   const capsMatch = body.match(/([A-Z][A-Za-z0-9]*(?:\s+[A-Z][A-Za-z0-9]*){0,2})/g);
   let bestCapsMatch: string | undefined;
   if (capsMatch) {
-    const noiseWords = ['SMS', 'MSG', 'REF', 'ID', 'TXN', 'UPI', 'NEFT', 'IMPS', 'RTGS', 'ATM', 'POS', 'ECOM', 'A/C', 'ACCT', 'BAL', 'AVAIL'];
+    const noiseWords = ['SMS', 'MSG', 'REF', 'ID', 'TXN', 'UPI', 'NEFT', 'IMPS', 'RTGS', 'ATM', 'POS', 'ECOM', 'A/C', 'ACCT', 'BAL', 'AVAIL', 'INR', 'RS', 'UPDATE'];
     for (const match of capsMatch) {
       if (match.length >= 3 && !noiseWords.some(w => match.toUpperCase().includes(w))) {
         bestCapsMatch = match;
@@ -173,7 +177,9 @@ function extractMerchantViaRegex(body: string): string | undefined {
   }
 
   let merchant = toAtMatch?.[1] || infoMatch?.[1];
-  if (!merchant || merchant.length < 3) merchant = merchant || bestCapsMatch;
+  if (!merchant || merchant.length < 3 || /^rs\.?\s*[0-9]/i.test(merchant)) {
+    merchant = bestCapsMatch;
+  }
 
   return merchant ? cleanMerchant(merchant) || undefined : undefined;
 }
@@ -239,9 +245,9 @@ export async function parseSmsForBill(sms: SmsMessage): Promise<ParsedSmsBill | 
   let dueDate = aiDueDate;
   if (!dueDate) {
     const dateStrPattern =
-      /\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4}/i;
+      /\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}[-\s]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[-\s]+\d{2,4}/i;
     const patterns = [
-      new RegExp(`(?:due|by|on)\\s*[:\\s]*(${dateStrPattern.source})`, 'i'),
+      new RegExp(`(?:due|by|on|since)\\s*[:\\s]*(${dateStrPattern.source})`, 'i'),
       new RegExp(`(${dateStrPattern.source})`, 'i'),
     ];
     for (const pattern of patterns) {
