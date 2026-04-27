@@ -1,7 +1,7 @@
 import "./global.css";
 import React, { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Alert, Platform, DeviceEventEmitter } from "react-native";
+import { Alert, Platform, DeviceEventEmitter, PermissionsAndroid } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from "nativewind";
@@ -32,10 +32,21 @@ export default function App() {
       try {
         await initDatabase();
         setIsReady(true);
-        // Phase 3: Pre-load the ML Kit model (~10 MB) silently in background
-        // so the first real SMS parse via AI is instant rather than waiting
-        // for a lazy download when the first message arrives.
+        // Pre-load the ML Kit model (~10 MB) silently in background
         preloadMLKitModel().catch(() => { /* non-fatal */ });
+        // Request notification permission on Android 13+ (API 33)
+        if (Platform.OS === "android" && Platform.Version >= 33) {
+          await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+            {
+              title: "Enable Transaction Notifications",
+              message:
+                "SpendWise will send you a notification whenever a transaction is detected in an incoming SMS.",
+              buttonPositive: "Allow",
+              buttonNegative: "Not Now",
+            }
+          );
+        }
         if (!__DEV__) {
           const result = await checkVersion();
           if (result.isUpdateAvailable) {
