@@ -707,7 +707,7 @@ async function ingestSmsMessages(
       continue;
     }
 
-    // 1. Check if message already processed (Fast check)
+    // 1. Check if message already processed — fast hash path
     const existing = await db.getFirstAsync<{ id: number }>(
       "SELECT id FROM messages WHERE hash = ?",
       [parsed.hash]
@@ -717,7 +717,25 @@ async function ingestSmsMessages(
       continue;
     }
 
-    // 2. Advanced duplicate check (same reference ID)
+    // 2. Secondary dedup: body+date fallback.
+    //    The hash includes the sender address, which can differ between the
+    //    BroadcastReceiver (headless task, e.g. "VM-HDFCBK") and the SMS
+    //    ContentProvider inbox reader (e.g. "HDFCBK"). The body text is
+    //    always stored identically, so checking body + ±120 s window catches
+    //    duplicates that the hash check misses.
+    const approxTimeSec = Math.floor((message.date ?? 0) / 1000);
+    const bodyDuplicate = await db.getFirstAsync<{ id: number }>(
+      `SELECT id FROM messages
+       WHERE body = ? AND ABS(strftime('%s', received_at) - ?) <= 120
+       LIMIT 1`,
+      [parsed.body, approxTimeSec]
+    );
+    if (bodyDuplicate) {
+      skipped += 1;
+      continue;
+    }
+
+    // 3. Advanced duplicate check (same reference ID)
     if (parsed.referenceId) {
       const existingRef = await db.getFirstAsync<{ id: number }>(
         "SELECT id FROM transactions WHERE reference_id = ?",
@@ -729,7 +747,7 @@ async function ingestSmsMessages(
       }
     }
 
-    // 3. Atomically insert message and get its ID
+    // 4. Atomically insert message and get its ID
     const messageInsert = await db.runAsync(
       `INSERT OR IGNORE INTO messages (sender, body, received_at, hash, parse_confidence, processed_status)
        VALUES (?, ?, ?, ?, ?, 'processed')`,
