@@ -91,6 +91,53 @@ function normalizeAmount(raw: string): number {
   return Number(raw.replace(/,/g, ''));
 }
 
+/**
+ * Robustly parses common date string formats from bank SMSes.
+ * Handles: DD-MMM-YY, DD-MMM-YYYY, YYYY-MM-DD, DD/MM/YYYY, etc.
+ * Native Date() cannot parse "30-APR-26" so we handle it manually.
+ */
+/** Month-name to 0-based index map — works for both full and 3-letter abbreviations */
+const MONTH_INDEX: Record<string, number> = {
+  jan: 0, january: 0,
+  feb: 1, february: 1,
+  mar: 2, march: 2,
+  apr: 3, april: 3,
+  may: 4,
+  jun: 5, june: 5,
+  jul: 6, july: 6,
+  aug: 7, august: 7,
+  sep: 8, september: 8,
+  oct: 9, october: 9,
+  nov: 10, november: 10,
+  dec: 11, december: 11,
+};
+
+function parseDateString(dateStr: string): Date | null {
+  if (!dateStr) return null;
+
+  // Handle DD-MMM-YY(YY) format e.g. "30-APR-26", "30-Apr-2026", "30 APR 2026"
+  const ddMmmYy = dateStr.match(/^(\d{1,2})[-\/\s]+([A-Za-z]{3,9})[-\/\s]+(\d{2,4})$/);
+  if (ddMmmYy) {
+    const [, day, mon, yr] = ddMmmYy;
+    const monthIdx = MONTH_INDEX[mon.toLowerCase()];
+    if (monthIdx !== undefined) {
+      const year = yr.length <= 2 ? 2000 + parseInt(yr, 10) : parseInt(yr, 10);
+      const d = new Date(year, monthIdx, parseInt(day, 10));
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+
+  // Try native parsing as a fallback
+  const d = new Date(dateStr.trim());
+  if (!isNaN(d.getTime())) {
+    if (d.getFullYear() < 100) d.setFullYear(2000 + d.getFullYear());
+    return d;
+  }
+
+  return null;
+}
+
+
 function detectType(body: string): ParsedTransactionType | null {
   const lower = body.toLowerCase();
   if (excludeKeywords.some(kw => lower.includes(kw))) return null;
@@ -220,13 +267,9 @@ export async function parseSmsForBill(sms: SmsMessage): Promise<ParsedSmsBill | 
 
       if (money?.value != null && money.value > 0) aiAmount = money.value;
       if (date?.text) {
-        // Try to parse the date text extracted by AI
-        const parsed = new Date(date.text.trim());
-        if (!isNaN(parsed.getTime())) {
-          // Normalize year if AI extracted something like "24" instead of "2024"
-          if (parsed.getFullYear() < 100) parsed.setFullYear(2000 + parsed.getFullYear());
-          aiDueDate = parsed.toISOString();
-        }
+        // Use parseDateString so formats like "30-APR-26" are handled correctly
+        const parsed = parseDateString(date.text.trim());
+        if (parsed) aiDueDate = parsed.toISOString();
       }
     } catch {
       // AI failed — fall through
@@ -254,9 +297,8 @@ export async function parseSmsForBill(sms: SmsMessage): Promise<ParsedSmsBill | 
     for (const pattern of patterns) {
       const match = sms.body.match(pattern);
       if (match?.[1]) {
-        const parsed = new Date(match[1].trim());
-        if (!isNaN(parsed.getTime())) {
-          if (parsed.getFullYear() < 100) parsed.setFullYear(2000 + parsed.getFullYear());
+        const parsed = parseDateString(match[1].trim());
+        if (parsed) {
           dueDate = parsed.toISOString();
           break;
         }
