@@ -144,13 +144,14 @@ function extractMerchantViaRegex(body: string): string | undefined {
     'netflix', 'prime', 'hotstar', 'spotify', 'youtube',
     'pharmeasy', '1mg', 'apollo', 'uber eats', 'dominos',
     'makemytrip', 'goibibo', 'irctc', 'bookmyshow', 'pvr',
-    'airtel', 'jio', 'vi ', 'vodafone', 'bsnl',
+    'airtel', 'jio', 'vi', 'vodafone', 'bsnl',
     'paytm', 'phonepe', 'gpay', 'google pay', 'cred',
     'tata power', 'bescom', 'mseb', 'hpcl', 'bpcl', 'shell'
   ];
 
   for (const merchant of directMerchants) {
-    if (lower.includes(merchant)) {
+    const pattern = new RegExp(`\\b${merchant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (pattern.test(lower)) {
       return merchant.charAt(0).toUpperCase() + merchant.slice(1).toLowerCase();
     }
   }
