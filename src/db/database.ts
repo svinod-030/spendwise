@@ -63,6 +63,15 @@ export async function initDatabase() {
       FOREIGN KEY (category_id) REFERENCES categories (id),
       FOREIGN KEY (transaction_id) REFERENCES transactions (id)
     );
+    CREATE TABLE IF NOT EXISTS goals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      target_amount REAL NOT NULL,
+      current_amount REAL DEFAULT 0,
+      deadline TEXT,
+      color TEXT,
+      icon TEXT
+    );
     CREATE INDEX IF NOT EXISTS idx_messages_hash ON messages (hash);
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
     CREATE INDEX IF NOT EXISTS idx_transactions_category_date ON transactions (category_id, date);
@@ -77,6 +86,7 @@ export async function initDatabase() {
   await ensureColumn(db, "transactions", "raw_sender", "TEXT");
   await ensureColumn(db, "transactions", "is_excluded", "INTEGER DEFAULT 0");
   await ensureColumn(db, "transactions", "parent_id", "INTEGER");
+  await ensureColumn(db, "transactions", "goal_id", "INTEGER");
   await ensureColumn(db, "bills", "transaction_id", "INTEGER");
   await ensureColumn(db, "bills", "category_id", "INTEGER");
   await db.execAsync(`

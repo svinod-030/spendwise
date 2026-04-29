@@ -23,6 +23,7 @@ const Transactions = ({ navigation, route }: { navigation: any; route: any }) =>
     const result = [];
     for (let i = 0; i < 12; i++) {
       const d = new Date();
+      d.setDate(1);
       d.setMonth(d.getMonth() - i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const label = d.toLocaleString('default', { month: 'short' });

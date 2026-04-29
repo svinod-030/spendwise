@@ -32,7 +32,9 @@ export interface Transaction {
   category_icon?: string;
   is_excluded?: number;
   parent_id?: number | null;
+  goal_id?: number | null;
 }
+
 
 export interface Budget {
   id: number;
@@ -70,6 +72,24 @@ export interface Bill {
   transaction_id?: number | null;
 }
 
+export interface Goal {
+  id: number;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  deadline: string | null;
+  color: string;
+  icon: string;
+}
+
+export interface PredictiveAlert {
+  level: "safe" | "warning" | "danger";
+  message: string;
+  predictedTotal: number;
+  daysUntilLimit?: number;
+}
+
+
 interface ExpenseState {
   transactions: Transaction[];
   categories: Category[];
@@ -78,6 +98,7 @@ interface ExpenseState {
   currency: string;
   isLoading: boolean;
   isSyncing: boolean;
+  goals: Goal[];
   fetchCategories: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
   fetchCurrency: () => Promise<string>;
@@ -109,7 +130,18 @@ interface ExpenseState {
   clearAllData: () => Promise<void>;
   getCurrencySymbol: (code?: string) => string;
   fetchMessageById: (id: number) => Promise<{ sender: string; body: string; date: string } | null>;
+  fetchGoals: () => Promise<void>;
+  addGoal: (goal: Omit<Goal, "id">) => Promise<void>;
+  updateGoal: (id: number, goal: Partial<Goal>) => Promise<void>;
+  deleteGoal: (id: number) => Promise<void>;
+  getPredictiveAlert: () => Promise<PredictiveAlert | null>;
+  getUnlinkedIncomes: () => Promise<Transaction[]>;
+  linkTransactionToGoal: (transactionId: number, goalId: number) => Promise<void>;
+  getGoalTransactions: (goalId: number) => Promise<Transaction[]>;
 }
+
+
+
 
 import { CURRENCY_SYMBOLS } from "../constants/currencies";
 import { Alert } from "react-native";
@@ -122,6 +154,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   currency: "INR",
   isLoading: false,
   isSyncing: false,
+  goals: [],
 
   getCurrencySymbol: (code?: string) => {
     const target = code || get().currency;
@@ -163,8 +196,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const db = await getDb();
     const kind = transaction.kind ?? (transaction.type === "income" ? "income" : "expense");
     await db.runAsync(
-      "INSERT INTO transactions (category_id, amount, type, kind, date, note, is_excluded) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [transaction.category_id, transaction.amount, transaction.type, kind, transaction.date, transaction.note, transaction.is_excluded || 0]
+      "INSERT INTO transactions (category_id, amount, type, kind, date, note, is_excluded, goal_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [transaction.category_id, transaction.amount, transaction.type, kind, transaction.date, transaction.note, transaction.is_excluded || 0, transaction.goal_id || null]
     );
     await get().fetchTransactions();
   },
@@ -182,6 +215,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     if (transaction.note !== undefined) { sets.push("note = ?"); params.push(transaction.note); }
     if (transaction.is_excluded !== undefined) { sets.push("is_excluded = ?"); params.push(transaction.is_excluded); }
     if (transaction.parent_id !== undefined) { sets.push("parent_id = ?"); params.push(transaction.parent_id); }
+    if (transaction.goal_id !== undefined) { sets.push("goal_id = ?"); params.push(transaction.goal_id); }
 
     if (sets.length === 0) return;
 
@@ -664,7 +698,146 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     await db.runAsync("DELETE FROM bills WHERE id = ?", [billId]);
     await get().fetchBills();
   },
+
+  fetchGoals: async () => {
+    const db = await getDb();
+    const goals = await db.getAllAsync<Goal>("SELECT * FROM goals ORDER BY id DESC");
+    set({ goals });
+  },
+
+  addGoal: async (goal) => {
+    const db = await getDb();
+    await db.runAsync(
+      "INSERT INTO goals (name, target_amount, current_amount, deadline, color, icon) VALUES (?, ?, ?, ?, ?, ?)",
+      [goal.name, goal.target_amount, goal.current_amount, goal.deadline, goal.color, goal.icon]
+    );
+    await get().fetchGoals();
+  },
+
+  updateGoal: async (id, goal) => {
+    const db = await getDb();
+    const sets: string[] = [];
+    const params: any[] = [];
+
+    if (goal.name !== undefined) { sets.push("name = ?"); params.push(goal.name); }
+    if (goal.target_amount !== undefined) { sets.push("target_amount = ?"); params.push(goal.target_amount); }
+    if (goal.current_amount !== undefined) { sets.push("current_amount = ?"); params.push(goal.current_amount); }
+    if (goal.deadline !== undefined) { sets.push("deadline = ?"); params.push(goal.deadline); }
+    if (goal.color !== undefined) { sets.push("color = ?"); params.push(goal.color); }
+    if (goal.icon !== undefined) { sets.push("icon = ?"); params.push(goal.icon); }
+
+    if (sets.length === 0) return;
+
+    params.push(id);
+    await db.runAsync(`UPDATE goals SET ${sets.join(", ")} WHERE id = ?`, params);
+    await get().fetchGoals();
+  },
+
+  deleteGoal: async (id) => {
+    const db = await getDb();
+    await db.runAsync("DELETE FROM goals WHERE id = ?", [id]);
+    await get().fetchGoals();
+  },
+
+  getPredictiveAlert: async () => {
+    const currentSpending = await get().getCurrentMonthExpenseTotal();
+    const budgets = get().budgets;
+    const monthlyBudget = budgets.find(b => b.category_id === null && b.period_type === 'monthly');
+
+    if (!monthlyBudget || monthlyBudget.limit_amount <= 0) return null;
+
+    const now = new Date();
+    const dayOfMonth = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+    if (dayOfMonth === 0) return null;
+
+    const velocity = currentSpending / dayOfMonth;
+    const predictedTotal = velocity * daysInMonth;
+    const limit = monthlyBudget.limit_amount;
+
+    if (predictedTotal > limit) {
+      const daysUntilLimit = Math.floor(limit / velocity);
+      const ratio = predictedTotal / limit;
+
+      if (ratio > 1.5) {
+        return {
+          level: "danger",
+          message: `Critical: At this rate, you'll overshoot your budget by ${Math.round((ratio - 1) * 100)}%. You'll likely hit the limit by day ${daysUntilLimit} of the month.`,
+          predictedTotal,
+          daysUntilLimit
+        };
+      } else {
+        return {
+          level: "warning",
+          message: `Warning: You're trending towards spending ${get().getCurrencySymbol()}${Math.round(predictedTotal)} this month, which exceeds your ${get().getCurrencySymbol()}${limit} limit.`,
+          predictedTotal,
+          daysUntilLimit
+        };
+      }
+    }
+
+    if (currentSpending > limit * 0.8) {
+      return {
+        level: "warning",
+        message: `Caution: You've used ${Math.round((currentSpending / limit) * 100)}% of your budget with ${daysInMonth - dayOfMonth} days left.`,
+        predictedTotal
+      };
+    }
+
+    return {
+      level: "safe",
+      message: "You're well within your budget for this month. Keep it up!",
+      predictedTotal
+    };
+  },
+
+  getUnlinkedIncomes: async () => {
+    const db = await getDb();
+    const rows = await db.getAllAsync<Transaction>(
+      `SELECT t.*, c.name as category_name 
+       FROM transactions t
+       LEFT JOIN categories c ON t.category_id = c.id
+       WHERE t.type = 'income' AND (t.goal_id IS NULL OR t.goal_id = 0)
+       ORDER BY t.date DESC`
+    );
+    return rows;
+  },
+
+  linkTransactionToGoal: async (transactionId, goalId) => {
+    const db = await getDb();
+    const transaction = await db.getFirstAsync<Transaction>("SELECT * FROM transactions WHERE id = ?", [transactionId]);
+    const goal = await db.getFirstAsync<Goal>("SELECT * FROM goals WHERE id = ?", [goalId]);
+
+    if (!transaction || !goal) return;
+
+    // 1. Link transaction
+    await db.runAsync("UPDATE transactions SET goal_id = ? WHERE id = ?", [goalId, transactionId]);
+
+    // 2. Update goal amount
+    const newAmount = goal.current_amount + transaction.amount;
+    await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [newAmount, goalId]);
+
+    await get().fetchGoals();
+    await get().fetchTransactions();
+  },
+
+  getGoalTransactions: async (goalId) => {
+    const db = await getDb();
+    const rows = await db.getAllAsync<Transaction>(
+      `SELECT t.*, c.name as category_name 
+       FROM transactions t
+       LEFT JOIN categories c ON t.category_id = c.id
+       WHERE t.goal_id = ?
+       ORDER BY t.date DESC`,
+      [goalId]
+    );
+    return rows;
+  },
 }));
+
+
+
 
 // Helper to clean merchant names (moved from smsParser or just using it)
 function cleanMerchant(name: string) {
