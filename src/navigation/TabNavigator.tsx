@@ -55,16 +55,6 @@ export default function TabNavigator() {
       <Tab.Screen name="Overview" component={Dashboard} />
       <Tab.Screen name="Analysis" component={Analysis} />
       <Tab.Screen name="Goals" component={Goals} />
-      <Tab.Screen
-        name="AddTransaction"
-        component={AddTransactionScreen}
-        options={{ title: '', headerShown: false }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            navigation.setParams({ editingTransaction: undefined });
-          },
-        })}
-      />
       <Tab.Screen name="Transactions" component={Transactions} />
       <Tab.Screen name="Settings_Tab" component={Settings} options={{ title: "Settings" }} />
     </Tab.Navigator>

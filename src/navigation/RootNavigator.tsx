@@ -2,6 +2,7 @@ import React from "react";
 import { DarkTheme, DefaultTheme } from "@react-navigation/native";
 import TabNavigator from "./TabNavigator";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import AddTransactionScreen from "../screens/AddTransactionScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -33,6 +34,7 @@ export default function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Main" component={TabNavigator} />
+      <Stack.Screen name="AddTransaction" component={AddTransactionScreen} />
     </Stack.Navigator>
   );
 }

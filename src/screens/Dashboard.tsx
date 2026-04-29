@@ -190,6 +190,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
           <RecentActivity
             transactions={recentTransactions}
             onViewAll={() => navigation.navigate("Transactions")}
+            onAddTransaction={() => navigation.navigate("AddTransaction")}
             onEditTransaction={handleEditItem}
             currencySymbol={getCurrencySymbol()}
           />

@@ -21,9 +21,18 @@ const AddTransactionScreen = () => {
 
   const handleNavigateBack = () => {
     if (returnTo) {
-      navigation.navigate(returnTo);
+      // If the return screen is inside the TabNavigator, use nested navigation
+      if (["Overview", "Transactions", "Analysis", "Goals", "Settings_Tab"].includes(returnTo)) {
+        navigation.navigate("Main", { screen: returnTo });
+      } else {
+        navigation.navigate(returnTo);
+      }
     } else {
-      navigation.goBack();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("Main", { screen: "Overview" });
+      }
     }
   };
 
