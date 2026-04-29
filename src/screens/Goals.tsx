@@ -138,102 +138,6 @@ const Goals = () => {
     setIsModalVisible(true);
   };
 
-  const GoalCard = ({ goal, index }: { goal: Goal; index: number }) => {
-    const progress = Math.min(1, goal.current_amount / goal.target_amount);
-    const percentage = Math.round(progress * 100);
-    const isCompleted = goal.current_amount >= goal.target_amount;
-
-    return (
-      <Animated.View
-        entering={FadeInUp.delay(index * 100)}
-        className="mb-4"
-      >
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => handleOpenGoalDetails(goal)}
-          className={`bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border ${isCompleted ? 'border-emerald-100 dark:border-emerald-900/30' : 'border-slate-100 dark:border-slate-800'}`}
-        >
-          <View className="flex-row justify-between items-start mb-4">
-            <View className="flex-row items-center flex-1">
-              <View
-                style={{ backgroundColor: isCompleted ? '#10b98120' : goal.color + '20' }}
-                className="p-3 rounded-2xl mr-3"
-              >
-                <Target size={24} color={isCompleted ? '#10b981' : goal.color} />
-              </View>
-              <View className="flex-1">
-                <View className="flex-row items-center">
-                  <Text className="text-slate-900 dark:text-white font-bold text-lg">{goal.name}</Text>
-                  {isCompleted && (
-                    <View className="ml-2 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                      <Text className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Completed</Text>
-                    </View>
-                  )}
-                </View>
-                {goal.deadline && (
-                  <View className="flex-row items-center mt-1">
-                    <Calendar size={12} color="#94a3b8" />
-                    <Text className="text-slate-400 text-xs ml-1">{goal.deadline}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-            <View className="flex-row">
-              <TouchableOpacity onPress={(e) => { e.stopPropagation(); openEditModal(goal); }} className="p-2">
-                <Pencil size={18} color="#94a3b8" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={(e) => { e.stopPropagation(); handleDeleteGoal(goal.id); }} className="p-2">
-                <Trash2 size={18} color="#ef4444" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View className="mb-2 flex-row justify-between items-end">
-            <View>
-              <Text className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Progress</Text>
-              <Text className="text-slate-900 dark:text-white font-bold text-xl">
-                {getCurrencySymbol()}{goal.current_amount.toLocaleString()}
-                {!isCompleted && <Text className="text-slate-400 text-sm font-normal"> / {getCurrencySymbol()}{goal.target_amount.toLocaleString()}</Text>}
-              </Text>
-            </View>
-            <Text style={{ color: isCompleted ? '#10b981' : goal.color }} className="font-bold text-lg">{percentage}%</Text>
-          </View>
-
-          <View className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-5">
-            <View
-              style={{
-                width: `${percentage}%`,
-                backgroundColor: isCompleted ? '#10b981' : goal.color
-              }}
-              className="h-full rounded-full"
-            />
-          </View>
-
-          {!isCompleted ? (
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                setSelectedGoal(goal);
-                setIsUpdateModalVisible(true);
-              }}
-              style={{ backgroundColor: goal.color }}
-              className="flex-row items-center justify-center py-3 rounded-2xl shadow-sm"
-            >
-              <Plus size={18} color="white" />
-              <Text className="text-white font-bold ml-2">Add Savings</Text>
-            </TouchableOpacity>
-          ) : (
-            <View className="flex-row items-center justify-center py-3 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
-              <Check size={18} color="#10b981" />
-              <Text className="text-emerald-600 dark:text-emerald-400 font-bold ml-2">Goal Reached! 🎉</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
-
-
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['bottom', 'left', 'right']}>
       <ScrollView
@@ -274,7 +178,21 @@ const Goals = () => {
             </TouchableOpacity>
           </View>
         ) : (
-          goals.map((goal, index) => <GoalCard key={goal.id} goal={goal} index={index} />)
+          goals.map((goal, index) => (
+            <GoalCard 
+              key={goal.id} 
+              goal={goal} 
+              index={index} 
+              onPress={() => handleOpenGoalDetails(goal)}
+              onEdit={() => openEditModal(goal)}
+              onDelete={() => handleDeleteGoal(goal.id)}
+              onAddSavings={() => {
+                setSelectedGoal(goal);
+                setIsUpdateModalVisible(true);
+              }}
+              currencySymbol={getCurrencySymbol()}
+            />
+          ))
         )}
       </ScrollView>
 
@@ -342,7 +260,7 @@ const Goals = () => {
               <View className="mb-10">
                 <Text className="text-slate-500 dark:text-slate-400 font-bold text-xs uppercase mb-3 ml-1">Theme Color</Text>
                 <View className="flex-row flex-wrap gap-3">
-                  {['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#8b5cf6', '#06b6d4'].map(c => (
+                  {['#6366f1', '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#8b5cf6', '#06b6d4'].map(c => (
                     <TouchableOpacity
                       key={c}
                       onPress={() => setColor(c)}
@@ -510,5 +428,114 @@ const Goals = () => {
   );
 };
 
+const GoalCard = ({ 
+  goal, 
+  index, 
+  onPress, 
+  onEdit, 
+  onDelete, 
+  onAddSavings, 
+  currencySymbol 
+}: { 
+  goal: Goal; 
+  index: number; 
+  onPress: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onAddSavings: () => void;
+  currencySymbol: string;
+}) => {
+  const progress = Math.min(1, goal.current_amount / goal.target_amount);
+  const percentage = Math.round(progress * 100);
+  const isCompleted = goal.current_amount >= goal.target_amount;
+
+  return (
+    <Animated.View
+      entering={FadeInUp.delay(index * 100)}
+      className="mb-4"
+    >
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onPress}
+        className={`bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border ${isCompleted ? 'border-emerald-100 dark:border-emerald-900/30' : 'border-slate-100 dark:border-slate-800'}`}
+      >
+        <View className="flex-row justify-between items-start mb-4">
+          <View className="flex-row items-center flex-1">
+            <View
+              style={{ backgroundColor: isCompleted ? '#10b98120' : goal.color + '20' }}
+              className="p-3 rounded-2xl mr-3"
+            >
+              <Target size={24} color={isCompleted ? '#10b981' : goal.color} />
+            </View>
+            <View className="flex-1">
+              <View className="flex-row items-center">
+                <Text className="text-slate-900 dark:text-white font-bold text-lg">{goal.name}</Text>
+                {isCompleted && (
+                  <View className="ml-2 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                    <Text className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Completed</Text>
+                  </View>
+                )}
+              </View>
+              {goal.deadline && (
+                <View className="flex-row items-center mt-1">
+                  <Calendar size={12} color="#94a3b8" />
+                  <Text className="text-slate-400 text-xs ml-1">{goal.deadline}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          <View className="flex-row">
+            <TouchableOpacity onPress={(e) => { e.stopPropagation(); onEdit(); }} className="p-2">
+              <Pencil size={18} color="#94a3b8" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={(e) => { e.stopPropagation(); onDelete(); }} className="p-2">
+              <Trash2 size={18} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View className="mb-2 flex-row justify-between items-end">
+          <View>
+            <Text className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Progress</Text>
+            <Text className="text-slate-900 dark:text-white font-bold text-xl">
+              {currencySymbol}{goal.current_amount.toLocaleString()}
+              {!isCompleted && <Text className="text-slate-400 text-sm font-normal"> / {currencySymbol}{goal.target_amount.toLocaleString()}</Text>}
+            </Text>
+          </View>
+          <Text style={{ color: isCompleted ? '#10b981' : goal.color }} className="font-bold text-lg">{percentage}%</Text>
+        </View>
+
+        <View className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-5">
+          <View
+            style={{
+              width: `${percentage}%`,
+              backgroundColor: isCompleted ? '#10b981' : goal.color
+            }}
+            className="h-full rounded-full"
+          />
+        </View>
+
+        {!isCompleted ? (
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              onAddSavings();
+            }}
+            style={{ backgroundColor: goal.color }}
+            className="flex-row items-center justify-center py-3 rounded-2xl shadow-sm"
+          >
+            <Plus size={18} color="white" />
+            <Text className="text-white font-bold ml-2">Add Savings</Text>
+          </TouchableOpacity>
+        ) : (
+          <View className="flex-row items-center justify-center py-3 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+            <Check size={18} color="#10b981" />
+            <Text className="text-emerald-600 dark:text-emerald-400 font-bold ml-2">Goal Reached! 🎉</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
 
 export default Goals;
