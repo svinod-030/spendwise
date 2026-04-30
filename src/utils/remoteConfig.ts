@@ -18,6 +18,8 @@ export const DEFAULT_PARSER_CONFIG: ParserConfig = {
   merchantNoiseWords: [
     'using', 'via', 'on', 'at', 'to', 'from', 'for', 'ref', 'id', 'date',
     'bank', 'ac', 'acct', 'available', 'bal', 'balance', 'txn', 'vpa', 'upi',
+    'your', 'the', 'is', 'in', 'towards', 'info', 'dear', 'customer',
+    'hi', 'hello', 'mr', 'mrs', 'ms'
   ],
   directMerchants: [
     'blinkit', 'bigbasket', 'zepto', 'swiggy', 'zomato', 'uber', 'ola',
@@ -31,7 +33,8 @@ export const DEFAULT_PARSER_CONFIG: ParserConfig = {
   ],
   allCapsNoiseWords: [
     'SMS', 'MSG', 'REF', 'ID', 'TXN', 'UPI', 'NEFT', 'IMPS', 'RTGS', 'ATM', 
-    'POS', 'ECOM', 'A/C', 'ACCT', 'BAL', 'AVAIL', 'INR', 'RS', 'UPDATE'
+    'POS', 'ECOM', 'A/C', 'ACCT', 'BAL', 'AVAIL', 'INR', 'RS', 'UPDATE',
+    'DEAR', 'CUSTOMER'
   ],
   billKeywords: ['due', 'outstanding', 'reminder', 'overdue']
 };

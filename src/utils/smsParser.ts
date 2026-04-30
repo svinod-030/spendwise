@@ -150,6 +150,7 @@ function detectKind(body: string): TransactionKind {
 function cleanMerchant(name: string): string {
   if (!name) return '';
   let cleaned = name
+    .replace(/^(?:dear\s+customer|dear\s+user|hi|hello|greetings)\b/i, '')
     .replace(/\b(?:vpa|upi|info|id|ref|txn|a\/c|acct|acc|date)\b.*$/i, '')
     .replace(/[*\-]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -159,11 +160,19 @@ function cleanMerchant(name: string): string {
   cleaned = cleaned.replace(/(?:\.Avl|\bAvl\b|\bCheque\b).*$/i, '').trim();
 
   const words = cleaned.split(' ');
-  if (words.length > 0) {
-    if (getParserConfig().merchantNoiseWords.includes(words[0].toLowerCase()) && words.length > 1) words.shift();
-    if (getParserConfig().merchantNoiseWords.includes(words[words.length - 1].toLowerCase()) && words.length > 1) words.pop();
-    cleaned = words.join(' ');
+  const config = getParserConfig();
+  
+  // Remove leading noise words
+  while (words.length > 1 && config.merchantNoiseWords.includes(words[0].toLowerCase())) {
+    words.shift();
   }
+  
+  // Remove trailing noise words
+  while (words.length > 1 && config.merchantNoiseWords.includes(words[words.length - 1].toLowerCase())) {
+    words.pop();
+  }
+  
+  cleaned = words.join(' ');
   if (/^[0-9 ]+$/.test(cleaned) && cleaned.length < 4) return '';
   if (/^rs\.?\s*[0-9]/i.test(cleaned)) return ''; // Reject if it starts with Rs
   return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : '';
@@ -181,8 +190,9 @@ function extractMerchantViaRegex(body: string): string | undefined {
   }
 
   // Pattern 1: to/at/from/towards/for/by <Merchant> (on|for|using|…)
+  // We use (?:\s+|$) before the terminators to ensure we catch merchants at the end of the message.
   const toAtMatch = body.match(
-    /(?:to|at|from|towards|for|by)\s+([A-Za-z0-9 .&'-]{2,70}?)\s+(?:on|for|using|via|ref|id|balance|bal|date|is|at|towards|\.Avl|\. Avl|Avl\b|Cheque|\n|$)/i
+    /(?:to|at|from|towards|for|by)\s+([A-Za-z0-9 .&'-]{2,70}?)[\s\.]*(?:on|for|using|via|ref|id|balance|bal|date|is|at|towards|\.Avl|\. Avl|Avl\b|Cheque|\n|$)/i
   );
 
   // Pattern 2: info/memo/vpa field
