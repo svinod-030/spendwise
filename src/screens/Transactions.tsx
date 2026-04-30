@@ -34,8 +34,8 @@ const Transactions = ({ navigation, route }: { navigation: any; route: any }) =>
   }, []);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    fetchTransactions(undefined, selectedMonth);
+  }, [fetchTransactions, selectedMonth]);
 
   useEffect(() => {
     let updateParams: any = {};
@@ -60,8 +60,6 @@ const Transactions = ({ navigation, route }: { navigation: any; route: any }) =>
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     const result = transactions.filter((tx) => {
-      // Month check
-      if (!tx.date.startsWith(selectedMonth)) return false;
 
       const kind = tx.kind ?? (tx.type === "income" ? "income" : "expense");
       const filterMatch = activeFilter === "all" || kind === activeFilter;

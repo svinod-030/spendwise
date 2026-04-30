@@ -75,6 +75,11 @@ export async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_messages_hash ON messages (hash);
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
     CREATE INDEX IF NOT EXISTS idx_transactions_category_date ON transactions (category_id, date);
+    CREATE INDEX IF NOT EXISTS idx_transactions_merchant ON transactions (merchant);
+    CREATE INDEX IF NOT EXISTS idx_transactions_kind ON transactions (kind);
+    CREATE INDEX IF NOT EXISTS idx_transactions_is_excluded ON transactions (is_excluded);
+    CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills (due_date);
+    CREATE INDEX IF NOT EXISTS idx_bills_status ON bills (status);
   `);
 
   await ensureColumn(db, "transactions", "source_message_id", "INTEGER");

@@ -100,7 +100,7 @@ interface ExpenseState {
   isSyncing: boolean;
   goals: Goal[];
   fetchCategories: () => Promise<void>;
-  fetchTransactions: () => Promise<void>;
+  fetchTransactions: (limit?: number, month?: string) => Promise<void>;
   fetchCurrency: () => Promise<string>;
   updateCurrency: (currency: string) => Promise<void>;
   isSetupDone: () => Promise<boolean>;
@@ -145,6 +145,7 @@ interface ExpenseState {
 
 import { CURRENCY_SYMBOLS } from "../constants/currencies";
 import { Alert } from "react-native";
+import { SQLiteDatabase } from "expo-sqlite";
 
 export const useExpenseStore = create<ExpenseState>((set, get) => ({
   transactions: [],
@@ -180,15 +181,25 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     set({ categories });
   },
 
-  fetchTransactions: async () => {
+  fetchTransactions: async (limit?: number, month?: string) => {
     set({ isLoading: true });
     const db = await getDb();
-    const transactions = await db.getAllAsync<Transaction>(`
+    let query = `
       SELECT t.*, c.name as category_name, c.color as category_color, c.icon as category_icon 
       FROM transactions t 
       LEFT JOIN categories c ON t.category_id = c.id
-      ORDER BY t.date DESC
-    `);
+    `;
+    const params: any[] = [];
+    if (month) {
+      query += " WHERE t.date LIKE ? ";
+      params.push(`${month}%`);
+    }
+    query += " ORDER BY t.date DESC ";
+    if (limit) {
+      query += " LIMIT ? ";
+      params.push(limit);
+    }
+    const transactions = await db.getAllAsync<Transaction>(query, params);
     set({ transactions, isLoading: false });
   },
 
@@ -309,19 +320,21 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   getCurrentMonthExpenseTotal: async (month?: string) => {
     const db = await getDb();
     const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
+    const nextMonth = `date(${dateQuery}, '+1 month')`;
 
     const row = await db.getFirstAsync<{ total: number }>(
-      `SELECT (
-        (SELECT COALESCE(SUM(amount), 0) FROM transactions 
+      `WITH month_expenses AS (
+         SELECT id, amount FROM transactions 
          WHERE kind = 'expense' AND is_excluded = 0 
-         AND date >= ${dateQuery} AND date < date(${dateQuery}, '+1 month'))
-        -
-        (SELECT COALESCE(SUM(r.amount), 0) 
-         FROM transactions r 
-         JOIN transactions p ON r.parent_id = p.id 
-         WHERE r.is_excluded = 0 
-         AND p.date >= ${dateQuery} AND p.date < date(${dateQuery}, '+1 month'))
-      ) as total`
+         AND date >= ${dateQuery} AND date < ${nextMonth}
+       ),
+       month_refunds AS (
+         SELECT COALESCE(SUM(r.amount), 0) as total_refund 
+         FROM transactions r
+         JOIN month_expenses p ON r.parent_id = p.id
+         WHERE r.is_excluded = 0
+       )
+       SELECT ( (SELECT COALESCE(SUM(amount), 0) FROM month_expenses) - (SELECT total_refund FROM month_refunds) ) as total`
     );
 
     return row?.total ?? 0;
@@ -345,27 +358,33 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   getCurrentMonthCategorySpending: async (month?: string) => {
     const db = await getDb();
     const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
+    const nextMonth = `date(${dateQuery}, '+1 month')`;
 
     const rows = await db.getAllAsync<CategorySpending>(
-      `SELECT 
-        c.id as category_id, 
-        COALESCE(c.name, 'Uncategorized') as category_name, 
-        c.color as category_color,
-        (
-          (SELECT COALESCE(SUM(t2.amount), 0) 
-           FROM transactions t2 
-           WHERE t2.kind = 'expense' AND t2.category_id = c.id AND t2.is_excluded = 0
-           AND t2.date >= ${dateQuery} AND t2.date < date(${dateQuery}, '+1 month'))
-          -
-          (SELECT COALESCE(SUM(r.amount), 0)
-           FROM transactions r
-           JOIN transactions p ON r.parent_id = p.id
-           WHERE p.category_id = c.id AND r.is_excluded = 0
-           AND p.date >= ${dateQuery} AND p.date < date(${dateQuery}, '+1 month'))
-        ) as total
+      `WITH base_spending AS (
+         SELECT category_id, SUM(amount) as amount
+         FROM transactions
+         WHERE kind = 'expense' AND is_excluded = 0
+         AND date >= ${dateQuery} AND date < ${nextMonth}
+         GROUP BY category_id
+       ),
+       refund_adjustments AS (
+         SELECT p.category_id, SUM(r.amount) as amount
+         FROM transactions r
+         JOIN transactions p ON r.parent_id = p.id
+         WHERE r.is_excluded = 0
+         AND p.date >= ${dateQuery} AND p.date < ${nextMonth}
+         GROUP BY p.category_id
+       )
+       SELECT 
+         c.id as category_id, 
+         COALESCE(c.name, 'Uncategorized') as category_name, 
+         c.color as category_color,
+         (COALESCE(b.amount, 0) - COALESCE(ra.amount, 0)) as total
        FROM categories c
-       GROUP BY c.id, c.name, c.color
-       HAVING total > 0
+       LEFT JOIN base_spending b ON c.id = b.category_id
+       LEFT JOIN refund_adjustments ra ON c.id = ra.category_id
+       WHERE total > 0
        ORDER BY total DESC`
     );
     return rows;
@@ -374,23 +393,25 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   getMonthlyTrends: async () => {
     const db = await getDb();
     const rows = await db.getAllAsync<MonthlyTrend>(
-      `SELECT strftime('%Y-%m', date) as month, 
-              (
-                (SELECT COALESCE(SUM(t2.amount), 0) 
-                 FROM transactions t2 
-                 WHERE t2.kind = 'expense' AND t2.is_excluded = 0 
-                 AND strftime('%Y-%m', t2.date) = strftime('%Y-%m', t1.date))
-                -
-                (SELECT COALESCE(SUM(r.amount), 0)
-                 FROM transactions r
-                 JOIN transactions p ON r.parent_id = p.id
-                 WHERE r.is_excluded = 0
-                 AND strftime('%Y-%m', p.date) = strftime('%Y-%m', t1.date))
-              ) as total
-       FROM transactions t1
-       WHERE t1.kind = 'expense' AND t1.is_excluded = 0
-       GROUP BY month
-       ORDER BY month ASC`
+      `WITH monthly_base AS (
+         SELECT strftime('%Y-%m', date) as month, SUM(amount) as amount
+         FROM transactions
+         WHERE kind = 'expense' AND is_excluded = 0
+         GROUP BY month
+       ),
+       monthly_refunds AS (
+         SELECT strftime('%Y-%m', p.date) as month, SUM(r.amount) as amount
+         FROM transactions r
+         JOIN transactions p ON r.parent_id = p.id
+         WHERE r.is_excluded = 0
+         GROUP BY month
+       )
+       SELECT 
+         b.month,
+         (COALESCE(b.amount, 0) - COALESCE(r.amount, 0)) as total
+       FROM monthly_base b
+       LEFT JOIN monthly_refunds r ON b.month = r.month
+       ORDER BY b.month ASC`
     );
     return rows;
   },
@@ -398,21 +419,24 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   getMerchantSpending: async () => {
     const db = await getDb();
     const rows = await db.getAllAsync<MerchantSpending>(
-      `SELECT 
-        merchant,
-        (
-          (SELECT COALESCE(SUM(t2.amount), 0) 
-           FROM transactions t2 
-           WHERE t2.kind = 'expense' AND t2.merchant = t1.merchant AND t2.is_excluded = 0)
-          -
-          (SELECT COALESCE(SUM(r.amount), 0)
-           FROM transactions r
-           JOIN transactions p ON r.parent_id = p.id
-           WHERE p.merchant = t1.merchant AND r.is_excluded = 0)
-        ) as total
-       FROM transactions t1
-       WHERE t1.kind = 'expense' AND t1.merchant IS NOT NULL
-       GROUP BY merchant
+      `WITH merchant_base AS (
+         SELECT merchant, SUM(amount) as amount
+         FROM transactions
+         WHERE kind = 'expense' AND is_excluded = 0 AND merchant IS NOT NULL
+         GROUP BY merchant
+       ),
+       merchant_refunds AS (
+         SELECT p.merchant, SUM(r.amount) as amount
+         FROM transactions r
+         JOIN transactions p ON r.parent_id = p.id
+         WHERE r.is_excluded = 0 AND p.merchant IS NOT NULL
+         GROUP BY p.merchant
+       )
+       SELECT 
+         b.merchant,
+         (COALESCE(b.amount, 0) - COALESCE(r.amount, 0)) as total
+       FROM merchant_base b
+       LEFT JOIN merchant_refunds r ON b.merchant = r.merchant
        ORDER BY total DESC`
     );
     return rows;
@@ -845,23 +869,53 @@ function cleanMerchant(name: string) {
 }
 
 async function ingestSmsMessages(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: SQLiteDatabase,
   messages: Awaited<ReturnType<typeof readInboxMessages>>
 ) {
   let imported = 0;
   let skipped = 0;
 
-  for (const message of messages) {
-    const parsed = await parseSmsForTransaction(message);
-    if (!parsed) {
-      // Try parsing as a bill if it's not a transaction
-      const parsedBill = await parseSmsForBill(message);
-      if (parsedBill && parsedBill.amount > 0) {
-        const hash = buildHash(parsedBill.sender, parsedBill.body, message.date);
-        const existingMessage = await db.getFirstAsync<{ id: number }>("SELECT id FROM messages WHERE hash = ?", [hash]);
+  // 1. Pre-fetch categories for fast lookup
+  const categories = await db.getAllAsync<Category>("SELECT * FROM categories");
+  const categoryMap = categories.reduce((acc, cat) => {
+    acc[cat.name.toLowerCase()] = cat.id;
+    return acc;
+  }, {} as Record<string, number>);
 
-        if (!existingMessage) {
-          // Use atomic inserts with OR IGNORE
+  // 2. Wrap in transaction for atomic speed
+  await db.withTransactionAsync(async () => {
+    for (const message of messages) {
+      // a. Fast hash check BEFORE expensive parsing
+      const hash = buildHash(message.address, message.body, message.date);
+      const existing = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM messages WHERE hash = ?",
+        [hash]
+      );
+      if (existing) {
+        skipped += 1;
+        continue;
+      }
+
+      // b. Secondary dedup check (approx time) BEFORE parsing
+      const approxTimeSec = Math.floor((message.date ?? 0) / 1000);
+      const bodyDuplicate = await db.getFirstAsync<{ id: number }>(
+        `SELECT id FROM messages
+         WHERE body = ? AND ABS(strftime('%s', received_at) - ?) <= 120
+         LIMIT 1`,
+        [message.body, approxTimeSec]
+      );
+      if (bodyDuplicate) {
+        skipped += 1;
+        continue;
+      }
+
+      // c. Expensive parsing only for new messages
+      const parsed = await parseSmsForTransaction(message);
+
+      if (!parsed) {
+        // Try parsing as a bill
+        const parsedBill = await parseSmsForBill(message);
+        if (parsedBill && parsedBill.amount > 0) {
           const billMsgResult = await db.runAsync(
             "INSERT OR IGNORE INTO messages (sender, body, received_at, hash, parse_confidence, processed_status) VALUES (?, ?, ?, ?, 1.0, 'processed')",
             [parsedBill.sender, parsedBill.body, parsedBill.receivedAt, hash]
@@ -875,91 +929,62 @@ async function ingestSmsMessages(
             imported += 1;
           }
         }
-      }
-      skipped += 1;
-      continue;
-    }
-
-    // 1. Check if message already processed — fast hash path
-    const existing = await db.getFirstAsync<{ id: number }>(
-      "SELECT id FROM messages WHERE hash = ?",
-      [parsed.hash]
-    );
-    if (existing) {
-      skipped += 1;
-      continue;
-    }
-
-    // 2. Secondary dedup: body+date fallback.
-    //    The hash includes the sender address, which can differ between the
-    //    BroadcastReceiver (headless task, e.g. "VM-HDFCBK") and the SMS
-    //    ContentProvider inbox reader (e.g. "HDFCBK"). The body text is
-    //    always stored identically, so checking body + ±120 s window catches
-    //    duplicates that the hash check misses.
-    const approxTimeSec = Math.floor((message.date ?? 0) / 1000);
-    const bodyDuplicate = await db.getFirstAsync<{ id: number }>(
-      `SELECT id FROM messages
-       WHERE body = ? AND ABS(strftime('%s', received_at) - ?) <= 120
-       LIMIT 1`,
-      [parsed.body, approxTimeSec]
-    );
-    if (bodyDuplicate) {
-      skipped += 1;
-      continue;
-    }
-
-    // 3. Advanced duplicate check (same reference ID)
-    if (parsed.referenceId) {
-      const existingRef = await db.getFirstAsync<{ id: number }>(
-        "SELECT id FROM transactions WHERE reference_id = ?",
-        [parsed.referenceId]
-      );
-      if (existingRef) {
         skipped += 1;
         continue;
       }
+
+      // d. Reference ID check (if parsed)
+      if (parsed.referenceId) {
+        const existingRef = await db.getFirstAsync<{ id: number }>(
+          "SELECT id FROM transactions WHERE reference_id = ?",
+          [parsed.referenceId]
+        );
+        if (existingRef) {
+          skipped += 1;
+          continue;
+        }
+      }
+
+      // e. Insert message
+      const messageInsert = await db.runAsync(
+        `INSERT OR IGNORE INTO messages (sender, body, received_at, hash, parse_confidence, processed_status)
+         VALUES (?, ?, ?, ?, ?, 'processed')`,
+        [parsed.sender, parsed.body, parsed.receivedAt, parsed.hash, parsed.confidence]
+      );
+
+      if (messageInsert.changes === 0) {
+        skipped += 1;
+        continue;
+      }
+
+      // f. Categorize and insert transaction
+      const categoryId = await getCategoryIdForMessage(categoryMap, parsed.body, parsed.merchant, parsed.type);
+      const txResult = await db.runAsync(
+        `INSERT INTO transactions
+          (category_id, amount, type, kind, date, note, source_message_id, merchant, currency, account_ref, reference_id, raw_sender)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          categoryId,
+          parsed.amount,
+          parsed.type,
+          parsed.kind,
+          parsed.receivedAt,
+          parsed.merchant || (parsed.sender ? `SMS: ${parsed.sender}` : "Miscellaneous"),
+          messageInsert.lastInsertRowId,
+          parsed.merchant || null,
+          "INR",
+          parsed.accountRef || null,
+          parsed.referenceId || null,
+          parsed.sender,
+        ]
+      );
+
+      if (parsed.kind === 'refund') {
+        await tryAutoLinkRefund(db, txResult.lastInsertRowId, parsed.amount, parsed.merchant, parsed.receivedAt);
+      }
+      imported += 1;
     }
-
-    // 4. Atomically insert message and get its ID
-    const messageInsert = await db.runAsync(
-      `INSERT OR IGNORE INTO messages (sender, body, received_at, hash, parse_confidence, processed_status)
-       VALUES (?, ?, ?, ?, ?, 'processed')`,
-      [parsed.sender, parsed.body, parsed.receivedAt, parsed.hash, parsed.confidence]
-    );
-
-    // If no message was inserted, it was a duplicate race condition
-    if (messageInsert.changes === 0) {
-      skipped += 1;
-      continue;
-    }
-
-    // 4. Insert the transaction
-    const categoryId = await getCategoryIdForMessage(db, parsed.body, parsed.merchant, parsed.type);
-    const txResult = await db.runAsync(
-      `INSERT INTO transactions
-        (category_id, amount, type, kind, date, note, source_message_id, merchant, currency, account_ref, reference_id, raw_sender)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        categoryId,
-        parsed.amount,
-        parsed.type,
-        parsed.kind,
-        parsed.receivedAt,
-        parsed.merchant || (parsed.sender ? `SMS: ${parsed.sender}` : "Miscellaneous"),
-        messageInsert.lastInsertRowId,
-        parsed.merchant || null,
-        "INR",
-        parsed.accountRef || null,
-        parsed.referenceId || null,
-        parsed.sender,
-      ]
-    );
-
-    if (parsed.kind === 'refund') {
-      await tryAutoLinkRefund(db, txResult.lastInsertRowId, parsed.amount, parsed.merchant, parsed.receivedAt);
-    }
-    imported += 1;
-  }
+  });
 
   return { imported, skipped };
 }
@@ -994,7 +1019,7 @@ async function tryAutoLinkRefund(
 }
 
 async function getCategoryIdForMessage(
-  db: Awaited<ReturnType<typeof getDb>>,
+  categoryMap: Record<string, number>,
   body: string,
   merchant: string | undefined,
   type: "expense" | "income"
@@ -1004,10 +1029,7 @@ async function getCategoryIdForMessage(
   const combined = `${normalized} ${merchantText}`;
 
   if (type === "income") {
-    const salary = await db.getFirstAsync<{ id: number }>(
-      "SELECT id FROM categories WHERE LOWER(name) = 'salary' LIMIT 1"
-    );
-    return salary?.id ?? null;
+    return categoryMap["salary"] || null;
   }
 
   // Comprehensive category keywords matching getCategoryIcon
@@ -1077,18 +1099,11 @@ async function getCategoryIdForMessage(
 
   for (const [categoryName, words] of Object.entries(categoryKeywords)) {
     if (words.some((word) => combined.includes(word))) {
-      const category = await db.getFirstAsync<{ id: number }>(
-        "SELECT id FROM categories WHERE LOWER(name) = LOWER(?) LIMIT 1",
-        [categoryName]
-      );
-      if (category?.id) return category.id;
+      return categoryMap[categoryName.toLowerCase()] || null;
     }
   }
 
-  const other = await db.getFirstAsync<{ id: number }>(
-    "SELECT id FROM categories WHERE LOWER(name) = 'other' LIMIT 1"
-  );
-  return other?.id ?? null;
+  return categoryMap["other"] || null;
 }
 
 export function getCategoryIcon(categoryName?: string | null, merchant?: string | null, note?: string | null): string {

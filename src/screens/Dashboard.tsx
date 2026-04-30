@@ -104,7 +104,8 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
   // Fetches everything when screen focuses or month changes
   useEffect(() => {
     const loadAll = async () => {
-      await fetchTransactions();
+      // Fetch only what's needed for the dashboard: 10 most recent from selected month
+      await fetchTransactions(10, selectedMonth);
       await fetchBudgets();
       await fetchBills(selectedMonth);
       const expense = await getCurrentMonthExpenseTotal(selectedMonth);
@@ -115,17 +116,6 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
     if (isFocused) loadAll();
   }, [fetchTransactions, fetchBudgets, fetchBills, isFocused, selectedMonth]);
 
-  // Reactive Refresh: Updates totals and bills when store data changes
-  useEffect(() => {
-    const refreshData = async () => {
-      const expense = await getCurrentMonthExpenseTotal(selectedMonth);
-      const income = await getCurrentMonthIncomeTotal(selectedMonth);
-      setCurrentMonthExpense(expense);
-      setCurrentMonthIncome(income);
-      await fetchBills(selectedMonth);
-    };
-    if (isFocused) refreshData();
-  }, [getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, fetchBills, isFocused, selectedMonth, transactions]);
 
   const overallMonthlyBudget = useMemo(() => {
     return budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly");
