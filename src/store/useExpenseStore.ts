@@ -96,7 +96,7 @@ interface ExpenseState {
   budgets: Budget[];
   bills: Bill[];
   currency: string;
-  isLoading: boolean;
+  isLoading: number;
   isSyncing: boolean;
   goals: Goal[];
   fetchCategories: () => Promise<void>;
@@ -153,7 +153,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   budgets: [],
   bills: [],
   currency: "INR",
-  isLoading: false,
+  isLoading: 0,
   isSyncing: false,
   goals: [],
 
@@ -176,31 +176,40 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   fetchCategories: async () => {
-    const db = await getDb();
-    const categories = await db.getAllAsync<Category>("SELECT * FROM categories");
-    set({ categories });
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const categories = await db.getAllAsync<Category>("SELECT * FROM categories");
+      set({ categories });
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   fetchTransactions: async (limit?: number, month?: string) => {
-    set({ isLoading: true });
-    const db = await getDb();
-    let query = `
-      SELECT t.*, c.name as category_name, c.color as category_color, c.icon as category_icon 
-      FROM transactions t 
-      LEFT JOIN categories c ON t.category_id = c.id
-    `;
-    const params: any[] = [];
-    if (month) {
-      query += " WHERE t.date LIKE ? ";
-      params.push(`${month}%`);
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      let query = `
+        SELECT t.*, c.name as category_name, c.color as category_color, c.icon as category_icon 
+        FROM transactions t 
+        LEFT JOIN categories c ON t.category_id = c.id
+      `;
+      const params: any[] = [];
+      if (month) {
+        query += " WHERE t.date LIKE ? ";
+        params.push(`${month}%`);
+      }
+      query += " ORDER BY t.date DESC ";
+      if (limit) {
+        query += " LIMIT ? ";
+        params.push(limit);
+      }
+      const transactions = await db.getAllAsync<Transaction>(query, params);
+      set({ transactions });
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
     }
-    query += " ORDER BY t.date DESC ";
-    if (limit) {
-      query += " LIMIT ? ";
-      params.push(limit);
-    }
-    const transactions = await db.getAllAsync<Transaction>(query, params);
-    set({ transactions, isLoading: false });
   },
 
   addTransaction: async (transaction) => {
@@ -245,11 +254,16 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   fetchCurrency: async () => {
-    const db = await getDb();
-    const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM app_meta WHERE key = 'currency'");
-    const currency = row?.value || "INR";
-    set({ currency });
-    return currency;
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM app_meta WHERE key = 'currency'");
+      const currency = row?.value || "INR";
+      set({ currency });
+      return currency;
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   fetchMessageById: async (id: number) => {
@@ -261,15 +275,25 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   updateCurrency: async (currency: string) => {
-    const db = await getDb();
-    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('currency', ?)", [currency]);
-    set({ currency });
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('currency', ?)", [currency]);
+      set({ currency });
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   isSetupDone: async () => {
-    const db = await getDb();
-    const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM app_meta WHERE key = 'setup_done'");
-    return row?.value === "true";
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM app_meta WHERE key = 'setup_done'");
+      return row?.value === "true";
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   setSetupDone: async () => {
@@ -288,11 +312,16 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   fetchBudgets: async () => {
-    const db = await getDb();
-    const budgets = await db.getAllAsync<Budget>(
-      "SELECT * FROM budgets ORDER BY category_id ASC, id ASC"
-    );
-    set({ budgets });
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const budgets = await db.getAllAsync<Budget>(
+        "SELECT * FROM budgets ORDER BY category_id ASC, id ASC"
+      );
+      set({ budgets });
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   upsertMonthlyBudget: async (limitAmount) => {
@@ -318,128 +347,153 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   getCurrentMonthExpenseTotal: async (month?: string) => {
-    const db = await getDb();
-    const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
-    const nextMonth = `date(${dateQuery}, '+1 month')`;
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
+      const nextMonth = `date(${dateQuery}, '+1 month')`;
 
-    const row = await db.getFirstAsync<{ total: number }>(
-      `WITH month_expenses AS (
-         SELECT id, amount FROM transactions 
-         WHERE kind = 'expense' AND is_excluded = 0 
-         AND date >= ${dateQuery} AND date < ${nextMonth}
-       ),
-       month_refunds AS (
-         SELECT COALESCE(SUM(r.amount), 0) as total_refund 
-         FROM transactions r
-         JOIN month_expenses p ON r.parent_id = p.id
-         WHERE r.is_excluded = 0
-       )
-       SELECT ( (SELECT COALESCE(SUM(amount), 0) FROM month_expenses) - (SELECT total_refund FROM month_refunds) ) as total`
-    );
+      const row = await db.getFirstAsync<{ total: number }>(
+        `WITH month_expenses AS (
+           SELECT id, amount FROM transactions 
+           WHERE kind = 'expense' AND is_excluded = 0 
+           AND date >= ${dateQuery} AND date < ${nextMonth}
+         ),
+         month_refunds AS (
+           SELECT COALESCE(SUM(r.amount), 0) as total_refund 
+           FROM transactions r
+           JOIN month_expenses p ON r.parent_id = p.id
+           WHERE r.is_excluded = 0
+         )
+         SELECT ( (SELECT COALESCE(SUM(amount), 0) FROM month_expenses) - (SELECT total_refund FROM month_refunds) ) as total`
+      );
 
-    return row?.total ?? 0;
+      return row?.total ?? 0;
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   getCurrentMonthIncomeTotal: async (month?: string) => {
-    const db = await getDb();
-    const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
-    const row = await db.getFirstAsync<{ total: number }>(
-      `SELECT COALESCE(SUM(amount), 0) as total
-       FROM transactions
-       WHERE type = 'income'
-       AND parent_id IS NULL
-       AND is_excluded = 0
-       AND date >= ${dateQuery}
-       AND date < date(${dateQuery}, '+1 month')`
-    );
-    return row?.total ?? 0;
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
+      const row = await db.getFirstAsync<{ total: number }>(
+        `SELECT COALESCE(SUM(amount), 0) as total
+         FROM transactions
+         WHERE type = 'income'
+         AND parent_id IS NULL
+         AND is_excluded = 0
+         AND date >= ${dateQuery}
+         AND date < date(${dateQuery}, '+1 month')`
+      );
+      return row?.total ?? 0;
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   getCurrentMonthCategorySpending: async (month?: string) => {
-    const db = await getDb();
-    const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
-    const nextMonth = `date(${dateQuery}, '+1 month')`;
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const dateQuery = month ? `date('${month}-01')` : "date('now', 'start of month')";
+      const nextMonth = `date(${dateQuery}, '+1 month')`;
 
-    const rows = await db.getAllAsync<CategorySpending>(
-      `WITH base_spending AS (
-         SELECT category_id, SUM(amount) as amount
-         FROM transactions
-         WHERE kind = 'expense' AND is_excluded = 0
-         AND date >= ${dateQuery} AND date < ${nextMonth}
-         GROUP BY category_id
-       ),
-       refund_adjustments AS (
-         SELECT p.category_id, SUM(r.amount) as amount
-         FROM transactions r
-         JOIN transactions p ON r.parent_id = p.id
-         WHERE r.is_excluded = 0
-         AND p.date >= ${dateQuery} AND p.date < ${nextMonth}
-         GROUP BY p.category_id
-       )
-       SELECT 
-         c.id as category_id, 
-         COALESCE(c.name, 'Uncategorized') as category_name, 
-         c.color as category_color,
-         (COALESCE(b.amount, 0) - COALESCE(ra.amount, 0)) as total
-       FROM categories c
-       LEFT JOIN base_spending b ON c.id = b.category_id
-       LEFT JOIN refund_adjustments ra ON c.id = ra.category_id
-       WHERE total > 0
-       ORDER BY total DESC`
-    );
-    return rows;
+      const rows = await db.getAllAsync<CategorySpending>(
+        `WITH base_spending AS (
+           SELECT category_id, SUM(amount) as amount
+           FROM transactions
+           WHERE kind = 'expense' AND is_excluded = 0
+           AND date >= ${dateQuery} AND date < ${nextMonth}
+           GROUP BY category_id
+         ),
+         refund_adjustments AS (
+           SELECT p.category_id, SUM(r.amount) as amount
+           FROM transactions r
+           JOIN transactions p ON r.parent_id = p.id
+           WHERE r.is_excluded = 0
+           AND p.date >= ${dateQuery} AND p.date < ${nextMonth}
+           GROUP BY p.category_id
+         )
+         SELECT 
+           c.id as category_id, 
+           COALESCE(c.name, 'Uncategorized') as category_name, 
+           c.color as category_color,
+           (COALESCE(b.amount, 0) - COALESCE(ra.amount, 0)) as total
+         FROM categories c
+         LEFT JOIN base_spending b ON c.id = b.category_id
+         LEFT JOIN refund_adjustments ra ON c.id = ra.category_id
+         WHERE total > 0
+         ORDER BY total DESC`
+      );
+      return rows;
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   getMonthlyTrends: async () => {
-    const db = await getDb();
-    const rows = await db.getAllAsync<MonthlyTrend>(
-      `WITH monthly_base AS (
-         SELECT strftime('%Y-%m', date) as month, SUM(amount) as amount
-         FROM transactions
-         WHERE kind = 'expense' AND is_excluded = 0
-         GROUP BY month
-       ),
-       monthly_refunds AS (
-         SELECT strftime('%Y-%m', p.date) as month, SUM(r.amount) as amount
-         FROM transactions r
-         JOIN transactions p ON r.parent_id = p.id
-         WHERE r.is_excluded = 0
-         GROUP BY month
-       )
-       SELECT 
-         b.month,
-         (COALESCE(b.amount, 0) - COALESCE(r.amount, 0)) as total
-       FROM monthly_base b
-       LEFT JOIN monthly_refunds r ON b.month = r.month
-       ORDER BY b.month ASC`
-    );
-    return rows;
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const rows = await db.getAllAsync<MonthlyTrend>(
+        `WITH monthly_base AS (
+           SELECT strftime('%Y-%m', date) as month, SUM(amount) as amount
+           FROM transactions
+           WHERE kind = 'expense' AND is_excluded = 0
+           GROUP BY month
+         ),
+         monthly_refunds AS (
+           SELECT strftime('%Y-%m', p.date) as month, SUM(r.amount) as amount
+           FROM transactions r
+           JOIN transactions p ON r.parent_id = p.id
+           WHERE r.is_excluded = 0
+           GROUP BY month
+         )
+         SELECT 
+           b.month,
+           (COALESCE(b.amount, 0) - COALESCE(r.amount, 0)) as total
+         FROM monthly_base b
+         LEFT JOIN monthly_refunds r ON b.month = r.month
+         ORDER BY b.month ASC`
+      );
+      return rows;
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   getMerchantSpending: async () => {
-    const db = await getDb();
-    const rows = await db.getAllAsync<MerchantSpending>(
-      `WITH merchant_base AS (
-         SELECT merchant, SUM(amount) as amount
-         FROM transactions
-         WHERE kind = 'expense' AND is_excluded = 0 AND merchant IS NOT NULL
-         GROUP BY merchant
-       ),
-       merchant_refunds AS (
-         SELECT p.merchant, SUM(r.amount) as amount
-         FROM transactions r
-         JOIN transactions p ON r.parent_id = p.id
-         WHERE r.is_excluded = 0 AND p.merchant IS NOT NULL
-         GROUP BY p.merchant
-       )
-       SELECT 
-         b.merchant,
-         (COALESCE(b.amount, 0) - COALESCE(r.amount, 0)) as total
-       FROM merchant_base b
-       LEFT JOIN merchant_refunds r ON b.merchant = r.merchant
-       ORDER BY total DESC`
-    );
-    return rows;
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const rows = await db.getAllAsync<MerchantSpending>(
+        `WITH merchant_base AS (
+           SELECT merchant, SUM(amount) as amount
+           FROM transactions
+           WHERE kind = 'expense' AND is_excluded = 0 AND merchant IS NOT NULL
+           GROUP BY merchant
+         ),
+         merchant_refunds AS (
+           SELECT p.merchant, SUM(r.amount) as amount
+           FROM transactions r
+           JOIN transactions p ON r.parent_id = p.id
+           WHERE r.is_excluded = 0 AND p.merchant IS NOT NULL
+           GROUP BY p.merchant
+         )
+         SELECT 
+           b.merchant,
+           (COALESCE(b.amount, 0) - COALESCE(r.amount, 0)) as total
+         FROM merchant_base b
+         LEFT JOIN merchant_refunds r ON b.merchant = r.merchant
+         ORDER BY total DESC`
+      );
+      return rows;
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
   importTransactionsFromSms: async (limit?: number) => {
     set({ isSyncing: true });
@@ -632,43 +686,53 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   clearAllData: async () => {
-    const db = await getDb();
-    await db.execAsync("DELETE FROM transactions; DELETE FROM messages; DELETE FROM budgets; DELETE from bills;");
-    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('sms_initial_import_done', 'false')");
-    await get().fetchTransactions();
-    await get().fetchBudgets();
-    await get().fetchBills();
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      await db.execAsync("DELETE FROM transactions; DELETE FROM messages; DELETE FROM budgets; DELETE from bills;");
+      await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('sms_initial_import_done', 'false')");
+      await get().fetchTransactions();
+      await get().fetchBudgets();
+      await get().fetchBills();
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   fetchBills: async (month?: string) => {
-    const db = await getDb();
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const targetMonth = month || currentMonth;
-    const dateQuery = `date('${targetMonth}-01')`;
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const targetMonth = month || currentMonth;
+      const dateQuery = `date('${targetMonth}-01')`;
 
-    // Auto-cleanup duplicates if any exist from previous bug
-    await db.runAsync(`
-      DELETE FROM bills 
-      WHERE status = 'unpaid' AND id NOT IN (
-        SELECT MIN(id) FROM bills GROUP BY body, amount, due_date
-      )
-    `);
+      // Auto-cleanup duplicates if any exist from previous bug
+      await db.runAsync(`
+        DELETE FROM bills 
+        WHERE status = 'unpaid' AND id NOT IN (
+          SELECT MIN(id) FROM bills GROUP BY body, amount, due_date
+        )
+      `);
 
-    // Boundary logic:
-    // If current month is selected: show this month + next month.
-    // Otherwise: show only the respective month.
-    const isCurrent = targetMonth === currentMonth;
-    const endBoundary = isCurrent ? `date(${dateQuery}, '+2 months')` : `date(${dateQuery}, '+1 month')`;
+      // Boundary logic:
+      // If current month is selected: show this month + next month.
+      // Otherwise: show only the respective month.
+      const isCurrent = targetMonth === currentMonth;
+      const endBoundary = isCurrent ? `date(${dateQuery}, '+2 months')` : `date(${dateQuery}, '+1 month')`;
 
-    const bills = await db.getAllAsync<Bill>(
-      `SELECT * FROM bills 
-       WHERE due_date >= ${dateQuery} 
-       AND due_date < ${endBoundary}
-       AND NOT (amount = 0 AND due_date >= date('now', 'start of month', '+2 months'))
-       ORDER BY due_date ASC`
-    );
-    set({ bills });
+      const bills = await db.getAllAsync<Bill>(
+        `SELECT * FROM bills 
+         WHERE due_date >= ${dateQuery} 
+         AND due_date < ${endBoundary}
+         AND NOT (amount = 0 AND due_date >= date('now', 'start of month', '+2 months'))
+         ORDER BY due_date ASC`
+      );
+      set({ bills });
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   cleanupDuplicateBills: async () => {
@@ -724,9 +788,14 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   fetchGoals: async () => {
-    const db = await getDb();
-    const goals = await db.getAllAsync<Goal>("SELECT * FROM goals ORDER BY id DESC");
-    set({ goals });
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const goals = await db.getAllAsync<Goal>("SELECT * FROM goals ORDER BY id DESC");
+      set({ goals });
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   addGoal: async (goal) => {

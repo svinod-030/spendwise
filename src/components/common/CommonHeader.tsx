@@ -7,7 +7,10 @@ import { useEffect } from "react";
 
 export const CommonHeader = () => {
   const isSyncing = useExpenseStore((state) => state.isSyncing);
+  const isLoading = useExpenseStore((state) => state.isLoading);
   const rotation = useSharedValue(0);
+  const loadingProgress = useSharedValue(0);
+  const loadingVisibility = useSharedValue(0);
 
   useEffect(() => {
     if (isSyncing) {
@@ -18,9 +21,31 @@ export const CommonHeader = () => {
     }
   }, [isSyncing]);
 
+  useEffect(() => {
+    if (isLoading > 0) {
+      loadingVisibility.value = withTiming(1, { duration: 300 });
+      loadingProgress.value = withRepeat(
+        withTiming(1, { duration: 1500 }),
+        -1,
+        false
+      );
+    } else {
+      // Small delay before hiding to prevent flicker
+      loadingVisibility.value = withTiming(0, { duration: 600 });
+    }
+  }, [isLoading]);
+
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ rotate: `${rotation.value}deg` }],
+    };
+  });
+
+  const loadingBarStyle = useAnimatedStyle(() => {
+    return {
+      width: '30%',
+      left: `${(loadingProgress.value * 140) - 40}%`, // Slide from -40% to 100%
+      opacity: loadingVisibility.value,
     };
   });
 
@@ -43,6 +68,12 @@ export const CommonHeader = () => {
               <Text className="text-blue-600 dark:text-blue-400 text-[10px] font-bold ml-2 uppercase tracking-wide">Syncing</Text>
             </View>
           )}
+        </View>
+        <View className="h-0.5 w-full bg-transparent overflow-hidden">
+          <Animated.View 
+            style={[loadingBarStyle]} 
+            className="h-full bg-blue-500 rounded-full"
+          />
         </View>
       </SafeAreaView>
     </View>
