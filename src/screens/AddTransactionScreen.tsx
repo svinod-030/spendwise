@@ -8,7 +8,7 @@ import { useExpenseStore, Transaction } from "../store/useExpenseStore";
 import { IconLoader } from "../components/IconLoader";
 import { useNavigation, useRoute, useIsFocused } from "@react-navigation/native";
 import { Alert } from "react-native";
-import { TransactionKind } from "../utils/smsParser";
+import { TransactionKind } from "../types";
 
 const AddTransactionScreen = () => {
   const navigation = useNavigation<any>();

@@ -1,6 +1,6 @@
 import { PermissionsAndroid, Platform } from "react-native";
 import SmsAndroid from "react-native-get-sms-android";
-import { SmsMessage } from "./smsParser";
+import { SmsMessage } from "../types";
 
 interface SmsQueryResult {
   count: number;

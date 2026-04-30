@@ -3,7 +3,7 @@ import { FlatList, ScrollView, Text, TextInput, TouchableOpacity, View, Modal, P
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Clock, RefreshCcw, ArrowUpDown, Check, ChevronDown, Eye, EyeOff } from "lucide-react-native";
 import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
-import { TransactionKind } from "../utils/smsParser";
+import { TransactionKind } from "../types";
 import { IconLoader } from "../components/IconLoader";
 
 const Transactions = ({ navigation, route }: { navigation: any; route: any }) => {

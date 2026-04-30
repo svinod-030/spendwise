@@ -1,13 +1,7 @@
 import VersionCheck from 'react-native-version-check';
 import { APP_CONFIG } from './constants';
 import { Platform } from 'react-native';
-
-export interface VersionCheckResult {
-    isUpdateAvailable: boolean;
-    latestVersion: string;
-    currentVersion: string;
-    storeUrl: string;
-}
+import { VersionCheckResult } from '../types';
 
 export const checkVersion = async (): Promise<VersionCheckResult> => {
     try {

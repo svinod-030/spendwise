@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import { getDb } from "../db/database";
 import * as FileSystem from "expo-file-system";
-import { File } from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import { parseSmsForTransaction, TransactionKind, parseSmsForBill, buildHash } from "../utils/smsParser";
+import { parseSmsForTransaction, parseSmsForBill, buildHash } from "../utils/smsParser";
 import { checkSmsPermission, readInboxMessages, requestSmsPermission } from "../utils/smsReader";
+import { TransactionKind } from "../types";
 
 export interface Category {
   id: number;
