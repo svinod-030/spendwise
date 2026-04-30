@@ -29,3 +29,12 @@ export interface ParsedSmsBill {
   dueDate?: string;
   merchant?: string;
 }
+
+export interface ParserConfig {
+  transactionKeywords: string[];
+  excludeKeywords: string[];
+  merchantNoiseWords: string[];
+  directMerchants: string[];
+  allCapsNoiseWords: string[];
+  billKeywords: string[];
+}

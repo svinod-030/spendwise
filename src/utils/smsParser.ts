@@ -1,11 +1,13 @@
 import { NativeModules, Platform } from 'react-native';
-import { 
-  SmsMessage, 
-  ParsedSmsTransaction, 
-  ParsedSmsBill, 
-  ParsedTransactionType, 
-  TransactionKind 
+import {
+  SmsMessage,
+  ParsedSmsTransaction,
+  ParsedSmsBill,
+  ParsedTransactionType,
+  TransactionKind
 } from '../types';
+
+import { getParserConfig } from './remoteConfig';
 
 const { SmsEventModule } = NativeModules;
 
@@ -40,20 +42,6 @@ export async function preloadMLKitModel(): Promise<void> {
   }
 }
 
-// ─── Keyword lists ────────────────────────────────────────────────────────────
-
-const transactionKeywords = [
-  'debited', 'credited', 'spent', 'received', 'paid', 'payment',
-  'txn', 'transaction', 'upi', 'withdrawn', 'withdrew', 'deposited',
-  'transfer', 'purchase', 'sent', 'added', 'neft', 'imps', 'rtgs', 'withdrawal',
-];
-
-const excludeKeywords = [
-  'due', 'outstanding', 'reminder', 'generated', 'statement',
-  'overdue', 'will be debited', 'payment request', 'requested a payment',
-  'recharge your', 'offer valid', 'avail the offer',
-];
-
 /** Non-transactional message patterns — skip these entirely */
 const nonTransactionalPatterns = [
   /\botp\b/i,
@@ -70,13 +58,25 @@ const nonTransactionalPatterns = [
   /\bget\s+family\s+plans?\b/i,
 ];
 
-const transactionKeywordRegex = new RegExp(`\\b(${transactionKeywords.join('|')})\\b`, 'i');
-
 // ─── Regex helpers ────────────────────────────────────────────────────────────
 
 const amountPattern = /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
 const accountPattern = /(?:a\/c|acct|account)\s*[x*]*([0-9]{2,6})/i;
 const refPattern = /(?:ref(?:erence)?(?:\s*id)?|utr|txn(?:\s*id)?)\s*[:\-]?\s*([a-z0-9\-]+)/i;
+
+function getTransactionKeywordRegex() {
+  const config = getParserConfig();
+  return new RegExp(`\\b(${config.transactionKeywords.join('|')})\\b`, 'i');
+}
+
+function getBillDueDatePatterns() {
+  const config = getParserConfig();
+  const dateStrPattern = /\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}[-\s]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[-\s]+\d{2,4}/i;
+  return [
+    new RegExp(`(?:due|by|on|since)\\s*[:\\s]*(${dateStrPattern.source})`, 'i'),
+    new RegExp(`(${dateStrPattern.source})`, 'i'),
+  ];
+}
 
 function normalizeAmount(raw: string): number {
   return Number(raw.replace(/,/g, ''));
@@ -131,7 +131,8 @@ function parseDateString(dateStr: string): Date | null {
 
 function detectType(body: string): ParsedTransactionType | null {
   const lower = body.toLowerCase();
-  if (excludeKeywords.some(kw => lower.includes(kw))) return null;
+  const config = getParserConfig();
+  if (config.excludeKeywords.some(kw => lower.includes(kw))) return null;
   if (/\b(debited|spent|paid|purchase|withdrawn|withdrawal|minus|taken out|sent)\b/.test(lower)) return 'expense';
   if (/\b(credited|received|deposited|refund|plus|added to)\b/.test(lower)) return 'income';
   if (/\b(transfer|neft|imps|rtgs)\b/.test(lower)) return 'expense';
@@ -148,10 +149,6 @@ function detectKind(body: string): TransactionKind {
 
 function cleanMerchant(name: string): string {
   if (!name) return '';
-  const noiseWords = [
-    'using', 'via', 'on', 'at', 'to', 'from', 'for', 'ref', 'id', 'date',
-    'bank', 'ac', 'acct', 'available', 'bal', 'balance', 'txn', 'vpa', 'upi',
-  ];
   let cleaned = name
     .replace(/\b(?:vpa|upi|info|id|ref|txn|a\/c|acct|acc|date)\b.*$/i, '')
     .replace(/[*\-]/g, ' ')
@@ -163,8 +160,8 @@ function cleanMerchant(name: string): string {
 
   const words = cleaned.split(' ');
   if (words.length > 0) {
-    if (noiseWords.includes(words[0].toLowerCase()) && words.length > 1) words.shift();
-    if (noiseWords.includes(words[words.length - 1].toLowerCase()) && words.length > 1) words.pop();
+    if (getParserConfig().merchantNoiseWords.includes(words[0].toLowerCase()) && words.length > 1) words.shift();
+    if (getParserConfig().merchantNoiseWords.includes(words[words.length - 1].toLowerCase()) && words.length > 1) words.pop();
     cleaned = words.join(' ');
   }
   if (/^[0-9 ]+$/.test(cleaned) && cleaned.length < 4) return '';
@@ -174,20 +171,9 @@ function cleanMerchant(name: string): string {
 
 function extractMerchantViaRegex(body: string): string | undefined {
   const lower = body.toLowerCase();
+  const config = getParserConfig();
 
-  // Direct merchant keywords (highest priority)
-  const directMerchants = [
-    'blinkit', 'bigbasket', 'zepto', 'swiggy', 'zomato', 'uber', 'ola',
-    'amazon', 'flipkart', 'myntra', 'ajio', 'meesho', 'nykaa',
-    'netflix', 'prime', 'hotstar', 'spotify', 'youtube',
-    'pharmeasy', '1mg', 'apollo', 'uber eats', 'dominos',
-    'makemytrip', 'goibibo', 'irctc', 'bookmyshow', 'pvr',
-    'airtel', 'jio', 'vi', 'vodafone', 'bsnl',
-    'paytm', 'phonepe', 'gpay', 'google pay', 'cred',
-    'tata power', 'bescom', 'mseb', 'hpcl', 'bpcl', 'shell'
-  ];
-
-  for (const merchant of directMerchants) {
+  for (const merchant of config.directMerchants) {
     const pattern = new RegExp(`\\b${merchant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
     if (pattern.test(lower)) {
       return merchant.charAt(0).toUpperCase() + merchant.slice(1).toLowerCase();
@@ -206,9 +192,9 @@ function extractMerchantViaRegex(body: string): string | undefined {
   const capsMatch = body.match(/([A-Z][A-Za-z0-9]*(?:\s+[A-Z][A-Za-z0-9]*){0,2})/g);
   let bestCapsMatch: string | undefined;
   if (capsMatch) {
-    const noiseWords = ['SMS', 'MSG', 'REF', 'ID', 'TXN', 'UPI', 'NEFT', 'IMPS', 'RTGS', 'ATM', 'POS', 'ECOM', 'A/C', 'ACCT', 'BAL', 'AVAIL', 'INR', 'RS', 'UPDATE'];
+    const config = getParserConfig();
     for (const match of capsMatch) {
-      if (match.length >= 3 && !noiseWords.some(w => match.toUpperCase().includes(w))) {
+      if (match.length >= 3 && !config.allCapsNoiseWords.some(w => match.toUpperCase().includes(w))) {
         bestCapsMatch = match;
         break;
       }
@@ -243,8 +229,8 @@ export function buildHash(sender: string, body: string, date: number): string {
  */
 export async function parseSmsForBill(sms: SmsMessage): Promise<ParsedSmsBill | null> {
   const body = sms.body.toLowerCase();
-  const billKeywords = ['due', 'outstanding', 'reminder', 'overdue'];
-  if (!billKeywords.some(kw => body.includes(kw))) return null;
+  const config = getParserConfig();
+  if (!config.billKeywords.some(kw => body.includes(kw))) return null;
 
   // ── 1. Try ML Kit (Android only) ──────────────────────────────────────────
   let aiAmount: number | null = null;
@@ -279,13 +265,7 @@ export async function parseSmsForBill(sms: SmsMessage): Promise<ParsedSmsBill | 
   // ── 3. Regex fallback for due date ────────────────────────────────────────
   let dueDate = aiDueDate;
   if (!dueDate) {
-    const dateStrPattern =
-      /\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}[-\s]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[-\s]+\d{2,4}/i;
-    const patterns = [
-      new RegExp(`(?:due|by|on|since)\\s*[:\\s]*(${dateStrPattern.source})`, 'i'),
-      new RegExp(`(${dateStrPattern.source})`, 'i'),
-    ];
-    for (const pattern of patterns) {
+    for (const pattern of getBillDueDatePatterns()) {
       const match = sms.body.match(pattern);
       if (match?.[1]) {
         const parsed = parseDateString(match[1].trim());
@@ -325,7 +305,7 @@ export async function parseSmsForTransaction(
   // Skip OTP / bank-alert / non-transactional messages early
   if (nonTransactionalPatterns.some(p => p.test(body))) return null;
   const lower = body.toLowerCase();
-  if (!transactionKeywordRegex.test(lower)) return null;
+  if (!getTransactionKeywordRegex().test(lower)) return null;
 
   const type = detectType(body);
   if (!type) return null;
@@ -400,7 +380,7 @@ export function parseSmsForTransactionSync(message: SmsMessage): ParsedSmsTransa
   if (nonTransactionalPatterns.some(p => p.test(body))) return null;
 
   const lower = body.toLowerCase();
-  if (!transactionKeywordRegex.test(lower)) return null;
+  if (!getTransactionKeywordRegex().test(lower)) return null;
 
   const amountMatch = body.match(amountPattern);
   const type = detectType(body);
@@ -433,7 +413,7 @@ export function parseSmsForTransactionSync(message: SmsMessage): ParsedSmsTransa
  */
 export function showTransactionNotification(tx: ParsedSmsTransaction): void {
   if (Platform.OS !== 'android' || !SmsEventModule) return;
-  
+
   SmsEventModule.postNotification(
     tx.amount,
     tx.type,

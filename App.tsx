@@ -9,6 +9,7 @@ import { initDatabase } from "./src/db/database";
 import { useExpenseStore } from "./src/store/useExpenseStore";
 import { checkSmsPermission, requestSmsPermissionWithStatus } from "./src/utils/smsReader";
 import { preloadMLKitModel } from "./src/utils/smsParser";
+import { loadCachedConfig, refreshRemoteConfig } from "./src/utils/remoteConfig";
 import UpdateModal from './src/components/UpdateModal';
 import { checkVersion } from './src/utils/versionCheckService';
 import { VersionCheckResult } from './src/types';
@@ -31,12 +32,16 @@ export default function App() {
   useEffect(() => {
     async function setup() {
       try {
-        // a. DB Init
-        await initDatabase();
+        // a. DB and Config Init
+        await Promise.all([
+          initDatabase(),
+          loadCachedConfig()
+        ]);
         setIsReady(true);
 
         // b. Silent pre-loads
         preloadMLKitModel().catch(() => { /* non-fatal */ });
+        refreshRemoteConfig().catch(() => { /* non-fatal background refresh */ });
 
         // c. Check for updates
         if (!__DEV__) {
