@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ParserConfig } from '../types';
 
 const CONFIG_CACHE_KEY = 'parser_remote_config';
-const REMOTE_CONFIG_URL = 'https://raw.githubusercontent.com/vinodsigadana030/spendwise-config/main/parser-config.json';
+const REMOTE_CONFIG_URL = 'https://raw.githubusercontent.com/svinod-030/spendwise/refs/heads/main/release/parser-config.json';
 
 export const DEFAULT_PARSER_CONFIG: ParserConfig = {
   transactionKeywords: [
@@ -32,7 +32,7 @@ export const DEFAULT_PARSER_CONFIG: ParserConfig = {
     'tata power', 'bescom', 'mseb', 'hpcl', 'bpcl', 'shell'
   ],
   allCapsNoiseWords: [
-    'SMS', 'MSG', 'REF', 'ID', 'TXN', 'UPI', 'NEFT', 'IMPS', 'RTGS', 'ATM', 
+    'SMS', 'MSG', 'REF', 'ID', 'TXN', 'UPI', 'NEFT', 'IMPS', 'RTGS', 'ATM',
     'POS', 'ECOM', 'A/C', 'ACCT', 'BAL', 'AVAIL', 'INR', 'RS', 'UPDATE',
     'DEAR', 'CUSTOMER'
   ],
@@ -64,7 +64,7 @@ export const refreshRemoteConfig = async (): Promise<void> => {
     const response = await fetch(REMOTE_CONFIG_URL, {
       headers: { 'Cache-Control': 'no-cache' }
     });
-    
+
     if (response.ok) {
       const remoteConfig = await response.json();
       currentConfig = { ...DEFAULT_PARSER_CONFIG, ...remoteConfig };
