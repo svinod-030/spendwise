@@ -496,6 +496,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
   },
   importTransactionsFromSms: async (limit?: number) => {
+    if (get().isSyncing) return { imported: 0, skipped: 0 };
     set({ isSyncing: true });
     try {
       const hasPermission = await requestSmsPermission();
@@ -516,6 +517,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   syncRecentSmsTransactions: async () => {
+    if (get().isSyncing) return { imported: 0, skipped: 0 };
     set({ isSyncing: true });
     try {
       const hasPermission = await checkSmsPermission();
@@ -534,6 +536,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   processIncomingSmsMessage: async (message) => {
+    if (get().isSyncing) return false;
     set({ isSyncing: true });
     try {
       const db = await getDb();

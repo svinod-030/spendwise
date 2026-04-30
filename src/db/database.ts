@@ -11,145 +11,159 @@ export const getDb = async () => {
   return dbInstance;
 };
 
+let initPromise: Promise<void> | null = null;
+
 export async function initDatabase() {
-  const db = await getDb();
-  await db.execAsync(`
-    PRAGMA journal_mode = WAL;
-    CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      icon TEXT,
-      color TEXT
-    );
-    CREATE TABLE IF NOT EXISTS transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      category_id INTEGER,
-      amount REAL NOT NULL,
-      type TEXT CHECK(type IN ('expense', 'income')) NOT NULL,
-      date TEXT NOT NULL,
-      note TEXT,
-      FOREIGN KEY (category_id) REFERENCES categories (id)
-    );
-    CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      sender TEXT NOT NULL,
-      body TEXT NOT NULL,
-      received_at TEXT NOT NULL,
-      hash TEXT NOT NULL UNIQUE,
-      parse_confidence REAL DEFAULT 0,
-      processed_status TEXT DEFAULT 'pending'
-    );
-    CREATE TABLE IF NOT EXISTS app_meta (
-      key TEXT PRIMARY KEY,
-      value TEXT
-    );
-    CREATE TABLE IF NOT EXISTS budgets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      category_id INTEGER,
-      period_type TEXT NOT NULL DEFAULT 'monthly',
-      limit_amount REAL NOT NULL,
-      start_date TEXT NOT NULL,
-      UNIQUE(category_id, period_type)
-    );
-    CREATE TABLE IF NOT EXISTS bills (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      sender TEXT,
-      body TEXT,
-      amount REAL,
-      due_date TEXT,
-      status TEXT DEFAULT 'unpaid',
-      category_id INTEGER,
-      transaction_id INTEGER,
-      FOREIGN KEY (category_id) REFERENCES categories (id),
-      FOREIGN KEY (transaction_id) REFERENCES transactions (id)
-    );
-    CREATE TABLE IF NOT EXISTS goals (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      target_amount REAL NOT NULL,
-      current_amount REAL DEFAULT 0,
-      deadline TEXT,
-      color TEXT,
-      icon TEXT
-    );
-    CREATE INDEX IF NOT EXISTS idx_messages_hash ON messages (hash);
-    CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
-    CREATE INDEX IF NOT EXISTS idx_transactions_category_date ON transactions (category_id, date);
-    CREATE INDEX IF NOT EXISTS idx_transactions_merchant ON transactions (merchant);
-    CREATE INDEX IF NOT EXISTS idx_transactions_kind ON transactions (kind);
-    CREATE INDEX IF NOT EXISTS idx_transactions_is_excluded ON transactions (is_excluded);
-    CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills (due_date);
-    CREATE INDEX IF NOT EXISTS idx_bills_status ON bills (status);
-  `);
+  if (initPromise) return initPromise;
 
-  await ensureColumn(db, "transactions", "source_message_id", "INTEGER");
-  await ensureColumn(db, "transactions", "kind", "TEXT DEFAULT 'expense'");
-  await ensureColumn(db, "transactions", "merchant", "TEXT");
-  await ensureColumn(db, "transactions", "currency", "TEXT DEFAULT 'INR'");
-  await ensureColumn(db, "transactions", "account_ref", "TEXT");
-  await ensureColumn(db, "transactions", "reference_id", "TEXT");
-  await ensureColumn(db, "transactions", "raw_sender", "TEXT");
-  await ensureColumn(db, "transactions", "is_excluded", "INTEGER DEFAULT 0");
-  await ensureColumn(db, "transactions", "parent_id", "INTEGER");
-  await ensureColumn(db, "transactions", "goal_id", "INTEGER");
-  await ensureColumn(db, "bills", "transaction_id", "INTEGER");
-  await ensureColumn(db, "bills", "category_id", "INTEGER");
-  await db.execAsync(`
-    UPDATE transactions
-    SET kind = CASE
-      WHEN type = 'income' THEN 'income'
-      ELSE 'expense'
-    END
-    WHERE kind IS NULL OR kind = '';
-  `);
+  initPromise = (async () => {
+    const db = await getDb();
+    await db.execAsync(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA busy_timeout = 5000;
+      CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        icon TEXT,
+        color TEXT
+      );
+      CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category_id INTEGER,
+        amount REAL NOT NULL,
+        type TEXT CHECK(type IN ('expense', 'income')) NOT NULL,
+        date TEXT NOT NULL,
+        note TEXT,
+        FOREIGN KEY (category_id) REFERENCES categories (id)
+      );
+      CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender TEXT NOT NULL,
+        body TEXT NOT NULL,
+        received_at TEXT NOT NULL,
+        hash TEXT NOT NULL UNIQUE,
+        parse_confidence REAL DEFAULT 0,
+        processed_status TEXT DEFAULT 'pending'
+      );
+      CREATE TABLE IF NOT EXISTS app_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      );
+      CREATE TABLE IF NOT EXISTS budgets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category_id INTEGER,
+        period_type TEXT NOT NULL DEFAULT 'monthly',
+        limit_amount REAL NOT NULL,
+        start_date TEXT NOT NULL,
+        UNIQUE(category_id, period_type)
+      );
+      CREATE TABLE IF NOT EXISTS bills (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender TEXT,
+        body TEXT,
+        amount REAL,
+        due_date TEXT,
+        status TEXT DEFAULT 'unpaid',
+        category_id INTEGER,
+        transaction_id INTEGER,
+        FOREIGN KEY (category_id) REFERENCES categories (id),
+        FOREIGN KEY (transaction_id) REFERENCES transactions (id)
+      );
+      CREATE TABLE IF NOT EXISTS goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        target_amount REAL NOT NULL,
+        current_amount REAL DEFAULT 0,
+        deadline TEXT,
+        color TEXT,
+        icon TEXT
+      );
+    `);
 
-  // Seed default categories if none exist
-  const categories = await db.getAllAsync("SELECT * FROM categories");
-  if (categories.length === 0) {
+    // Ensure columns added in migrations exist
+    await ensureColumn(db, "transactions", "source_message_id", "INTEGER");
+    await ensureColumn(db, "transactions", "kind", "TEXT DEFAULT 'expense'");
+    await ensureColumn(db, "transactions", "merchant", "TEXT");
+    await ensureColumn(db, "transactions", "currency", "TEXT DEFAULT 'INR'");
+    await ensureColumn(db, "transactions", "account_ref", "TEXT");
+    await ensureColumn(db, "transactions", "reference_id", "TEXT");
+    await ensureColumn(db, "transactions", "raw_sender", "TEXT");
+    await ensureColumn(db, "transactions", "is_excluded", "INTEGER DEFAULT 0");
+    await ensureColumn(db, "transactions", "parent_id", "INTEGER");
+    await ensureColumn(db, "transactions", "goal_id", "INTEGER");
+    await ensureColumn(db, "bills", "transaction_id", "INTEGER");
+    await ensureColumn(db, "bills", "category_id", "INTEGER");
+
+    // Create indexes (after columns are ensured)
     await db.execAsync(`
-      INSERT INTO categories (name, icon, color) VALUES 
-      ('Food', 'utensils', '#FF6B6B'),
-      ('Groceries', 'shopping-cart', '#6BCB77'),
-      ('Transport', 'car', '#4D96FF'),
-      ('Shopping', 'shopping-bag', '#FF8AAE'),
-      ('Bills', 'credit-card', '#FFD93D'),
-      ('Rent', 'home', '#f59e0b'),
-      ('Health', 'heart', '#fb7185'),
-      ('Education', 'graduation-cap', '#f1c40f'),
-      ('Entertainment', 'film', '#957DAD'),
-      ('Travel', 'plane', '#3498db'),
-      ('Subscriptions', 'calendar-check', '#8b5cf6'),
-      ('Salary', 'banknote', '#10b981'),
-      ('Fuel', 'fuel', '#f97316'),
-      ('Gifts', 'gift', '#ef4444'),
-      ('EMI', 'landmark', '#6366f1'),
-      ('Investment', 'trending-up', '#8b5cf6'),
-      ('Transfer', 'arrow-left-right', '#64748b'),
-      ('Other', 'more-horizontal', '#94a3b8');
+      CREATE INDEX IF NOT EXISTS idx_messages_hash ON messages (hash);
+      CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
+      CREATE INDEX IF NOT EXISTS idx_transactions_category_date ON transactions (category_id, date);
+      CREATE INDEX IF NOT EXISTS idx_transactions_merchant ON transactions (merchant);
+      CREATE INDEX IF NOT EXISTS idx_transactions_kind ON transactions (kind);
+      CREATE INDEX IF NOT EXISTS idx_transactions_is_excluded ON transactions (is_excluded);
+      CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills (due_date);
+      CREATE INDEX IF NOT EXISTS idx_bills_status ON bills (status);
     `);
-  } else {
-    // Migration for existing users who already have categories seeded with old icons
+
     await db.execAsync(`
-      UPDATE categories SET icon = 'graduation-cap' WHERE name = 'Education' AND (icon = 'book' OR icon IS NULL);
-      UPDATE categories SET icon = 'calendar-check' WHERE name = 'Subscriptions' AND (icon = 'refresh-cw' OR icon IS NULL);
+      UPDATE transactions
+      SET kind = CASE
+        WHEN type = 'income' THEN 'income'
+        ELSE 'expense'
+      END
+      WHERE kind IS NULL OR kind = '';
     `);
-    
-    // Ensure Fuel category exists
-    const fuelCategory = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'Fuel'");
-    if (!fuelCategory) {
-      await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('Fuel', 'fuel', '#f97316')");
+
+    // Seed default categories if none exist
+    const categories = await db.getAllAsync("SELECT * FROM categories");
+    if (categories.length === 0) {
+      await db.execAsync(`
+        INSERT INTO categories (name, icon, color) VALUES 
+        ('Food', 'utensils', '#FF6B6B'),
+        ('Groceries', 'shopping-cart', '#6BCB77'),
+        ('Transport', 'car', '#4D96FF'),
+        ('Shopping', 'shopping-bag', '#FF8AAE'),
+        ('Bills', 'credit-card', '#FFD93D'),
+        ('Rent', 'home', '#f59e0b'),
+        ('Health', 'heart', '#fb7185'),
+        ('Education', 'graduation-cap', '#f1c40f'),
+        ('Entertainment', 'film', '#957DAD'),
+        ('Travel', 'plane', '#3498db'),
+        ('Subscriptions', 'calendar-check', '#8b5cf6'),
+        ('Salary', 'banknote', '#10b981'),
+        ('Fuel', 'fuel', '#f97316'),
+        ('Gifts', 'gift', '#ef4444'),
+        ('EMI', 'landmark', '#6366f1'),
+        ('Investment', 'trending-up', '#8b5cf6'),
+        ('Transfer', 'arrow-left-right', '#64748b'),
+        ('Other', 'more-horizontal', '#94a3b8');
+      `);
+    } else {
+      // Migration for existing users
+      await db.execAsync(`
+        UPDATE categories SET icon = 'graduation-cap' WHERE name = 'Education' AND (icon = 'book' OR icon IS NULL);
+        UPDATE categories SET icon = 'calendar-check' WHERE name = 'Subscriptions' AND (icon = 'refresh-cw' OR icon IS NULL);
+      `);
+
+      // Ensure specific categories exist
+      const fuelCategory = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'Fuel'");
+      if (!fuelCategory) {
+        await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('Fuel', 'fuel', '#f97316')");
+      }
+
+      const emi = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'EMI'");
+      if (!emi) await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('EMI', 'landmark', '#6366f1')");
+
+      const investment = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'Investment'");
+      if (!investment) await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('Investment', 'trending-up', '#8b5cf6')");
+
+      const transfer = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'Transfer'");
+      if (!transfer) await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('Transfer', 'arrow-left-right', '#64748b')");
     }
+  })();
 
-    // Ensure EMI, Investment, Transfer exist
-    const emi = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'EMI'");
-    if (!emi) await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('EMI', 'landmark', '#6366f1')");
-    
-    const investment = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'Investment'");
-    if (!investment) await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('Investment', 'trending-up', '#8b5cf6')");
-    
-    const transfer = await db.getFirstAsync("SELECT id FROM categories WHERE name = 'Transfer'");
-    if (!transfer) await db.runAsync("INSERT INTO categories (name, icon, color) VALUES ('Transfer', 'arrow-left-right', '#64748b')");
-  }
+  return initPromise;
 }
 
 async function ensureColumn(

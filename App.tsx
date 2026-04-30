@@ -19,64 +19,68 @@ import { AnimatedSplashScreen } from "./src/components/common/AnimatedSplashScre
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [animationFinished, setAnimationFinished] = useState(false);
-  const [didRunLaunchImport, setDidRunLaunchImport] = useState(false);
+  const [initialSyncDone, setInitialSyncDone] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<VersionCheckResult | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // Initialize database and check for updates
+  // 1. Core initialization sequence
   useEffect(() => {
     async function setup() {
       try {
+        // a. DB Init
         await initDatabase();
         setIsReady(true);
-        // Pre-load the ML Kit model (~10 MB) silently in background
+
+        // b. Silent pre-loads
         preloadMLKitModel().catch(() => { /* non-fatal */ });
-        // Request notification permission on Android 13+ (API 33)
+
+        // c. Check for updates
+        if (!__DEV__) {
+          checkVersion().then(result => {
+            if (result.isUpdateAvailable) {
+              setUpdateInfo(result);
+              setShowUpdateModal(true);
+            }
+          }).catch(() => { });
+        }
+
+        // d. Post-launch notification permission (Android 13+)
         if (Platform.OS === "android" && Platform.Version >= 33) {
-          await PermissionsAndroid.request(
+          PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
             {
               title: "Enable Transaction Notifications",
-              message:
-                "SpendWise will send you a notification whenever a transaction is detected in an incoming SMS.",
+              message: "SpendWise will send you a notification whenever a transaction is detected in an incoming SMS.",
               buttonPositive: "Allow",
               buttonNegative: "Not Now",
             }
-          );
-        }
-        if (!__DEV__) {
-          const result = await checkVersion();
-          if (result.isUpdateAvailable) {
-            setUpdateInfo(result);
-            setShowUpdateModal(true);
-          }
+          ).catch(() => { });
         }
       } catch (error) {
-        console.error("Failed to initialize database:", error);
+        console.error("Failed to initialize app:", error);
       }
     }
     setup();
   }, []);
 
-  // Run initial SMS import if needed
+  // 2. Initial SMS Import logic (gated by isReady)
   useEffect(() => {
     async function runLaunchImport() {
-      if (!isReady || didRunLaunchImport) return;
-      setDidRunLaunchImport(true);
+      if (!isReady || initialSyncDone) return;
 
       const store = useExpenseStore.getState();
 
-      if (Platform.OS === "android" && !__DEV__) {
+      if (Platform.OS === "android") {
         const hasPermission = await checkSmsPermission();
         if (!hasPermission) {
           Alert.alert(
             "Allow SMS permission",
             "Enable SMS access to automatically import transactions from your bank and UPI messages.",
             [
-              { text: "Not now", style: "cancel" },
+              { text: "Not now", onPress: () => setInitialSyncDone(true), style: "cancel" },
               {
                 text: "Grant Permission",
                 onPress: async () => {
@@ -84,25 +88,26 @@ export default function App() {
                   if (status === "granted") {
                     await store.runInitialSmsImportIfNeeded();
                   }
+                  setInitialSyncDone(true);
                 },
               },
             ]
           );
           return;
         }
+        await store.runInitialSmsImportIfNeeded();
       }
-      await store.runInitialSmsImportIfNeeded();
+      setInitialSyncDone(true);
     }
     runLaunchImport();
-  }, [isReady, didRunLaunchImport]);
+  }, [isReady, initialSyncDone]);
 
-  // Real-time SMS sync: Listen for native events instead of polling
+  // 3. Real-time SMS sync (gated by initialSyncDone)
   useEffect(() => {
-    if (!isReady || Platform.OS !== "android") return;
+    if (!isReady || !initialSyncDone || Platform.OS !== "android") return;
 
     const store = useExpenseStore.getState();
 
-    // 1. Define sync logic
     const runSync = async () => {
       try {
         await store.syncRecentSmsTransactions();
@@ -111,23 +116,21 @@ export default function App() {
       }
     };
 
-    // 2. Real-time Refresh
+    // Real-time Refresh listener
     const subscription = DeviceEventEmitter.addListener("onSmsReceived", () => {
-      if (isReady) {
-        setTimeout(() => {
-          store.fetchTransactions();
-          store.fetchBills();
-        }, 2000);
-      }
+      setTimeout(() => {
+        store.fetchTransactions();
+        store.fetchBills();
+      }, 2000);
     });
 
-    // 4. Run once on mount
+    // Run sync once initial import is confirmed done
     runSync();
 
     return () => {
       subscription.remove();
     };
-  }, [isReady]);
+  }, [isReady, initialSyncDone]);
 
   if (!animationFinished) {
     return <AnimatedSplashScreen onAnimationComplete={() => setAnimationFinished(true)} />;

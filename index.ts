@@ -12,6 +12,9 @@ import { useExpenseStore } from "./src/store/useExpenseStore";
 // the environment is set up appropriately
 registerRootComponent(App);
 
+// Pre-initialize database once for the headless environment
+const headlessInit = initDatabase();
+
 AppRegistry.registerHeadlessTask("SmsReceivedTask", () => async (data: {
   address?: string;
   body?: string;
@@ -30,7 +33,7 @@ AppRegistry.registerHeadlessTask("SmsReceivedTask", () => async (data: {
       showTransactionNotification(parsed);
       
       // Persist to DB
-      await initDatabase();
+      await headlessInit;
       await useExpenseStore.getState().processIncomingSmsMessage({
         address: data.address,
         body: data.body,
