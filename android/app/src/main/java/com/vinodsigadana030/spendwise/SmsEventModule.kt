@@ -2,12 +2,24 @@ package com.vinodsigadana030.spendwise
 
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import java.util.Collections
 import java.util.WeakHashMap
 
 class SmsEventModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
     override fun getName(): String = "SmsEventModule"
+
+    @ReactMethod
+    fun postNotification(amount: Double, type: String, merchant: String?, sender: String) {
+        NotificationHelper.postTransactionNotification(
+            context = reactApplicationContext,
+            amount = amount,
+            type = type,
+            merchant = merchant,
+            sender = sender
+        )
+    }
 
     companion object {
         private val contexts = Collections.newSetFromMap(WeakHashMap<ReactApplicationContext, Boolean>())

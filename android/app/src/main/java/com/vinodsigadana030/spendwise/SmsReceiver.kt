@@ -24,19 +24,7 @@ class SmsReceiver : BroadcastReceiver() {
         val timestamp = firstSms.timestampMillis
         val body      = fullBody.toString()
 
-        // ── Fire a local notification if this looks like a transaction ────────
-        val parsed = SmsTransactionParser.tryParse(body)
-        if (parsed != null) {
-            NotificationHelper.postTransactionNotification(
-                context   = context,
-                amount    = parsed.amount,
-                type      = parsed.type,
-                merchant  = parsed.merchant,
-                sender    = address
-            )
-        }
-
-        // ── Start headless JS task to persist the transaction ─────────────────
+        // ── Start headless JS task to persist the transaction & show notification ──
         val serviceIntent = Intent(context, SmsHeadlessService::class.java).apply {
             putExtra("address",   address)
             putExtra("body",      body)

@@ -1,6 +1,7 @@
 import 'react-native-gesture-handler';
 import { registerRootComponent } from 'expo';
 import { AppRegistry } from "react-native";
+import { parseSmsForTransaction, showTransactionNotification } from "./src/utils/smsParser";
 
 import App from './App';
 import { initDatabase } from "./src/db/database";
@@ -18,12 +19,24 @@ AppRegistry.registerHeadlessTask("SmsReceivedTask", () => async (data: {
 }) => {
   if (!data?.address || !data?.body || !data?.date) return;
   try {
-    await initDatabase();
-    await useExpenseStore.getState().processIncomingSmsMessage({
+    const parsed = await parseSmsForTransaction({
       address: data.address,
       body: data.body,
-      date: data.date,
+      date: data.date
     });
+
+    if (parsed) {
+      // Show notification immediately from JS
+      showTransactionNotification(parsed);
+      
+      // Persist to DB
+      await initDatabase();
+      await useExpenseStore.getState().processIncomingSmsMessage({
+        address: data.address,
+        body: data.body,
+        date: data.date,
+      });
+    }
   } catch (error) {
     console.error("Headless SMS processing failed:", error);
   }

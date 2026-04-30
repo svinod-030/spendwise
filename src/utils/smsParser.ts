@@ -1,5 +1,7 @@
 import { NativeModules, Platform } from 'react-native';
 
+const { SmsEventModule } = NativeModules;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ParsedTransactionType = 'expense' | 'income';
@@ -76,10 +78,26 @@ const transactionKeywords = [
 const excludeKeywords = [
   'due', 'outstanding', 'reminder', 'generated', 'statement',
   'overdue', 'will be debited', 'payment request', 'requested a payment',
+  'recharge your', 'offer valid', 'avail the offer',
 ];
 
 /** Non-transactional message patterns — skip these entirely */
-const nonTransactionalPatterns = [/\botp\b/i, /bank\s*alert/i, /one.?time.?pass/i];
+const nonTransactionalPatterns = [
+  /\botp\b/i,
+  /bank\s*alert/i,
+  /one.?time.?pass/i,
+  /\b(?:recharge|top-up)s?\s+(?:your|now|to|on|every)\b/i,
+  /\b(?:offer|discount|cashback|vouchers?|plan)s?\s+valid\b/i,
+  /\b(?:dial|call)\s+\*[\d#]+/i,
+  /\b(?:win|claim|get|save)\s+(?:rewards?|prizes?|vouchers?|more|cashback)\b/i,
+  /\bclick\s+(?:here|to|link)\b/i,
+  /\b(?:today|tonight|exclusive|limited|family)\s+offer\b/i,
+  /\b(?:switch|join|upgrade)\s+now\b/i,
+  /\bpay\s+in\s+one\s+go\b/i,
+  /\bget\s+family\s+plans?\b/i,
+];
+
+const transactionKeywordRegex = new RegExp(`\\b(${transactionKeywords.join('|')})\\b`, 'i');
 
 // ─── Regex helpers ────────────────────────────────────────────────────────────
 
@@ -141,17 +159,17 @@ function parseDateString(dateStr: string): Date | null {
 function detectType(body: string): ParsedTransactionType | null {
   const lower = body.toLowerCase();
   if (excludeKeywords.some(kw => lower.includes(kw))) return null;
-  if (/(debited|spent|paid|purchase|withdrawn|withdrawal|minus|taken out|sent)/.test(lower)) return 'expense';
-  if (/(credited|received|deposited|refund|plus|added to)/.test(lower)) return 'income';
-  if (/(transfer|neft|imps|rtgs)/.test(lower)) return 'expense';
+  if (/\b(debited|spent|paid|purchase|withdrawn|withdrawal|minus|taken out|sent)\b/.test(lower)) return 'expense';
+  if (/\b(credited|received|deposited|refund|plus|added to)\b/.test(lower)) return 'income';
+  if (/\b(transfer|neft|imps|rtgs)\b/.test(lower)) return 'expense';
   return null;
 }
 
 function detectKind(body: string): TransactionKind {
   const lower = body.toLowerCase();
-  if (/(refund|reversed|chargeback)/.test(lower)) return 'refund';
-  if (/(transfer|self transfer|neft|imps|rtgs)/.test(lower)) return 'transfer';
-  if (/(credited|received|deposited)/.test(lower)) return 'income';
+  if (/\b(refund|reversed|chargeback)\b/.test(lower)) return 'refund';
+  if (/\b(transfer|self transfer|neft|imps|rtgs)\b/.test(lower)) return 'transfer';
+  if (/\b(credited|received|deposited)\b/.test(lower)) return 'income';
   return 'expense';
 }
 
@@ -334,7 +352,7 @@ export async function parseSmsForTransaction(
   // Skip OTP / bank-alert / non-transactional messages early
   if (nonTransactionalPatterns.some(p => p.test(body))) return null;
   const lower = body.toLowerCase();
-  if (!transactionKeywords.some(kw => lower.includes(kw))) return null;
+  if (!transactionKeywordRegex.test(lower)) return null;
 
   const type = detectType(body);
   if (!type) return null;
@@ -409,7 +427,7 @@ export function parseSmsForTransactionSync(message: SmsMessage): ParsedSmsTransa
   if (nonTransactionalPatterns.some(p => p.test(body))) return null;
 
   const lower = body.toLowerCase();
-  if (!transactionKeywords.some(kw => lower.includes(kw))) return null;
+  if (!transactionKeywordRegex.test(lower)) return null;
 
   const amountMatch = body.match(amountPattern);
   const type = detectType(body);
@@ -435,4 +453,18 @@ export function parseSmsForTransactionSync(message: SmsMessage): ParsedSmsTransa
     accountRef: accountMatch?.[1]?.trim(),
     confidence: merchant ? 0.9 : 0.6,
   };
+}
+
+/**
+ * Triggers a native local notification for a parsed transaction.
+ */
+export function showTransactionNotification(tx: ParsedSmsTransaction): void {
+  if (Platform.OS !== 'android' || !SmsEventModule) return;
+  
+  SmsEventModule.postNotification(
+    tx.amount,
+    tx.type,
+    tx.merchant || null,
+    tx.sender
+  );
 }
