@@ -1,7 +1,7 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Alert } from "react-native";
 import Animated, { FadeInRight } from "react-native-reanimated";
-import { RefreshCcw, Eye, EyeOff } from "lucide-react-native";
+import { RefreshCcw, Eye, EyeOff, Trash2 } from "lucide-react-native";
 import { IconLoader } from "../IconLoader";
 import { Transaction, getTransactionDisplay, useExpenseStore } from "../../store/useExpenseStore";
 
@@ -21,7 +21,7 @@ export const TransactionItem = ({
   isLinked = false
 }: TransactionItemProps) => {
   const display = getTransactionDisplay(item);
-  const { transactions, updateTransaction } = useExpenseStore();
+  const { transactions, updateTransaction, deleteTransaction } = useExpenseStore();
 
   const totalRefunded = React.useMemo(() => {
     return transactions
@@ -33,9 +33,26 @@ export const TransactionItem = ({
   const remainingAmount = item.amount - totalRefunded;
 
   const isExcluded = item.is_excluded === 1;
+  
   const handleToggleVisibility = async (e: any) => {
     e.stopPropagation();
     await updateTransaction(item.id, { is_excluded: isExcluded ? 0 : 1 });
+  };
+
+  const handleDelete = (e: any) => {
+    e.stopPropagation();
+    Alert.alert(
+      "Delete Transaction",
+      "Are you sure you want to delete this transaction?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive", 
+          onPress: () => deleteTransaction(item.id) 
+        }
+      ]
+    );
   };
 
   return (
@@ -74,27 +91,36 @@ export const TransactionItem = ({
             </Text>
           </View>
         </View>
-        <View className="items-end">
-          <View className="flex-row items-center">
-            <TouchableOpacity
-              onPress={handleToggleVisibility}
-              className={`p-2 rounded-xl mr-1 ${isExcluded ? 'bg-rose-500/10' : 'bg-slate-100 dark:bg-slate-800'}`}
-            >
-              {isExcluded ? (
-                <EyeOff size={14} color="#f43f5e" />
-              ) : (
-                <Eye size={14} color="#64748b" />
-              )}
-            </TouchableOpacity>
+        <View className="flex-row items-center ml-2">
+          <View className="items-end mr-3">
             <Text className={`font-black text-base ${isExcluded ? 'text-slate-400 line-through' : display.colorClass}`}>
               {display.sign}{currencySymbol}{(hasLinkedRefund ? remainingAmount : item.amount).toFixed(2)}
             </Text>
+            {hasLinkedRefund && (
+              <Text className="text-slate-400 text-[9px] font-bold uppercase tracking-tighter">
+                {currencySymbol}{item.amount.toFixed(0)}
+              </Text>
+            )}
           </View>
-          {hasLinkedRefund && (
-            <Text className="text-slate-400 text-[9px] font-bold uppercase tracking-tighter">
-              {currencySymbol}{item.amount.toFixed(0)}
-            </Text>
-          )}
+
+          <View className="items-center justify-center">
+            <TouchableOpacity
+              onPress={handleToggleVisibility}
+              className={`p-2 rounded-xl mb-1 ${isExcluded ? 'bg-rose-500/10' : 'bg-slate-100 dark:bg-slate-800'}`}
+            >
+              {isExcluded ? (
+                <EyeOff size={13} color="#f43f5e" />
+              ) : (
+                <Eye size={13} color="#64748b" />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDelete}
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800"
+            >
+              <Trash2 size={13} color="#f43f5e" />
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     </Animated.View>

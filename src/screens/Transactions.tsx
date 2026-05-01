@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FlatList, ScrollView, Text, TextInput, TouchableOpacity, View, Modal, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Clock, RefreshCcw, ArrowUpDown, Check, ChevronDown, Eye, EyeOff } from "lucide-react-native";
+import { Clock, RefreshCcw, ArrowUpDown, Check, ChevronDown, Eye, EyeOff, Trash2 } from "lucide-react-native";
 import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../types";
 import { IconLoader } from "../components/IconLoader";
+import { Alert } from "react-native";
 
 const Transactions = ({ navigation, route }: { navigation: any; route: any }) => {
-  const { transactions, fetchTransactions, getCurrencySymbol, updateTransaction } = useExpenseStore();
+  const { transactions, fetchTransactions, getCurrencySymbol, updateTransaction, deleteTransaction } = useExpenseStore();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | TransactionKind>("all");
   const [sortBy, setSortBy] = useState<"date" | "amount">("date");
@@ -109,6 +110,22 @@ const Transactions = ({ navigation, route }: { navigation: any; route: any }) =>
       await updateTransaction(item.id, { is_excluded: isExcluded ? 0 : 1 });
     };
 
+    const handleDelete = (e: any) => {
+      e.stopPropagation();
+      Alert.alert(
+        "Delete Transaction",
+        "Are you sure you want to delete this transaction?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Delete", 
+            style: "destructive", 
+            onPress: () => deleteTransaction(item.id) 
+          }
+        ]
+      );
+    };
+
     return (
       <TouchableOpacity
         onPress={() => handleEditTransaction(item)}
@@ -142,27 +159,36 @@ const Transactions = ({ navigation, route }: { navigation: any; route: any }) =>
             </Text>
           </View>
         </View>
-        <View className="items-end">
-          <View className="flex-row items-center">
-            <TouchableOpacity
-              onPress={handleToggleVisibility}
-              className={`p-2 rounded-xl mr-1 ${isExcluded ? 'bg-rose-500/10' : 'bg-slate-100 dark:bg-slate-800'}`}
-            >
-              {isExcluded ? (
-                <EyeOff size={14} color="#f43f5e" />
-              ) : (
-                <Eye size={14} color="#64748b" />
-              )}
-            </TouchableOpacity>
+        <View className="flex-row items-center ml-2">
+          <View className="items-end mr-3">
             <Text className={`font-black italic text-base tracking-tighter ${isExcluded ? 'text-slate-400 line-through' : display.colorClass}`}>
               {display.sign} {getCurrencySymbol()} {(hasLinkedRefund ? remainingAmount : item.amount).toFixed(2)}
             </Text>
+            {hasLinkedRefund && (
+              <Text className="text-slate-400 text-[9px] font-bold uppercase tracking-tighter">
+                {getCurrencySymbol()}{item.amount.toFixed(0)}
+              </Text>
+            )}
           </View>
-          {hasLinkedRefund && (
-            <Text className="text-slate-400 text-[9px] font-bold uppercase tracking-tighter">
-              {getCurrencySymbol()}{item.amount.toFixed(0)}
-            </Text>
-          )}
+
+          <View className="items-center justify-center">
+            <TouchableOpacity
+              onPress={handleToggleVisibility}
+              className={`p-2 rounded-xl mb-1 ${isExcluded ? 'bg-rose-500/10' : 'bg-slate-100 dark:bg-slate-800'}`}
+            >
+              {isExcluded ? (
+                <EyeOff size={13} color="#f43f5e" />
+              ) : (
+                <Eye size={13} color="#64748b" />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDelete}
+              className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800"
+            >
+              <Trash2 size={13} color="#f43f5e" />
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     );
