@@ -24,8 +24,8 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
 
   const {
     transactions, fetchTransactions, budgets, fetchBudgets,
-    getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal,
-    getCurrencySymbol, fetchCurrency, bills, fetchBills, markBillAsPaid, deleteBill, isSyncing
+    getCurrencySymbol, fetchCurrency, bills, fetchBills, markBillAsPaid, deleteBill, isSyncing,
+    monthlyExpense, monthlyIncome, fetchMonthlyStats
   } = useExpenseStore();
 
   const rotation = useSharedValue(0);
@@ -57,8 +57,6 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const [currentMonthExpense, setCurrentMonthExpense] = useState(0);
-  const [currentMonthIncome, setCurrentMonthIncome] = useState(0);
 
   // Budget Editing States
   const [isEditingBudget, setIsEditingBudget] = useState(false);
@@ -111,17 +109,16 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
   // Fetches everything when screen focuses or month changes
   useEffect(() => {
     const loadAll = async () => {
-      // Fetch only what's needed for the dashboard: 10 most recent from selected month
-      await fetchTransactions(10, selectedMonth);
-      await fetchBudgets();
-      await fetchBills(selectedMonth);
-      const expense = await getCurrentMonthExpenseTotal(selectedMonth);
-      const income = await getCurrentMonthIncomeTotal(selectedMonth);
-      setCurrentMonthExpense(expense);
-      setCurrentMonthIncome(income);
+      // Fetch everything in parallel
+      await Promise.all([
+        fetchTransactions(10, selectedMonth),
+        fetchBudgets(),
+        fetchBills(selectedMonth),
+        fetchMonthlyStats(selectedMonth)
+      ]);
     };
     if (isFocused) loadAll();
-  }, [fetchTransactions, fetchBudgets, fetchBills, isFocused, selectedMonth]);
+  }, [fetchTransactions, fetchBudgets, fetchBills, fetchMonthlyStats, isFocused, selectedMonth]);
 
 
   const overallMonthlyBudget = useMemo(() => {
@@ -129,7 +126,7 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
   }, [budgets]);
 
   const limitAmount = overallMonthlyBudget?.limit_amount || 0;
-  const remainingBudget = Math.max(0, limitAmount - currentMonthExpense);
+  const remainingBudget = Math.max(0, limitAmount - monthlyExpense);
 
   const safeToSpend = useMemo(() => {
     if (!isCurrentMonth || limitAmount <= 0) return 0;
@@ -177,8 +174,8 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
             budgetInput={budgetInput}
             setBudgetInput={setBudgetInput}
             limitAmount={limitAmount}
-            currentMonthExpense={currentMonthExpense}
-            currentMonthIncome={currentMonthIncome}
+            currentMonthExpense={monthlyExpense}
+            currentMonthIncome={monthlyIncome}
             safeToSpend={safeToSpend}
             currencySymbol={getCurrencySymbol()}
             onSaveBudget={handleSaveBudget}

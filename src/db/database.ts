@@ -105,6 +105,11 @@ export async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_transactions_is_excluded ON transactions (is_excluded);
       CREATE INDEX IF NOT EXISTS idx_transactions_sms_hash ON transactions (sms_hash);
       CREATE INDEX IF NOT EXISTS idx_transactions_parent_id ON transactions (parent_id);
+      
+      -- Composite indexes for high-performance summary calculations
+      CREATE INDEX IF NOT EXISTS idx_transactions_summary_v2 ON transactions (is_excluded, kind, date, amount);
+      CREATE INDEX IF NOT EXISTS idx_transactions_type_summary ON transactions (type, is_excluded, parent_id, date, amount);
+
       CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills (due_date);
       CREATE INDEX IF NOT EXISTS idx_bills_status ON bills (status);
     `);
