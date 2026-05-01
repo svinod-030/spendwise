@@ -7,6 +7,8 @@ import Animated, { FadeInUp } from "react-native-reanimated";
 import { BarChart3, PieChart as PieIcon, ChevronDown, Check } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 import ForecastComponent from "../components/ForecastComponent";
+import { IconLoader } from "../components/IconLoader";
+import { CategorySpending } from "../store/useExpenseStore";
 
 const screenWidth = Dimensions.get("window").width;
 const fallbackColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4"];
@@ -29,7 +31,7 @@ const Analysis = ({ navigation }: { navigation: any }) => {
   } = useExpenseStore();
 
   const [trendData, setTrendData] = useState<MonthlyTrend[]>([]);
-  const [categorySpending, setCategorySpending] = useState<{ category_name: string; total: number; category_color?: string }[]>([]);
+  const [categorySpending, setCategorySpending] = useState<CategorySpending[]>([]);
   const [totalExpense, setTotalExpense] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
@@ -216,7 +218,12 @@ const Analysis = ({ navigation }: { navigation: any }) => {
                   >
                     <View className="flex-row items-center justify-between mb-1.5">
                       <View className="flex-row items-center flex-1 mr-4">
-                        <View className="w-3 h-3 rounded-full mr-3" style={{ backgroundColor: color }} />
+                        <View
+                          className="w-8 h-8 rounded-xl items-center justify-center mr-3 border border-slate-100 dark:border-slate-800"
+                          style={{ backgroundColor: `${color}15` }}
+                        >
+                          <IconLoader name={item.category_icon || "Package"} size={14} color={color} />
+                        </View>
                         <Text className="text-slate-700 dark:text-slate-200 font-bold" numberOfLines={1}>{item.category_name}</Text>
                       </View>
                       <View className="items-end">

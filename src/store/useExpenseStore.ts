@@ -50,6 +50,7 @@ export interface CategorySpending {
   category_id: number | null;
   category_name: string;
   category_color?: string;
+  category_icon?: string;
   total: number;
 }
 
@@ -450,6 +451,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
            c.id as category_id, 
            COALESCE(c.name, 'Uncategorized') as category_name, 
            c.color as category_color,
+           c.icon as category_icon,
            (COALESCE(b.amount, 0) - COALESCE(ra.amount, 0)) as total
          FROM categories c
          LEFT JOIN base_spending b ON c.id = b.category_id
@@ -916,7 +918,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   getUnlinkedIncomes: async () => {
     const db = await getDb();
     const rows = await db.getAllAsync<Transaction>(
-      `SELECT t.*, c.name as category_name 
+      `SELECT t.*, c.name as category_name, c.color as category_color, c.icon as category_icon 
        FROM transactions t
        LEFT JOIN categories c ON t.category_id = c.id
        WHERE t.type = 'income' AND (t.goal_id IS NULL OR t.goal_id = 0)
@@ -946,7 +948,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   getGoalTransactions: async (goalId) => {
     const db = await getDb();
     const rows = await db.getAllAsync<Transaction>(
-      `SELECT t.*, c.name as category_name 
+      `SELECT t.*, c.name as category_name, c.color as category_color, c.icon as category_icon 
        FROM transactions t
        LEFT JOIN categories c ON t.category_id = c.id
        WHERE t.goal_id = ?
@@ -1151,8 +1153,10 @@ async function getCategoryIdForMessage(
   const merchantText = (merchant || "").toLowerCase();
   const combined = `${normalized} ${merchantText}`;
 
+  const otherId = categoryMap["other"] || null;
+
   if (type === "income") {
-    return categoryMap["salary"] || null;
+    return categoryMap["salary"] || otherId;
   }
 
   // Comprehensive category keywords matching getCategoryIcon
@@ -1222,11 +1226,11 @@ async function getCategoryIdForMessage(
 
   for (const [categoryName, words] of Object.entries(categoryKeywords)) {
     if (words.some((word) => combined.includes(word))) {
-      return categoryMap[categoryName.toLowerCase()] || null;
+      return categoryMap[categoryName.toLowerCase()] || otherId;
     }
   }
 
-  return categoryMap["other"] || null;
+  return otherId;
 }
 
 export function getCategoryIcon(categoryName?: string | null, merchant?: string | null, note?: string | null): string {
@@ -1384,10 +1388,10 @@ export function getCategoryIcon(categoryName?: string | null, merchant?: string 
   return "CircleDollarSign";
 }
 
-export function getTransactionDisplay(transaction: Partial<Pick<Transaction, "kind" | "type" | "category_name" | "merchant" | "note">>) {
+export function getTransactionDisplay(transaction: Partial<Pick<Transaction, "kind" | "type" | "category_name" | "merchant" | "note" | "category_icon">>) {
   const type = transaction.type || "expense";
   const kind = transaction.kind || (type === "income" ? "income" : "expense");
-  const icon = getCategoryIcon(transaction.category_name, transaction.merchant, transaction.note);
+  const icon = transaction.category_icon || getCategoryIcon(transaction.category_name, transaction.merchant, transaction.note);
 
   if (kind === "transfer") return { sign: "", colorClass: "text-amber-400", label: "Transfer", icon };
   if (kind === "refund") return { sign: "+", colorClass: "text-cyan-400", label: "Refund", icon };

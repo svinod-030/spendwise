@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useExpenseStore, Goal } from "../store/useExpenseStore";
+import { useExpenseStore, Goal, getTransactionDisplay, Transaction } from "../store/useExpenseStore";
 import { Target, Plus, Pencil, Trash2, Calendar, Wallet, ChevronRight, X, Check, RefreshCcw } from "lucide-react-native";
+import { IconLoader } from "../components/IconLoader";
 import Animated, { FadeInUp, FadeInRight, FadeOutLeft } from "react-native-reanimated";
 
 const screenWidth = Dimensions.get("window").width;
@@ -346,13 +347,21 @@ const Goals = () => {
                       onPress={() => handleLinkIncome(tx.id)}
                       className="bg-white dark:bg-slate-800 p-4 rounded-2xl mb-3 border border-slate-100 dark:border-slate-700 flex-row justify-between items-center shadow-sm"
                     >
-                      <View className="flex-1 mr-4">
-                        <Text className="text-slate-900 dark:text-white font-bold text-sm" numberOfLines={1}>
-                          {tx.note || tx.category_name || "Income"}
-                        </Text>
-                        <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
-                          {new Date(tx.date).toLocaleDateString()}
-                        </Text>
+                      <View className="flex-row items-center flex-1 mr-4">
+                        <View
+                          className="w-10 h-10 rounded-xl items-center justify-center mr-3 border border-slate-200 dark:border-slate-700"
+                          style={{ backgroundColor: `${tx.category_color ?? "#3b82f6"}15` }}
+                        >
+                          <IconLoader name={getTransactionDisplay(tx).icon} size={16} color={tx.category_color ?? "#3b82f6"} />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-slate-900 dark:text-white font-bold text-sm" numberOfLines={1}>
+                            {tx.note || tx.category_name || "Income"}
+                          </Text>
+                          <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                            {new Date(tx.date).toLocaleDateString()}
+                          </Text>
+                        </View>
                       </View>
                       <View className="flex-row items-center bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 rounded-xl">
                         <Text className="text-emerald-600 dark:text-emerald-400 font-black text-sm mr-2">
@@ -401,8 +410,11 @@ const Goals = () => {
                     className={`flex-row items-center justify-between py-5 ${idx !== goalTransactions.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}
                   >
                     <View className="flex-row items-center flex-1">
-                      <View className="w-10 h-10 rounded-xl bg-emerald-500/10 items-center justify-center mr-4">
-                        <Plus size={18} color="#10b981" />
+                      <View
+                        className="w-10 h-10 rounded-xl items-center justify-center mr-4 border border-slate-200 dark:border-slate-700"
+                        style={{ backgroundColor: `${tx.category_color ?? "#10b981"}15` }}
+                      >
+                        <IconLoader name={getTransactionDisplay(tx).icon} size={18} color={tx.category_color ?? "#10b981"} />
                       </View>
                       <View>
                         <Text className="text-slate-900 dark:text-white font-bold text-base">
