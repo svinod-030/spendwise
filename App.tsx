@@ -16,6 +16,7 @@ import { VersionCheckResult } from './src/types';
 import RootNavigator, { darkTheme, lightTheme } from "./src/navigation/RootNavigator";
 import { NavigationContainer } from "@react-navigation/native";
 import { AnimatedSplashScreen } from "./src/components/common/AnimatedSplashScreen";
+import SyncProgressModal from './src/components/SyncProgressModal';
 
 
 export default function App() {
@@ -27,6 +28,8 @@ export default function App() {
 
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
+
+  const syncProgress = useExpenseStore(state => state.syncProgress);
 
   // 1. Core initialization sequence
   useEffect(() => {
@@ -154,6 +157,14 @@ export default function App() {
               onClose={() => setShowUpdateModal(false)}
               latestVersion={updateInfo.latestVersion}
               storeUrl={updateInfo.storeUrl}
+            />
+          )}
+          {syncProgress && (
+            <SyncProgressModal
+              visible={!!syncProgress}
+              current={syncProgress.current}
+              total={syncProgress.total}
+              message={syncProgress.message}
             />
           )}
         </SafeAreaProvider>

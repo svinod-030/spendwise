@@ -138,6 +138,7 @@ interface ExpenseState {
   getUnlinkedIncomes: () => Promise<Transaction[]>;
   linkTransactionToGoal: (transactionId: number, goalId: number) => Promise<void>;
   getGoalTransactions: (goalId: number) => Promise<Transaction[]>;
+  syncProgress: { current: number; total: number; message?: string } | null;
 }
 
 
@@ -155,6 +156,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   currency: "INR",
   isLoading: 0,
   isSyncing: false,
+  syncProgress: null,
   goals: [],
 
   getCurrencySymbol: (code?: string) => {
@@ -505,14 +507,16 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       }
 
       const db = await getDb();
-      const messages = await readInboxMessages();
-      const { imported, skipped } = await ingestSmsMessages(db, messages);
+      const messages = await readInboxMessages(limit);
+      const { imported, skipped } = await ingestSmsMessages(db, messages, (current, total) => {
+        set({ syncProgress: { current, total, message: "Importing messages..." } });
+      });
 
       await get().fetchTransactions();
       await get().fetchBills();
       return { imported, skipped };
     } finally {
-      set({ isSyncing: false });
+      set({ isSyncing: false, syncProgress: null });
     }
   },
 
@@ -525,13 +529,14 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
       const db = await getDb();
       const messages = await readInboxMessages(100);
-      const result = await ingestSmsMessages(db, messages);
-      // Always refresh to catch changes made by the Headless task
+      const result = await ingestSmsMessages(db, messages, (current, total) => {
+        set({ syncProgress: { current, total, message: "Syncing recent transactions..." } });
+      });
       await get().fetchTransactions();
       await get().fetchBills();
       return result;
     } finally {
-      set({ isSyncing: false });
+      set({ isSyncing: false, syncProgress: null });
     }
   },
 
@@ -942,7 +947,8 @@ function cleanMerchant(name: string) {
 
 async function ingestSmsMessages(
   db: SQLiteDatabase,
-  messages: Awaited<ReturnType<typeof readInboxMessages>>
+  messages: Awaited<ReturnType<typeof readInboxMessages>>,
+  onProgress?: (current: number, total: number) => void
 ) {
   let imported = 0;
   let skipped = 0;
@@ -956,7 +962,11 @@ async function ingestSmsMessages(
 
   // 2. Wrap in transaction for atomic speed
   await db.withTransactionAsync(async () => {
-    for (const message of messages) {
+    for (let i = 0; i < messages.length; i++) {
+      const message = messages[i];
+      if (onProgress && i % 5 === 0) {
+        onProgress(i + 1, messages.length);
+      }
       // a. Fast hash check BEFORE expensive parsing
       const hash = buildHash(message.address, message.body, message.date);
       const existing = await db.getFirstAsync<{ id: number }>(
