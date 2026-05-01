@@ -73,32 +73,31 @@ const Analysis = ({ navigation }: { navigation: any }) => {
     const init = async () => {
       await fetchCategories();
       await fetchBudgets();
-      const trends = await getMonthlyTrends();
-      const categoriesData = await getCurrentMonthCategorySpending(selectedMonth);
-      const total = await getCurrentMonthExpenseTotal(selectedMonth);
-      const income = await getCurrentMonthIncomeTotal();
-      setTrendData(trends);
-      setCategorySpending(categoriesData);
-      setTotalExpense(total);
-      setTotalIncome(income);
     };
     if (isFocused) init();
   }, [fetchCategories, fetchBudgets, isFocused]);
 
-  // 2. Reactive Refresh: Trends and breakdowns refresh when transactions update
+  // 2. Global Data Refresh: Trends refresh when transactions update or on focus
   useEffect(() => {
-    const refresh = async () => {
+    const refreshGlobal = async () => {
       const trends = await getMonthlyTrends();
+      setTrendData(trends);
+    };
+    if (isFocused) refreshGlobal();
+  }, [getMonthlyTrends, isFocused, transactions]);
+
+  // 3. Month-specific Data Refresh: refresh when month changes, transactions update or on focus
+  useEffect(() => {
+    const refreshMonthly = async () => {
       const categoriesData = await getCurrentMonthCategorySpending(selectedMonth);
       const total = await getCurrentMonthExpenseTotal(selectedMonth);
-      const income = await getCurrentMonthIncomeTotal();
-      setTrendData(trends);
+      const income = await getCurrentMonthIncomeTotal(selectedMonth);
       setCategorySpending(categoriesData);
       setTotalExpense(total);
       setTotalIncome(income);
     };
-    if (isFocused) refresh();
-  }, [getMonthlyTrends, getCurrentMonthCategorySpending, getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, isFocused, transactions, selectedMonth]);
+    if (isFocused) refreshMonthly();
+  }, [getCurrentMonthCategorySpending, getCurrentMonthExpenseTotal, getCurrentMonthIncomeTotal, isFocused, transactions, selectedMonth]);
 
   const monthlyBudget = useMemo(
     () => budgets.find((budget) => budget.category_id == null && budget.period_type === "monthly"),

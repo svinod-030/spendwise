@@ -104,6 +104,7 @@ export async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_transactions_kind ON transactions (kind);
       CREATE INDEX IF NOT EXISTS idx_transactions_is_excluded ON transactions (is_excluded);
       CREATE INDEX IF NOT EXISTS idx_transactions_sms_hash ON transactions (sms_hash);
+      CREATE INDEX IF NOT EXISTS idx_transactions_parent_id ON transactions (parent_id);
       CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills (due_date);
       CREATE INDEX IF NOT EXISTS idx_bills_status ON bills (status);
     `);

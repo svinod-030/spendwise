@@ -522,6 +522,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
            SELECT strftime('%Y-%m', date) as month, SUM(amount) as amount
            FROM transactions
            WHERE kind = 'expense' AND is_excluded = 0
+           AND date >= date('now', '-12 months')
            GROUP BY month
          ),
          monthly_refunds AS (
@@ -529,6 +530,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
            FROM transactions r
            JOIN transactions p ON r.parent_id = p.id
            WHERE r.is_excluded = 0
+           AND p.date >= date('now', '-12 months')
            GROUP BY month
          )
          SELECT 
