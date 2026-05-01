@@ -64,9 +64,20 @@ const amountPattern = /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
 const accountPattern = /(?:a\/c|acct|account)\s*[x*]*([0-9]{2,6})/i;
 const refPattern = /(?:ref(?:erence)?(?:\s*id)?|utr|txn(?:\s*id)?)\s*[:\-]?\s*([a-z0-9\-]+)/i;
 
+let cachedTransactionRegex: RegExp | null = null;
+let lastKeywordsHash: string | null = null;
+
 function getTransactionKeywordRegex() {
   const config = getParserConfig();
-  return new RegExp(`\\b(${config.transactionKeywords.join('|')})\\b`, 'i');
+  const keywordsHash = config.transactionKeywords.join('|');
+  
+  if (cachedTransactionRegex && lastKeywordsHash === keywordsHash) {
+    return cachedTransactionRegex;
+  }
+  
+  cachedTransactionRegex = new RegExp(`\\b(${keywordsHash})\\b`, 'i');
+  lastKeywordsHash = keywordsHash;
+  return cachedTransactionRegex;
 }
 
 function getBillDueDatePatterns() {
@@ -287,6 +298,40 @@ export async function parseSmsForBill(sms: SmsMessage): Promise<ParsedSmsBill | 
     }
     // Final fallback to message date if no date found at all
     if (!dueDate) dueDate = new Date(sms.date).toISOString();
+  }
+
+  return {
+    sender: sms.address,
+    body: sms.body,
+    receivedAt: new Date(sms.date).toISOString(),
+    amount,
+    dueDate,
+    merchant: cleanMerchant(sms.address),
+  };
+}
+
+/**
+ * Synchronous version of bill parser — pure Regex.
+ */
+export function parseSmsForBillSync(sms: SmsMessage): ParsedSmsBill | null {
+  const body = sms.body.toLowerCase();
+  const config = getParserConfig();
+  if (!config.billKeywords.some(kw => body.includes(kw))) return null;
+
+  const amountMatch = sms.body.match(amountPattern);
+  if (!amountMatch) return null;
+  const amount = normalizeAmount(amountMatch[1]);
+
+  let dueDate = new Date(sms.date).toISOString();
+  for (const pattern of getBillDueDatePatterns()) {
+    const match = sms.body.match(pattern);
+    if (match?.[1]) {
+      const parsed = parseDateString(match[1].trim());
+      if (parsed) {
+        dueDate = parsed.toISOString();
+        break;
+      }
+    }
   }
 
   return {

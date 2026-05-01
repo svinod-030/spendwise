@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { getDb } from "../db/database";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import { parseSmsForTransaction, parseSmsForBill, buildHash } from "../utils/smsParser";
+import { parseSmsForTransaction, parseSmsForBill, buildHash, parseSmsForTransactionSync, parseSmsForBillSync } from "../utils/smsParser";
 import { checkSmsPermission, readInboxMessages, requestSmsPermission } from "../utils/smsReader";
 import { SmsMessage, TransactionKind } from "../types";
 
@@ -240,10 +240,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   updateTransaction: async (id, transaction) => {
     const db = await getDb();
-    
+
     // Get old state for goal sync
     const oldTx = await db.getFirstAsync<Transaction>("SELECT * FROM transactions WHERE id = ?", [id]);
-    
+
     const sets: string[] = [];
     const params: any[] = [];
 
@@ -309,7 +309,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   deleteTransaction: async (id) => {
     const db = await getDb();
-    
+
     // Check if linked to goal before deleting
     const transaction = await db.getFirstAsync<Transaction>("SELECT * FROM transactions WHERE id = ?", [id]);
     if (transaction && transaction.goal_id) {
@@ -1048,12 +1048,16 @@ async function ingestSmsMessages(
   }
 
   let maxProcessedDate = 0;
+  // 2. Intra-batch duplicate check to avoid redundant DB queries
+  const processedInBatch = new Set<string>();
 
   // 3. Wrap in transaction for atomic speed
   await db.withTransactionAsync(async () => {
     for (let i = 0; i < messages.length; i++) {
       const message = messages[i];
-      if (onProgress && i % 5 === 0) {
+
+      // Throttle UI updates: update every 100 messages or at the end
+      if (onProgress && (i % 100 === 0 || i === messages.length - 1)) {
         onProgress(i + 1, messages.length);
       }
 
@@ -1061,34 +1065,48 @@ async function ingestSmsMessages(
         maxProcessedDate = message.date;
       }
 
-      // a. Fast hash check using pre-fetched Set
+      // a. Fast hash check using pre-fetched Set (Cross-batch duplicate)
       const hash = buildHash(message.address, message.body, message.date);
       if (existingHashes.has(hash)) {
         skipped += 1;
         continue;
       }
 
-      // b. Secondary dedup check (approx time)
+      // b. Intra-batch duplicate check (Same body and similar time in this import)
       const approxTimeSec = Math.floor((message.date ?? 0) / 1000);
-      const bodyDuplicate = await db.getFirstAsync<{ id: number }>(
-        `SELECT id FROM transactions
-         WHERE sms_body = ? AND ABS(strftime('%s', date) - ?) <= 120
-         LIMIT 1`,
-        [message.body, approxTimeSec]
-      );
-      if (bodyDuplicate) {
+      const batchKey = `${message.body}_${Math.floor(approxTimeSec / 60)}`; // Group by body and minute
+      if (processedInBatch.has(batchKey)) {
         skipped += 1;
         continue;
       }
+      processedInBatch.add(batchKey);
 
-      // c. Expensive parsing only for new messages
-      const parsed = await parseSmsForTransaction(message);
+      // c. Secondary DB dedup check (only if not initial import or if we have existing transactions)
+      // If we have 14k messages, we don't want to run this query 14k times.
+      // We skip it if the message hash is already unique and it's a bulk import into an empty DB.
+      if (existingHashes.size > 0) {
+        const bodyDuplicate = await db.getFirstAsync<{ id: number }>(
+          `SELECT id FROM transactions
+           WHERE sms_body = ? AND ABS(strftime('%s', date) - ?) <= 120
+           LIMIT 1`,
+          [message.body, approxTimeSec]
+        );
+        if (bodyDuplicate) {
+          skipped += 1;
+          continue;
+        }
+      }
+
+      // d. Parsing: Use sync version for bulk import to avoid bridge overhead
+      const isBulk = messages.length > 100;
+      const parsed = isBulk
+        ? parseSmsForTransactionSync(message)
+        : await parseSmsForTransaction(message);
 
       if (!parsed) {
         // Try parsing as a bill
-        const parsedBill = await parseSmsForBill(message);
+        const parsedBill = isBulk ? parseSmsForBillSync(message) : await parseSmsForBill(message);
         if (parsedBill && parsedBill.amount > 0) {
-          // Check if bill with this hash already exists
           const existingBill = await db.getFirstAsync<{ id: number }>(
             "SELECT id FROM bills WHERE body = ? AND sender = ? AND ABS(strftime('%s', due_date) - ?) <= 3600",
             [parsedBill.body, parsedBill.sender, Math.floor(new Date(parsedBill.dueDate || "").getTime() / 1000)]
@@ -1106,20 +1124,8 @@ async function ingestSmsMessages(
         continue;
       }
 
-      // d. Reference ID check (if parsed)
-      if (parsed.referenceId) {
-        const existingRef = await db.getFirstAsync<{ id: number }>(
-          "SELECT id FROM transactions WHERE reference_id = ?",
-          [parsed.referenceId]
-        );
-        if (existingRef) {
-          skipped += 1;
-          continue;
-        }
-      }
-
       // e. Categorize and insert transaction
-      const categoryId = await getCategoryIdForMessage(categoryMap, message.body, parsed.merchant, parsed.type);
+      const categoryId = getCategoryIdForMessage(categoryMap, message.body, parsed.merchant, parsed.type);
       const kind = parsed.kind || (parsed.type === "income" ? "income" : "expense");
 
       const txResult = await db.runAsync(
@@ -1194,7 +1200,34 @@ async function tryAutoLinkRefund(
   }
 }
 
-async function getCategoryIdForMessage(
+// ─── Optimized Category Detection ──────────────────────────────────────────
+
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  Food: ["swiggy", "zomato", "restaurant", "food", "cafe", "coffee", "pizza", "burger", "dominos", "starbucks", "eat", "meal", "lunch", "dinner", "dining", "uber eats"],
+  Groceries: ["blinkit", "bigbasket", "zepto", "grocery", "groceries", "supermarket", "dmart", "reliance fresh", "spencer", "mart", "kirana", "vegetable", "fruit", "dairy", "milk"],
+  Transport: ["uber", "ola", "rapido", "metro", "train", "bus", "auto", "taxi", "cab", "irctc", "travel", "booking"],
+  Travel: ["flight", "airline", "hotel", "stay", "makemytrip", "goibibo", "airbnb", "oyo", "trivago"],
+  Bills: ["electricity", "broadband", "wifi", "recharge", "bill", "water", "gas", "mobile", "dth", "utility", "power", "energy", "bsnl", "airtel", "jio", "vi", "vodafone", "idea", "tata power", "bescom", "mseb", "maintenance"],
+  Rent: ["rent", "housing", "apartment", "flat", "pg", "hostel"],
+  Shopping: ["amazon", "flipkart", "myntra", "ajio", "meesho", "nykaa", "purplle", "tatacliq", "snapdeal", "mall", "shopping", "fashion", "clothing", "electronics", "gadget"],
+  Health: ["pharmacy", "hospital", "health", "medic", "doctor", "clinic", "apollo", "pharmeasy", "1mg", "netmeds", "diagnostic", "lab", "test", "fitness", "gym", "wellness"],
+  Entertainment: ["netflix", "prime", "hotstar", "disney", "sony", "zee5", "spotify", "youtube", "music", "movie", "cinema", "pvr", "inox", "bookmyshow", "game", "gaming"],
+  Subscriptions: ["subscription", "subscriptions", "recurring", "monthly", "annual", "ott"],
+  Education: ["course", "tuition", "fee", "exam", "book", "udemy", "coursera", "byju", "unacademy", "vedantu", "upgrad", "learning", "study", "school", "college"],
+  Fuel: ["fuel", "petrol", "diesel", "hpcl", "bpcl", "iocl", "shell", "vehicle", "car", "bike", "scooter", "parking", "toll", "fastag"],
+  Gifts: ["gift", "present", "donation", "charity", "celebration", "festival"],
+  EMI: ["emi", "loan", "mortgage"],
+  Investment: ["invest", "mutual fund", "stock", "share", "demat", "trading", "zerodha", "groww", "upstox", "etmoney", "savings", "fd", "fixed deposit", "rd", "ppf", "nps", "insurance", "lic"],
+  Transfer: ["transfer", "sent", "received", "upi", "neft", "imps", "rtgs", "paytm", "phonepe", "gpay", "google pay", "bhim", "cred"]
+};
+
+// Pre-compile Regex for each category for maximum performance
+const COMPILED_CATEGORY_REGEX = Object.entries(CATEGORY_KEYWORDS).map(([name, words]) => ({
+  name,
+  regex: new RegExp(`\\b(${words.join("|")})\\b`, "i")
+}));
+
+function getCategoryIdForMessage(
   categoryMap: Record<string, number>,
   body: string,
   merchant: string | undefined,
@@ -1210,74 +1243,10 @@ async function getCategoryIdForMessage(
     return categoryMap["salary"] || otherId;
   }
 
-  // Comprehensive category keywords matching getCategoryIcon
-  const categoryKeywords: Record<string, string[]> = {
-    Food: [
-      "swiggy", "zomato", "restaurant", "food", "cafe", "coffee",
-      "pizza", "burger", "dominos", "starbucks", "eat", "meal",
-      "lunch", "dinner", "dining", "uber eats"
-    ],
-    Groceries: [
-      "blinkit", "bigbasket", "zepto", "grocery", "groceries",
-      "supermarket", "dmart", "reliance fresh", "spencer", "mart",
-      "kirana", "vegetable", "fruit", "dairy", "milk"
-    ],
-    Transport: [
-      "uber", "ola", "rapido", "metro", "train", "bus", "auto",
-      "taxi", "cab", "irctc", "travel", "booking"
-    ],
-    Travel: [
-      "flight", "airline", "hotel", "stay", "makemytrip", "goibibo",
-      "airbnb", "oyo", "trivago"
-    ],
-    Bills: [
-      "electricity", "broadband", "wifi", "recharge", "bill",
-      "water", "gas", "mobile", "dth", "utility", "power", "energy",
-      "bsnl", "airtel", "jio", "vi", "vodafone", "idea",
-      "tata power", "bescom", "mseb", "maintenance"
-    ],
-    Rent: ["rent", "housing", "apartment", "flat", "pg", "hostel"],
-    Shopping: [
-      "amazon", "flipkart", "myntra", "ajio", "meesho", "nykaa",
-      "purplle", "tatacliq", "snapdeal", "mall", "shopping",
-      "fashion", "clothing", "electronics", "gadget"
-    ],
-    Health: [
-      "pharmacy", "hospital", "health", "medic", "doctor", "clinic",
-      "apollo", "pharmeasy", "1mg", "netmeds", "diagnostic",
-      "lab", "test", "fitness", "gym", "wellness"
-    ],
-    Entertainment: [
-      "netflix", "prime", "hotstar", "disney", "sony", "zee5",
-      "spotify", "youtube", "music", "movie", "cinema", "pvr",
-      "inox", "bookmyshow", "game", "gaming"
-    ],
-    Subscriptions: ["subscription", "subscriptions", "recurring", "monthly", "annual", "ott"],
-    Education: [
-      "course", "tuition", "fee", "exam", "book", "udemy",
-      "coursera", "byju", "unacademy", "vedantu", "upgrad",
-      "learning", "study", "school", "college"
-    ],
-    Fuel: [
-      "fuel", "petrol", "diesel", "hpcl", "bpcl", "iocl", "shell",
-      "vehicle", "car", "bike", "scooter", "parking", "toll", "fastag"
-    ],
-    Gifts: ["gift", "present", "donation", "charity", "celebration", "festival"],
-    EMI: ["emi", "loan", "mortgage"],
-    Investment: [
-      "invest", "mutual fund", "stock", "share", "demat", "trading",
-      "zerodha", "groww", "upstox", "etmoney", "savings", "fd",
-      "fixed deposit", "rd", "ppf", "nps", "insurance", "lic"
-    ],
-    Transfer: [
-      "transfer", "sent", "received", "upi", "neft", "imps", "rtgs",
-      "paytm", "phonepe", "gpay", "google pay", "bhim", "cred"
-    ]
-  };
-
-  for (const [categoryName, words] of Object.entries(categoryKeywords)) {
-    if (words.some((word) => combined.includes(word))) {
-      return categoryMap[categoryName.toLowerCase()] || otherId;
+  // Fast regex matching
+  for (const { name, regex } of COMPILED_CATEGORY_REGEX) {
+    if (regex.test(combined)) {
+      return categoryMap[name.toLowerCase()] || otherId;
     }
   }
 
