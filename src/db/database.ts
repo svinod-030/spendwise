@@ -39,16 +39,10 @@ export async function initDatabase() {
         type TEXT CHECK(type IN ('expense', 'income')) NOT NULL,
         date TEXT NOT NULL,
         note TEXT,
+        sms_body TEXT,
+        sms_sender TEXT,
+        sms_hash TEXT UNIQUE,
         FOREIGN KEY (category_id) REFERENCES categories (id)
-      );
-      CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sender TEXT NOT NULL,
-        body TEXT NOT NULL,
-        received_at TEXT NOT NULL,
-        hash TEXT NOT NULL UNIQUE,
-        parse_confidence REAL DEFAULT 0,
-        processed_status TEXT DEFAULT 'pending'
       );
       CREATE TABLE IF NOT EXISTS app_meta (
         key TEXT PRIMARY KEY,
@@ -86,7 +80,6 @@ export async function initDatabase() {
     `);
 
     // Ensure columns added in migrations exist
-    await ensureColumn(db, "transactions", "source_message_id", "INTEGER");
     await ensureColumn(db, "transactions", "kind", "TEXT DEFAULT 'expense'");
     await ensureColumn(db, "transactions", "merchant", "TEXT");
     await ensureColumn(db, "transactions", "currency", "TEXT DEFAULT 'INR'");
@@ -96,18 +89,21 @@ export async function initDatabase() {
     await ensureColumn(db, "transactions", "is_excluded", "INTEGER DEFAULT 0");
     await ensureColumn(db, "transactions", "parent_id", "INTEGER");
     await ensureColumn(db, "transactions", "goal_id", "INTEGER");
+    await ensureColumn(db, "transactions", "sms_body", "TEXT");
+    await ensureColumn(db, "transactions", "sms_sender", "TEXT");
+    await ensureColumn(db, "transactions", "sms_hash", "TEXT");
     await ensureColumn(db, "bills", "transaction_id", "INTEGER");
     await ensureColumn(db, "bills", "category_id", "INTEGER");
 
     // Create indexes (after columns are ensured)
     await db.execAsync(`
-      CREATE INDEX IF NOT EXISTS idx_messages_hash ON messages (hash);
       CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
       CREATE INDEX IF NOT EXISTS idx_transactions_date_desc ON transactions (date DESC);
       CREATE INDEX IF NOT EXISTS idx_transactions_category_date ON transactions (category_id, date);
       CREATE INDEX IF NOT EXISTS idx_transactions_merchant ON transactions (merchant);
       CREATE INDEX IF NOT EXISTS idx_transactions_kind ON transactions (kind);
       CREATE INDEX IF NOT EXISTS idx_transactions_is_excluded ON transactions (is_excluded);
+      CREATE INDEX IF NOT EXISTS idx_transactions_sms_hash ON transactions (sms_hash);
       CREATE INDEX IF NOT EXISTS idx_bills_due_date ON bills (due_date);
       CREATE INDEX IF NOT EXISTS idx_bills_status ON bills (status);
     `);

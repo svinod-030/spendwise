@@ -4,7 +4,7 @@ import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { parseSmsForTransaction, parseSmsForBill, buildHash } from "../utils/smsParser";
 import { checkSmsPermission, readInboxMessages, requestSmsPermission } from "../utils/smsReader";
-import { TransactionKind } from "../types";
+import { SmsMessage, TransactionKind } from "../types";
 
 export interface Category {
   id: number;
@@ -21,7 +21,9 @@ export interface Transaction {
   kind?: TransactionKind;
   date: string;
   note: string;
-  source_message_id?: number;
+  sms_body?: string;
+  sms_sender?: string;
+  sms_hash?: string;
   merchant?: string;
   currency?: string;
   account_ref?: string;
@@ -293,10 +295,12 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   fetchMessageById: async (id: number) => {
     const db = await getDb();
-    return await db.getFirstAsync<{ sender: string; body: string; date: string }>(
-      "SELECT sender, body, received_at as date FROM messages WHERE id = ?",
+    const result = await db.getFirstAsync<{ sms_sender: string; sms_body: string; date: string }>(
+      "SELECT sms_sender, sms_body, date FROM transactions WHERE id = ?",
       [id]
     );
+    if (!result || !result.sms_body) return null;
+    return { sender: result.sms_sender, body: result.sms_body, date: result.date };
   },
 
   updateCurrency: async (currency: string) => {
@@ -530,7 +534,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       }
 
       const db = await getDb();
-      const messages = await readInboxMessages(limit);
+      const lastSyncRow = await db.getFirstAsync<{ value: string }>("SELECT value FROM app_meta WHERE key = 'last_sms_sync_time'");
+      const lastSyncTime = lastSyncRow ? parseInt(lastSyncRow.value) : 0;
+
+      const messages = await readInboxMessages(limit, lastSyncTime);
       const { imported, skipped } = await ingestSmsMessages(db, messages, (current, total) => {
         set({ syncProgress: { current, total, message: "Importing messages..." } });
       });
@@ -551,7 +558,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       if (!hasPermission) return { imported: 0, skipped: 0 };
 
       const db = await getDb();
-      const messages = await readInboxMessages(100);
+      const lastSyncRow = await db.getFirstAsync<{ value: string }>("SELECT value FROM app_meta WHERE key = 'last_sms_sync_time'");
+      const lastSyncTime = lastSyncRow ? parseInt(lastSyncRow.value) : 0;
+
+      const messages = await readInboxMessages(100, lastSyncTime);
       const result = await ingestSmsMessages(db, messages, (current, total) => {
         set({ syncProgress: { current, total, message: "Syncing recent transactions..." } });
       });
@@ -639,7 +649,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const transactions = await db.getAllAsync<any>("SELECT * FROM transactions ORDER BY date DESC");
     const bills = await db.getAllAsync<any>("SELECT * FROM bills ORDER BY due_date DESC");
     const categories = await db.getAllAsync<any>("SELECT * FROM categories");
-    const messages = await db.getAllAsync<any>("SELECT * FROM messages ORDER BY received_at DESC");
 
     const categoryMap = categories.reduce((acc, cat) => {
       acc[cat.id] = cat.name;
@@ -657,8 +666,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     } else {
       transactions.forEach((t: any) => {
         const catName = t.category_id ? categoryMap[t.category_id] || "Unknown" : "Uncategorized";
-        const msgIdStr = t.source_message_id ? ` [MsgID: ${t.source_message_id}]` : "";
-        content += `ID: ${t.id}${msgIdStr} | Date: ${t.date} | Amount: ${t.amount} | Type: ${t.type} | Kind: ${t.kind} | Cat: ${catName} | Merchant: ${t.merchant || "N/A"} | Note: ${t.note || ""}\n`;
+        const smsInfo = t.sms_hash ? ` [SMS: ${t.sms_sender || "Unknown"}]` : "";
+        content += `ID: ${t.id}${smsInfo} | Date: ${t.date} | Amount: ${t.amount} | Type: ${t.type} | Kind: ${t.kind} | Cat: ${catName} | Merchant: ${t.merchant || "N/A"} | Note: ${t.note || ""}\n`;
       });
     }
 
@@ -670,18 +679,6 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       bills.forEach((b: any) => {
         const catName = b.category_id ? categoryMap[b.category_id] || "Unknown" : "Uncategorized";
         content += `ID: ${b.id} | Due: ${b.due_date} | Amount: ${b.amount} | Status: ${b.status} | Sender: ${b.sender || "N/A"} | Cat: ${catName}\n`;
-      });
-    }
-
-    content += "\nRAW MESSAGES\n";
-    content += "------------\n";
-    if (messages.length === 0) {
-      content += "No raw messages found.\n";
-    } else {
-      messages.forEach((m: any) => {
-        content += `ID: ${m.id} | From: ${m.sender} | Date: ${m.received_at} | Conf: ${m.parse_confidence}\n`;
-        content += `Body: ${m.body}\n`;
-        content += "-------------------\n";
       });
     }
 
@@ -720,7 +717,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     set((state) => ({ isLoading: state.isLoading + 1 }));
     try {
       const db = await getDb();
-      await db.execAsync("DELETE FROM transactions; DELETE FROM messages; DELETE FROM budgets; DELETE from bills;");
+      await db.execAsync("DELETE FROM transactions; DELETE FROM categories; DELETE FROM budgets; DELETE from bills; DELETE FROM goals; DELETE FROM app_meta;");
       await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('sms_initial_import_done', 'false')");
       await get().fetchTransactions();
       await get().fetchBudgets();
@@ -970,7 +967,7 @@ function cleanMerchant(name: string) {
 
 async function ingestSmsMessages(
   db: SQLiteDatabase,
-  messages: Awaited<ReturnType<typeof readInboxMessages>>,
+  messages: SmsMessage[],
   onProgress?: (current: number, total: number) => void
 ) {
   let imported = 0;
@@ -983,20 +980,21 @@ async function ingestSmsMessages(
     return acc;
   }, {} as Record<string, number>);
 
-  // 2. Pre-fetch existing hashes in batch to avoid N queries
+  // 2. Pre-fetch existing hashes from TRANSACTIONS to avoid N queries
   const hashesToCheck = messages.map(m => buildHash(m.address, m.body, m.date));
   const existingHashes = new Set<string>();
 
-  // Chunking to avoid SQLite parameter limit (999)
   for (let i = 0; i < hashesToCheck.length; i += 500) {
     const chunk = hashesToCheck.slice(i, i + 500);
     const placeholders = chunk.map(() => "?").join(",");
-    const rows = await db.getAllAsync<{ hash: string }>(
-      `SELECT hash FROM messages WHERE hash IN (${placeholders})`,
+    const rows = await db.getAllAsync<{ sms_hash: string }>(
+      `SELECT sms_hash FROM transactions WHERE sms_hash IN (${placeholders})`,
       chunk
     );
-    rows.forEach(r => existingHashes.add(r.hash));
+    rows.forEach(r => existingHashes.add(r.sms_hash));
   }
+
+  let maxProcessedDate = 0;
 
   // 3. Wrap in transaction for atomic speed
   await db.withTransactionAsync(async () => {
@@ -1005,6 +1003,11 @@ async function ingestSmsMessages(
       if (onProgress && i % 5 === 0) {
         onProgress(i + 1, messages.length);
       }
+
+      if (message.date > maxProcessedDate) {
+        maxProcessedDate = message.date;
+      }
+
       // a. Fast hash check using pre-fetched Set
       const hash = buildHash(message.address, message.body, message.date);
       if (existingHashes.has(hash)) {
@@ -1012,11 +1015,11 @@ async function ingestSmsMessages(
         continue;
       }
 
-      // b. Secondary dedup check (approx time) BEFORE parsing
+      // b. Secondary dedup check (approx time)
       const approxTimeSec = Math.floor((message.date ?? 0) / 1000);
       const bodyDuplicate = await db.getFirstAsync<{ id: number }>(
-        `SELECT id FROM messages
-         WHERE body = ? AND ABS(strftime('%s', received_at) - ?) <= 120
+        `SELECT id FROM transactions
+         WHERE sms_body = ? AND ABS(strftime('%s', date) - ?) <= 120
          LIMIT 1`,
         [message.body, approxTimeSec]
       );
@@ -1032,12 +1035,13 @@ async function ingestSmsMessages(
         // Try parsing as a bill
         const parsedBill = await parseSmsForBill(message);
         if (parsedBill && parsedBill.amount > 0) {
-          const billMsgResult = await db.runAsync(
-            "INSERT OR IGNORE INTO messages (sender, body, received_at, hash, parse_confidence, processed_status) VALUES (?, ?, ?, ?, 1.0, 'processed')",
-            [parsedBill.sender, parsedBill.body, parsedBill.receivedAt, hash]
+          // Check if bill with this hash already exists
+          const existingBill = await db.getFirstAsync<{ id: number }>(
+            "SELECT id FROM bills WHERE body = ? AND sender = ? AND ABS(strftime('%s', due_date) - ?) <= 3600",
+            [parsedBill.body, parsedBill.sender, Math.floor(new Date(parsedBill.dueDate || "").getTime() / 1000)]
           );
 
-          if (billMsgResult.changes > 0) {
+          if (!existingBill) {
             await db.runAsync(
               "INSERT INTO bills (sender, body, amount, due_date, status) VALUES (?, ?, ?, ?, 'unpaid')",
               [parsedBill.sender, parsedBill.body, parsedBill.amount, parsedBill.dueDate || new Date().toISOString()]
@@ -1061,44 +1065,47 @@ async function ingestSmsMessages(
         }
       }
 
-      // e. Insert message
-      const messageInsert = await db.runAsync(
-        `INSERT OR IGNORE INTO messages (sender, body, received_at, hash, parse_confidence, processed_status)
-         VALUES (?, ?, ?, ?, ?, 'processed')`,
-        [parsed.sender, parsed.body, parsed.receivedAt, parsed.hash, parsed.confidence]
-      );
+      // e. Categorize and insert transaction
+      const categoryId = await getCategoryIdForMessage(categoryMap, message.body, parsed.merchant, parsed.type);
+      const kind = parsed.kind || (parsed.type === "income" ? "income" : "expense");
 
-      if (messageInsert.changes === 0) {
-        skipped += 1;
-        continue;
-      }
-
-      // f. Categorize and insert transaction
-      const categoryId = await getCategoryIdForMessage(categoryMap, parsed.body, parsed.merchant, parsed.type);
       const txResult = await db.runAsync(
-        `INSERT INTO transactions
-          (category_id, amount, type, kind, date, note, source_message_id, merchant, currency, account_ref, reference_id, raw_sender)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO transactions (
+          category_id, amount, type, date, note, 
+          kind, merchant, currency, account_ref, 
+          reference_id, raw_sender, sms_body, 
+          sms_sender, sms_hash
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           categoryId,
           parsed.amount,
           parsed.type,
-          parsed.kind,
-          parsed.receivedAt,
-          parsed.merchant || (parsed.sender ? `SMS: ${parsed.sender}` : "Miscellaneous"),
-          messageInsert.lastInsertRowId,
-          parsed.merchant || null,
+          new Date(message.date).toISOString(),
+          parsed.merchant || (message.address ? `SMS: ${message.address}` : "Transaction"),
+          kind,
+          parsed.merchant || "",
           "INR",
-          parsed.accountRef || null,
-          parsed.referenceId || null,
-          parsed.sender,
+          parsed.accountRef || "",
+          parsed.referenceId || "",
+          message.address,
+          message.body,
+          message.address,
+          hash
         ]
       );
 
       if (parsed.kind === 'refund') {
-        await tryAutoLinkRefund(db, txResult.lastInsertRowId, parsed.amount, parsed.merchant, parsed.receivedAt);
+        await tryAutoLinkRefund(db, txResult.lastInsertRowId, parsed.amount, parsed.merchant, message.date.toString());
       }
       imported += 1;
+    }
+
+    // Update last sync time so we don't re-process these messages next time
+    if (maxProcessedDate > 0) {
+      await db.runAsync(
+        "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('last_sms_sync_time', ?)",
+        [maxProcessedDate.toString()]
+      );
     }
   });
 

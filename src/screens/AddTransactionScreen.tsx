@@ -77,10 +77,8 @@ const AddTransactionScreen = () => {
       setIsExcluded(editingTransaction.is_excluded === 1);
       setParentId(editingTransaction.parent_id || null);
 
-      if (editingTransaction.source_message_id) {
-        fetchMessageById(editingTransaction.source_message_id).then(msg => {
-          if (msg) setSmsContent({ sender: msg.sender, body: msg.body });
-        });
+      if (editingTransaction.sms_body) {
+        setSmsContent({ sender: editingTransaction.sms_sender || "", body: editingTransaction.sms_body });
       } else {
         setSmsContent(null);
       }
