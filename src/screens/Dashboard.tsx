@@ -14,12 +14,12 @@ import { BillDetailModal } from "../components/dashboard/BillDetailModal";
 import { PredictiveAlertCard } from "../components/dashboard/PredictiveAlertCard";
 
 
-const Dashboard = ({ navigation }: { navigation: any }) => {
+const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
   const [isFocused, setIsFocused] = useState(true);
 
 
   const handleEditItem = (tx: Transaction) => {
-    navigation.navigate("AddTransaction", { editingTransaction: tx, returnTo: "Overview" });
+    navigation.navigate("AddTransaction", { editingTransaction: tx, returnTo: "Overview", selectedMonth });
   };
 
   const {
@@ -52,6 +52,7 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
   const unpaidBills = useMemo(() => bills.filter((bill) => bill.status === "unpaid"), [bills]);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
+    if (route.params?.selectedMonth) return route.params.selectedMonth;
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
@@ -81,6 +82,12 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
     setIsEditingBudget(false);
     setBudgetInput("");
   };
+
+  useEffect(() => {
+    if (route.params?.selectedMonth && route.params.selectedMonth !== selectedMonth) {
+      setSelectedMonth(route.params.selectedMonth);
+    }
+  }, [route.params?.selectedMonth]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
@@ -179,8 +186,8 @@ const Dashboard = ({ navigation }: { navigation: any }) => {
 
           <RecentActivity
             transactions={recentTransactions}
-            onViewAll={() => navigation.navigate("Transactions")}
-            onAddTransaction={() => navigation.navigate("AddTransaction")}
+            onViewAll={() => navigation.navigate("Transactions", { selectedMonth })}
+            onAddTransaction={() => navigation.navigate("AddTransaction", { selectedMonth, returnTo: "Overview" })}
             onEditTransaction={handleEditItem}
             currencySymbol={getCurrencySymbol()}
           />

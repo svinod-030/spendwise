@@ -15,6 +15,7 @@ const Transactions = ({ navigation, route }: { navigation: any; route: any }) =>
   const [isSortModalVisible, setIsSortModalVisible] = useState(false);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
+    if (route.params?.selectedMonth) return route.params.selectedMonth;
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
@@ -54,7 +55,7 @@ const Transactions = ({ navigation, route }: { navigation: any; route: any }) =>
   }, [route.params?.searchQuery, route.params?.selectedMonth, navigation]);
 
   const handleEditTransaction = (tx: Transaction) => {
-    navigation.navigate("AddTransaction", { editingTransaction: tx, returnTo: "Transactions" });
+    navigation.navigate("AddTransaction", { editingTransaction: tx, returnTo: "Transactions", selectedMonth });
   };
 
   const filtered = useMemo(() => {

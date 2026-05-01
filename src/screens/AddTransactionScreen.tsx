@@ -20,18 +20,22 @@ const AddTransactionScreen = () => {
   const isDark = colorScheme === "dark";
 
   const handleNavigateBack = () => {
+    const selectedMonth = route.params?.selectedMonth;
     if (returnTo) {
       // If the return screen is inside the TabNavigator, use nested navigation
       if (["Overview", "Transactions", "Analysis", "Goals", "Settings_Tab"].includes(returnTo)) {
-        navigation.navigate("Main", { screen: returnTo });
+        navigation.navigate("Main", { 
+          screen: returnTo,
+          params: { selectedMonth }
+        });
       } else {
-        navigation.navigate(returnTo);
+        navigation.navigate(returnTo, { selectedMonth });
       }
     } else {
       if (navigation.canGoBack()) {
         navigation.goBack();
       } else {
-        navigation.navigate("Main", { screen: "Overview" });
+        navigation.navigate("Main", { screen: "Overview", params: { selectedMonth } });
       }
     }
   };

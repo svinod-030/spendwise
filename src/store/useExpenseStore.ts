@@ -246,13 +246,36 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       `UPDATE transactions SET ${sets.join(", ")} WHERE id = ?`,
       params
     );
-    await get().fetchTransactions();
+    // Optimistic Update for UI snappiness
+    set((state) => ({
+      transactions: state.transactions.map((t) => {
+        if (t.id === id) {
+          const updated = { ...t, ...transaction };
+
+          // If category changed, also update the category-related display fields
+          if (transaction.category_id !== undefined) {
+            const cat = state.categories.find(c => c.id === transaction.category_id);
+            if (cat) {
+              updated.category_name = cat.name;
+              updated.category_color = cat.color;
+              updated.category_icon = cat.icon;
+            }
+          }
+          return updated;
+        }
+        return t;
+      }),
+    }));
   },
 
   deleteTransaction: async (id) => {
     const db = await getDb();
     await db.runAsync("DELETE FROM transactions WHERE id = ?", [id]);
-    await get().fetchTransactions();
+
+    // Optimistic update for UI snappiness
+    set((state) => ({
+      transactions: state.transactions.filter((t) => t.id !== id),
+    }));
   },
 
   fetchCurrency: async () => {
@@ -960,20 +983,31 @@ async function ingestSmsMessages(
     return acc;
   }, {} as Record<string, number>);
 
-  // 2. Wrap in transaction for atomic speed
+  // 2. Pre-fetch existing hashes in batch to avoid N queries
+  const hashesToCheck = messages.map(m => buildHash(m.address, m.body, m.date));
+  const existingHashes = new Set<string>();
+
+  // Chunking to avoid SQLite parameter limit (999)
+  for (let i = 0; i < hashesToCheck.length; i += 500) {
+    const chunk = hashesToCheck.slice(i, i + 500);
+    const placeholders = chunk.map(() => "?").join(",");
+    const rows = await db.getAllAsync<{ hash: string }>(
+      `SELECT hash FROM messages WHERE hash IN (${placeholders})`,
+      chunk
+    );
+    rows.forEach(r => existingHashes.add(r.hash));
+  }
+
+  // 3. Wrap in transaction for atomic speed
   await db.withTransactionAsync(async () => {
     for (let i = 0; i < messages.length; i++) {
       const message = messages[i];
       if (onProgress && i % 5 === 0) {
         onProgress(i + 1, messages.length);
       }
-      // a. Fast hash check BEFORE expensive parsing
+      // a. Fast hash check using pre-fetched Set
       const hash = buildHash(message.address, message.body, message.date);
-      const existing = await db.getFirstAsync<{ id: number }>(
-        "SELECT id FROM messages WHERE hash = ?",
-        [hash]
-      );
-      if (existing) {
+      if (existingHashes.has(hash)) {
         skipped += 1;
         continue;
       }

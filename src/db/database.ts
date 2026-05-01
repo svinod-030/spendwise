@@ -20,7 +20,12 @@ export async function initDatabase() {
     const db = await getDb();
     await db.execAsync(`
       PRAGMA journal_mode = WAL;
+      PRAGMA synchronous = NORMAL;
+      PRAGMA cache_size = 10000;
+      PRAGMA temp_store = MEMORY;
+      PRAGMA mmap_size = 300000000;
       PRAGMA busy_timeout = 5000;
+      ANALYZE;
       CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -98,6 +103,7 @@ export async function initDatabase() {
     await db.execAsync(`
       CREATE INDEX IF NOT EXISTS idx_messages_hash ON messages (hash);
       CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
+      CREATE INDEX IF NOT EXISTS idx_transactions_date_desc ON transactions (date DESC);
       CREATE INDEX IF NOT EXISTS idx_transactions_category_date ON transactions (category_id, date);
       CREATE INDEX IF NOT EXISTS idx_transactions_merchant ON transactions (merchant);
       CREATE INDEX IF NOT EXISTS idx_transactions_kind ON transactions (kind);
