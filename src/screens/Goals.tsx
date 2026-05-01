@@ -87,19 +87,15 @@ const Goals = () => {
   const handleUpdateProgress = async () => {
     if (!selectedGoal || !updateValue) return;
     const amount = parseFloat(updateValue);
-    const newAmount = selectedGoal.current_amount + amount;
-
-    // 1. Update Goal
-    await updateGoal(selectedGoal.id, { current_amount: newAmount });
-
-    // 2. Create Transaction for tracking
+    
+    // Create Transaction for tracking (this will automatically update goal amount)
     await addTransaction({
       amount,
       type: "income",
       date: new Date().toISOString(),
       note: `Savings for ${selectedGoal.name}`,
       goal_id: selectedGoal.id,
-      category_id: 4,
+      category_id: 4, // Savings/Investment category
       kind: "income"
     });
 

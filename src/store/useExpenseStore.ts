@@ -224,11 +224,26 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       "INSERT INTO transactions (category_id, amount, type, kind, date, note, is_excluded, goal_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       [transaction.category_id, transaction.amount, transaction.type, kind, transaction.date, transaction.note, transaction.is_excluded || 0, transaction.goal_id || null]
     );
+
+    // Update goal amount if linked
+    if (transaction.goal_id) {
+      const goal = await db.getFirstAsync<Goal>("SELECT * FROM goals WHERE id = ?", [transaction.goal_id]);
+      if (goal) {
+        const newAmount = goal.current_amount + transaction.amount;
+        await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [newAmount, transaction.goal_id]);
+        await get().fetchGoals();
+      }
+    }
+
     await get().fetchTransactions();
   },
 
   updateTransaction: async (id, transaction) => {
     const db = await getDb();
+    
+    // Get old state for goal sync
+    const oldTx = await db.getFirstAsync<Transaction>("SELECT * FROM transactions WHERE id = ?", [id]);
+    
     const sets: string[] = [];
     const params: any[] = [];
 
@@ -249,6 +264,27 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       `UPDATE transactions SET ${sets.join(", ")} WHERE id = ?`,
       params
     );
+
+    // Sync Goal Amounts
+    const newTx = await db.getFirstAsync<Transaction>("SELECT * FROM transactions WHERE id = ?", [id]);
+    if (oldTx && newTx && (oldTx.goal_id !== newTx.goal_id || (newTx.goal_id && oldTx.amount !== newTx.amount))) {
+      // 1. Subtract from old goal
+      if (oldTx.goal_id) {
+        const oldGoal = await db.getFirstAsync<Goal>("SELECT * FROM goals WHERE id = ?", [oldTx.goal_id]);
+        if (oldGoal) {
+          await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [Math.max(0, oldGoal.current_amount - oldTx.amount), oldTx.goal_id]);
+        }
+      }
+      // 2. Add to new goal
+      if (newTx.goal_id) {
+        const newGoal = await db.getFirstAsync<Goal>("SELECT * FROM goals WHERE id = ?", [newTx.goal_id]);
+        if (newGoal) {
+          await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [newGoal.current_amount + newTx.amount, newTx.goal_id]);
+        }
+      }
+      await get().fetchGoals();
+    }
+
     // Optimistic Update for UI snappiness
     set((state) => ({
       transactions: state.transactions.map((t) => {
@@ -273,6 +309,18 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   deleteTransaction: async (id) => {
     const db = await getDb();
+    
+    // Check if linked to goal before deleting
+    const transaction = await db.getFirstAsync<Transaction>("SELECT * FROM transactions WHERE id = ?", [id]);
+    if (transaction && transaction.goal_id) {
+      const goal = await db.getFirstAsync<Goal>("SELECT * FROM goals WHERE id = ?", [transaction.goal_id]);
+      if (goal) {
+        const newAmount = Math.max(0, goal.current_amount - transaction.amount);
+        await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [newAmount, transaction.goal_id]);
+        await get().fetchGoals();
+      }
+    }
+
     await db.runAsync("DELETE FROM transactions WHERE id = ?", [id]);
 
     // Optimistic update for UI snappiness
@@ -861,6 +909,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     await db.runAsync("DELETE FROM goals WHERE id = ?", [id]);
     await get().fetchGoals();
   },
+
 
   getPredictiveAlert: async () => {
     const currentSpending = await get().getCurrentMonthExpenseTotal();

@@ -24,7 +24,7 @@ const AddTransactionScreen = () => {
     if (returnTo) {
       // If the return screen is inside the TabNavigator, use nested navigation
       if (["Overview", "Transactions", "Analysis", "Goals", "Settings_Tab"].includes(returnTo)) {
-        navigation.navigate("Main", { 
+        navigation.navigate("Main", {
           screen: returnTo,
           params: { selectedMonth }
         });
@@ -40,7 +40,17 @@ const AddTransactionScreen = () => {
     }
   };
 
-  const { addTransaction, updateTransaction, deleteTransaction, categories, fetchCategories, getCurrencySymbol, transactions, fetchMessageById } = useExpenseStore();
+  const {
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+    categories,
+    fetchCategories,
+    getCurrencySymbol,
+    transactions,
+    goals,
+    fetchGoals
+  } = useExpenseStore();
 
   const [type, setType] = useState<"expense" | "income">("expense");
   const [kind, setKind] = useState<string>("expense");
@@ -50,6 +60,7 @@ const AddTransactionScreen = () => {
   const [note, setNote] = useState("");
   const [isExcluded, setIsExcluded] = useState(false);
   const [parentId, setParentId] = useState<number | null>(null);
+  const [goalId, setGoalId] = useState<number | null>(null);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -64,7 +75,8 @@ const AddTransactionScreen = () => {
 
   useEffect(() => {
     fetchCategories();
-  }, [fetchCategories]);
+    fetchGoals();
+  }, [fetchCategories, fetchGoals]);
 
   useEffect(() => {
     if (editingTransaction) {
@@ -76,6 +88,7 @@ const AddTransactionScreen = () => {
       setNote(editingTransaction.note || "");
       setIsExcluded(editingTransaction.is_excluded === 1);
       setParentId(editingTransaction.parent_id || null);
+      setGoalId(editingTransaction.goal_id || null);
 
       if (editingTransaction.sms_body) {
         setSmsContent({ sender: editingTransaction.sms_sender || "", body: editingTransaction.sms_body });
@@ -91,6 +104,7 @@ const AddTransactionScreen = () => {
       setNote("");
       setIsExcluded(false);
       setParentId(null);
+      setGoalId(null);
       setSmsContent(null);
     }
   }, [editingTransaction]);
@@ -141,6 +155,7 @@ const AddTransactionScreen = () => {
       note,
       is_excluded: isExcluded ? 1 : 0,
       parent_id: parentId,
+      goal_id: type === "income" ? goalId : null,
     };
 
     if (editingTransaction) {
@@ -365,6 +380,46 @@ const AddTransactionScreen = () => {
                 />
               )}
             </View>
+
+            {/* Goal Selector (Income only) */}
+            {type === "income" && goals.length > 0 && (
+              <View className="mb-6">
+                <Text className="text-slate-500 text-xs font-bold mb-2 uppercase tracking-widest">Savings Goal</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
+                  <TouchableOpacity
+                    onPress={() => setGoalId(null)}
+                    className={`mr-3 px-4 py-3 rounded-2xl flex-row items-center border ${goalId === null
+                      ? 'bg-blue-600 border-blue-500 shadow-md shadow-blue-500/20'
+                      : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
+                      }`}
+                  >
+                    <Text className={`font-bold text-xs ${goalId === null ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                      None
+                    </Text>
+                  </TouchableOpacity>
+                  {goals.map((goal) => {
+                    const isSelected = goalId === goal.id;
+                    return (
+                      <TouchableOpacity
+                        key={goal.id}
+                        onPress={() => setGoalId(goal.id)}
+                        className={`mr-3 px-4 py-3 rounded-2xl flex-row items-center border ${isSelected
+                          ? 'bg-blue-600 border-blue-500 shadow-md shadow-blue-500/20'
+                          : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
+                          }`}
+                      >
+                        <View className="mr-2">
+                          <IconLoader name={goal.icon || "Target"} size={16} color={isSelected ? "white" : goal.color || "#64748b"} />
+                        </View>
+                        <Text className={`font-bold text-xs ${isSelected ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                          {goal.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
 
             {editingTransaction && (
               <>
