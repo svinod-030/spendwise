@@ -179,6 +179,7 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
             safeToSpend={safeToSpend}
             currencySymbol={getCurrencySymbol()}
             onSaveBudget={handleSaveBudget}
+            onPress={() => navigation.navigate("Analysis")}
           />
 
           <RecentActivity

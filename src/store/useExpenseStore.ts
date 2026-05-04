@@ -145,6 +145,9 @@ interface ExpenseState {
   monthlyExpense: number;
   monthlyIncome: number;
   fetchMonthlyStats: (month?: string) => Promise<void>;
+  autoTransferThreshold: number;
+  fetchAutoTransferThreshold: () => Promise<void>;
+  setAutoTransferThreshold: (amount: number) => Promise<void>;
 }
 
 
@@ -166,6 +169,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   goals: [],
   monthlyExpense: 0,
   monthlyIncome: 0,
+  autoTransferThreshold: 10000,
 
   getCurrencySymbol: (code?: string) => {
     const target = code || get().currency;
@@ -225,6 +229,18 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   addTransaction: async (transaction) => {
     const db = await getDb();
     const kind = transaction.kind ?? (transaction.type === "income" ? "income" : "expense");
+
+    // Duplicate check: same amount within 60 seconds
+    const txTimeSec = Math.floor(new Date(transaction.date).getTime() / 1000);
+    const existing = await db.getFirstAsync<{ id: number }>(
+      `SELECT id FROM transactions WHERE amount = ? AND ABS(strftime('%s', date) - ?) <= 60 LIMIT 1`,
+      [transaction.amount, txTimeSec]
+    );
+    if (existing) {
+      console.log('[addTransaction] Duplicate detected (same amount + time), skipping.');
+      return;
+    }
+
     await db.runAsync(
       "INSERT INTO transactions (category_id, amount, type, kind, date, note, is_excluded, goal_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       [transaction.category_id, transaction.amount, transaction.type, kind, transaction.date, transaction.note, transaction.is_excluded || 0, transaction.goal_id || null]
@@ -1054,6 +1070,19 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     );
     return rows;
   },
+
+  fetchAutoTransferThreshold: async () => {
+    const db = await getDb();
+    const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM app_meta WHERE key = 'auto_transfer_threshold'");
+    const threshold = row ? parseFloat(row.value) : 10000;
+    set({ autoTransferThreshold: threshold });
+  },
+
+  setAutoTransferThreshold: async (amount: number) => {
+    const db = await getDb();
+    await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('auto_transfer_threshold', ?)", [amount.toString()]);
+    set({ autoTransferThreshold: amount });
+  },
 }));
 
 
@@ -1141,7 +1170,21 @@ async function ingestSmsMessages(
           skipped += 1;
           continue;
         }
+
+        // Amount+time dedup: skip if same amount exists within 60 seconds
+        const amountRx = message.body.match(/(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
+        if (amountRx) {
+          const smsAmt = parseFloat(amountRx[1].replace(/,/g, ''));
+          if (smsAmt > 0) {
+            const amountTimeDup = await db.getFirstAsync<{ id: number }>(
+              `SELECT id FROM transactions WHERE amount = ? AND ABS(strftime('%s', date) - ?) <= 60 LIMIT 1`,
+              [smsAmt, approxTimeSec]
+            );
+            if (amountTimeDup) { skipped += 1; continue; }
+          }
+        }
       }
+
 
       // d. Parsing: Use sync version for bulk import to avoid bridge overhead
       const isBulk = messages.length > 100;
@@ -1173,7 +1216,13 @@ async function ingestSmsMessages(
 
       // e. Categorize and insert transaction
       const categoryId = getCategoryIdForMessage(categoryMap, message.body, parsed.merchant, parsed.type);
-      const kind = parsed.kind || (parsed.type === "income" ? "income" : "expense");
+
+      // Auto-transfer threshold: fetch from app_meta lazily
+      const thresholdRow = await db.getFirstAsync<{ value: string }>("SELECT value FROM app_meta WHERE key = 'auto_transfer_threshold'");
+      const autoTransferThreshold = thresholdRow ? parseFloat(thresholdRow.value) : 10000;
+      const kind = (parsed.amount >= autoTransferThreshold && (parsed.kind === 'expense' || !parsed.kind))
+        ? 'transfer'
+        : (parsed.kind || (parsed.type === "income" ? "income" : "expense"));
 
       const txResult = await db.runAsync(
         `INSERT INTO transactions (

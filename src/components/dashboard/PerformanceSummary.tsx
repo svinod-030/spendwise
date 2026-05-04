@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, TextInput } from "react-native";
-import { Calendar, Pencil, X, Check, TrendingUp, Landmark } from "lucide-react-native";
+import { Calendar, Pencil, X, Check, TrendingUp, Landmark, ChevronRight } from "lucide-react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { ComparisonBar } from "./ComparisonBar";
 
@@ -16,6 +16,7 @@ interface PerformanceSummaryProps {
   safeToSpend: number;
   currencySymbol: string;
   onSaveBudget: () => void;
+  onPress?: () => void;
 }
 
 export const PerformanceSummary = ({
@@ -29,15 +30,22 @@ export const PerformanceSummary = ({
   currentMonthIncome,
   safeToSpend,
   currencySymbol,
-  onSaveBudget
+  onSaveBudget,
+  onPress,
 }: PerformanceSummaryProps) => {
   return (
-    <View className="bg-white dark:bg-slate-900/60 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800 mb-6 shadow-sm dark:shadow-none">
+    <TouchableOpacity onPress={onPress} activeOpacity={onPress ? 0.75 : 1} className="bg-white dark:bg-slate-900/60 p-6 rounded-[32px] border border-slate-100 dark:border-slate-800 mb-6 shadow-sm dark:shadow-none">
       <View className="flex-row items-center justify-between mb-8">
         <View className="flex-row items-center">
           <Calendar size={16} color="#64748b" />
           <Text className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase tracking-wider ml-2">Performance Summary</Text>
         </View>
+        {onPress && !isEditingBudget && (
+          <View className="flex-row items-center">
+            <Text className="text-blue-500 dark:text-blue-400 text-[10px] font-bold mr-0.5">Breakdown</Text>
+            <ChevronRight size={12} color="#3b82f6" />
+          </View>
+        )}
         {isCurrentMonth && (
           <TouchableOpacity
             onPress={() => {
@@ -143,6 +151,6 @@ export const PerformanceSummary = ({
           </Text>
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 };

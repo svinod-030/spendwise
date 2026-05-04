@@ -46,7 +46,7 @@ if (commonCurrencies.length < 3) {
 const allCurrencyCodes = ALL_CURRENCY_CODES;
 
 const Settings = () => {
-  const { importTransactionsFromSms, currency, updateCurrency, fetchCurrency, clearAllData, getCurrencySymbol, categories, fetchCategories, addCategory, exportData, generateExportTxt } = useExpenseStore();
+  const { importTransactionsFromSms, currency, updateCurrency, fetchCurrency, clearAllData, getCurrencySymbol, categories, fetchCategories, addCategory, exportData, generateExportTxt, autoTransferThreshold, fetchAutoTransferThreshold, setAutoTransferThreshold } = useExpenseStore();
   const { theme, setTheme } = useThemeStore();
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [isCurrencyModalVisible, setIsCurrencyModalVisible] = React.useState(false);
@@ -56,10 +56,13 @@ const Settings = () => {
   const [exportContent, setExportContent] = React.useState("");
   const [copied, setCopied] = React.useState(false);
   const [isCategoriesExpanded, setIsCategoriesExpanded] = React.useState(false);
+  const [thresholdInput, setThresholdInput] = React.useState("");
+  const [isEditingThreshold, setIsEditingThreshold] = React.useState(false);
 
   useEffect(() => {
     fetchCurrency();
     fetchCategories();
+    fetchAutoTransferThreshold();
   }, []);
 
   const handleAddCategory = async () => {
@@ -199,14 +202,14 @@ const Settings = () => {
           <ChevronRight size={20} color="#64748b" />
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => setIsCategoriesExpanded(!isCategoriesExpanded)}
           className={`flex-row items-center justify-between mx-2 ${isCategoriesExpanded ? 'mb-3' : 'mb-8'}`}
         >
           <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Manage Categories</Text>
           {isCategoriesExpanded ? <ChevronDown size={16} color="#64748b" /> : <ChevronRight size={16} color="#64748b" />}
         </TouchableOpacity>
-        
+
         {isCategoriesExpanded && (
           <View className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 mb-8 shadow-sm dark:shadow-none">
             <View className="flex-row items-center mb-6">
@@ -235,6 +238,44 @@ const Settings = () => {
 
         <Text className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mb-3 ml-2">Data Management</Text>
 
+        {/* Auto-Transfer Threshold */}
+        <TouchableOpacity
+          onPress={() => { setThresholdInput(autoTransferThreshold.toString()); setIsEditingThreshold(!isEditingThreshold); }}
+          className="flex-row items-center bg-amber-500/5 dark:bg-amber-500/10 p-4 rounded-2xl border border-amber-500/10 dark:border-amber-500/20 mb-3"
+        >
+          <View className="w-10 h-10 bg-amber-500/10 dark:bg-amber-500/20 rounded-xl items-center justify-center">
+            <TrendingUp size={20} color="#f59e0b" />
+          </View>
+          <View className="ml-3.5 flex-1">
+            <Text className="text-slate-900 dark:text-white font-bold text-base">Auto-Transfer Threshold</Text>
+            <Text className="text-slate-500 dark:text-slate-400 text-xs">Mark as transfer if amount ≥ {getCurrencySymbol()}{autoTransferThreshold.toLocaleString()}</Text>
+          </View>
+          <ChevronRight size={18} color="#64748b" />
+        </TouchableOpacity>
+
+        {isEditingThreshold && (
+          <View className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-amber-500/20 mb-3 flex-row items-center gap-3">
+            <TextInput
+              value={thresholdInput}
+              onChangeText={setThresholdInput}
+              keyboardType="decimal-pad"
+              placeholder="e.g. 10000"
+              placeholderTextColor="#94a3b8"
+              className="flex-1 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl px-4 py-3 border border-slate-200 dark:border-slate-700 font-bold"
+            />
+            <TouchableOpacity
+              onPress={async () => {
+                const val = parseFloat(thresholdInput);
+                if (!Number.isFinite(val) || val <= 0) { Alert.alert("Invalid", "Enter a positive number."); return; }
+                await setAutoTransferThreshold(val);
+                setIsEditingThreshold(false);
+              }}
+              className="bg-amber-500 rounded-xl px-4 py-3"
+            >
+              <Text className="text-white font-bold">Save</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         <TouchableOpacity
           onPress={handleSmsImport}
           disabled={isSyncing}
@@ -249,18 +290,22 @@ const Settings = () => {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={exportData}
-          className="flex-row items-center bg-blue-500/5 dark:bg-blue-500/10 p-4 rounded-2xl border border-blue-500/10 dark:border-blue-500/20 mb-3"
-        >
-          <View className="w-10 h-10 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl items-center justify-center">
-            <Download size={20} color="#3b82f6" />
-          </View>
-          <View className="ml-3.5 flex-1">
-            <Text className="text-slate-900 dark:text-white font-bold text-base">Backup Data</Text>
-            <Text className="text-slate-500 dark:text-slate-400 text-xs">Export all records for backup</Text>
-          </View>
-        </TouchableOpacity>
+        {
+          /*
+          <TouchableOpacity
+            onPress={exportData}
+            className="flex-row items-center bg-blue-500/5 dark:bg-blue-500/10 p-4 rounded-2xl border border-blue-500/10 dark:border-blue-500/20 mb-3"
+          >
+            <View className="w-10 h-10 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl items-center justify-center">
+              <Download size={20} color="#3b82f6" />
+            </View>
+            <View className="ml-3.5 flex-1">
+              <Text className="text-slate-900 dark:text-white font-bold text-base">Backup Data</Text>
+              <Text className="text-slate-500 dark:text-slate-400 text-xs">Export all records for backup</Text>
+            </View>
+          </TouchableOpacity>
+          */
+        }
 
         <TouchableOpacity
           onPress={handleClearData}
