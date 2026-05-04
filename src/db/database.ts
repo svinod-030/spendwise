@@ -89,6 +89,7 @@ export async function initDatabase() {
     await ensureColumn(db, "transactions", "is_excluded", "INTEGER DEFAULT 0");
     await ensureColumn(db, "transactions", "parent_id", "INTEGER");
     await ensureColumn(db, "transactions", "goal_id", "INTEGER");
+    await ensureColumn(db, "transactions", "goal_percent", "REAL DEFAULT 100");
     await ensureColumn(db, "transactions", "sms_body", "TEXT");
     await ensureColumn(db, "transactions", "sms_sender", "TEXT");
     await ensureColumn(db, "transactions", "sms_hash", "TEXT");

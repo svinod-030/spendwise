@@ -61,6 +61,7 @@ const AddTransactionScreen = () => {
   const [isExcluded, setIsExcluded] = useState(false);
   const [parentId, setParentId] = useState<number | null>(null);
   const [goalId, setGoalId] = useState<number | null>(null);
+  const [goalPercent, setGoalPercent] = useState(100);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -89,6 +90,7 @@ const AddTransactionScreen = () => {
       setIsExcluded(editingTransaction.is_excluded === 1);
       setParentId(editingTransaction.parent_id || null);
       setGoalId(editingTransaction.goal_id || null);
+      setGoalPercent(editingTransaction.goal_percent ?? 100);
 
       if (editingTransaction.sms_body) {
         setSmsContent({ sender: editingTransaction.sms_sender || "", body: editingTransaction.sms_body });
@@ -105,6 +107,7 @@ const AddTransactionScreen = () => {
       setIsExcluded(false);
       setParentId(null);
       setGoalId(null);
+      setGoalPercent(100);
       setSmsContent(null);
     }
   }, [editingTransaction]);
@@ -156,6 +159,7 @@ const AddTransactionScreen = () => {
       is_excluded: isExcluded ? 1 : 0,
       parent_id: parentId,
       goal_id: type === "income" ? goalId : null,
+      goal_percent: type === "income" && goalId ? goalPercent : 100,
     };
 
     if (editingTransaction) {
@@ -387,7 +391,7 @@ const AddTransactionScreen = () => {
                 <Text className="text-slate-500 text-xs font-bold mb-2 uppercase tracking-widest">Savings Goal</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
                   <TouchableOpacity
-                    onPress={() => setGoalId(null)}
+                    onPress={() => { setGoalId(null); setGoalPercent(100); }}
                     className={`mr-3 px-4 py-3 rounded-2xl flex-row items-center border ${goalId === null
                       ? 'bg-blue-600 border-blue-500 shadow-md shadow-blue-500/20'
                       : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none'
@@ -418,6 +422,53 @@ const AddTransactionScreen = () => {
                     );
                   })}
                 </ScrollView>
+
+                {/* Percentage Picker — shown only when a goal is selected */}
+                {goalId !== null && (
+                  <View className="mt-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-4">
+                    <View className="flex-row items-center justify-between mb-3">
+                      <Text className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Allocation</Text>
+                      <Text className="text-blue-600 font-black text-base">
+                        {getCurrencySymbol()}{amount ? (Number(amount) * goalPercent / 100).toFixed(2) : "0.00"}
+                      </Text>
+                    </View>
+
+                    {/* Quick-pick buttons */}
+                    <View className="flex-row gap-2 mb-3">
+                      {[25, 50, 75, 100].map((pct) => (
+                        <TouchableOpacity
+                          key={pct}
+                          onPress={() => setGoalPercent(pct)}
+                          className={`flex-1 py-2 rounded-xl items-center border ${
+                            goalPercent === pct
+                              ? 'bg-blue-600 border-blue-500'
+                              : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          <Text className={`font-black text-xs ${goalPercent === pct ? 'text-white' : 'text-slate-500'}`}>
+                            {pct}%
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Custom percentage input */}
+                    <View className="flex-row items-center bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 px-3">
+                      <TextInput
+                        value={goalPercent.toString()}
+                        onChangeText={(v) => {
+                          const n = parseInt(v);
+                          if (!isNaN(n)) setGoalPercent(Math.min(100, Math.max(1, n)));
+                          else if (v === '') setGoalPercent(1);
+                        }}
+                        keyboardType="number-pad"
+                        className="flex-1 text-slate-900 dark:text-white font-bold py-2.5 text-sm"
+                        placeholderTextColor="#94a3b8"
+                      />
+                      <Text className="text-slate-400 font-black text-sm">%</Text>
+                    </View>
+                  </View>
+                )}
               </View>
             )}
 

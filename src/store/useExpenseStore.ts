@@ -35,6 +35,7 @@ export interface Transaction {
   is_excluded?: number;
   parent_id?: number | null;
   goal_id?: number | null;
+  goal_percent?: number | null;
 }
 
 
@@ -242,15 +243,16 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     }
 
     await db.runAsync(
-      "INSERT INTO transactions (category_id, amount, type, kind, date, note, is_excluded, goal_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      [transaction.category_id, transaction.amount, transaction.type, kind, transaction.date, transaction.note, transaction.is_excluded || 0, transaction.goal_id || null]
+      "INSERT INTO transactions (category_id, amount, type, kind, date, note, is_excluded, goal_id, goal_percent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [transaction.category_id, transaction.amount, transaction.type, kind, transaction.date, transaction.note, transaction.is_excluded || 0, transaction.goal_id || null, transaction.goal_percent ?? 100]
     );
 
-    // Update goal amount if linked
+    // Update goal amount if linked (respects goal_percent)
     if (transaction.goal_id) {
       const goal = await db.getFirstAsync<Goal>("SELECT * FROM goals WHERE id = ?", [transaction.goal_id]);
       if (goal) {
-        const newAmount = goal.current_amount + transaction.amount;
+        const contribution = transaction.amount * ((transaction.goal_percent ?? 100) / 100);
+        const newAmount = goal.current_amount + contribution;
         await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [newAmount, transaction.goal_id]);
         await get().fetchGoals();
       }
@@ -277,6 +279,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     if (transaction.is_excluded !== undefined) { sets.push("is_excluded = ?"); params.push(transaction.is_excluded); }
     if (transaction.parent_id !== undefined) { sets.push("parent_id = ?"); params.push(transaction.parent_id); }
     if (transaction.goal_id !== undefined) { sets.push("goal_id = ?"); params.push(transaction.goal_id); }
+    if (transaction.goal_percent !== undefined) { sets.push("goal_percent = ?"); params.push(transaction.goal_percent); }
 
     if (sets.length === 0) return;
 
@@ -288,19 +291,21 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
     // Sync Goal Amounts
     const newTx = await db.getFirstAsync<Transaction>("SELECT * FROM transactions WHERE id = ?", [id]);
-    if (oldTx && newTx && (oldTx.goal_id !== newTx.goal_id || (newTx.goal_id && oldTx.amount !== newTx.amount))) {
-      // 1. Subtract from old goal
+    if (oldTx && newTx && (oldTx.goal_id !== newTx.goal_id || newTx.goal_id || oldTx.goal_percent !== newTx.goal_percent)) {
+      // 1. Subtract old contribution from old goal
       if (oldTx.goal_id) {
         const oldGoal = await db.getFirstAsync<Goal>("SELECT * FROM goals WHERE id = ?", [oldTx.goal_id]);
         if (oldGoal) {
-          await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [Math.max(0, oldGoal.current_amount - oldTx.amount), oldTx.goal_id]);
+          const oldContribution = oldTx.amount * ((oldTx.goal_percent ?? 100) / 100);
+          await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [Math.max(0, oldGoal.current_amount - oldContribution), oldTx.goal_id]);
         }
       }
-      // 2. Add to new goal
+      // 2. Add new contribution to new goal
       if (newTx.goal_id) {
         const newGoal = await db.getFirstAsync<Goal>("SELECT * FROM goals WHERE id = ?", [newTx.goal_id]);
         if (newGoal) {
-          await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [newGoal.current_amount + newTx.amount, newTx.goal_id]);
+          const newContribution = newTx.amount * ((newTx.goal_percent ?? 100) / 100);
+          await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [newGoal.current_amount + newContribution, newTx.goal_id]);
         }
       }
       await get().fetchGoals();
@@ -336,7 +341,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     if (transaction && transaction.goal_id) {
       const goal = await db.getFirstAsync<Goal>("SELECT * FROM goals WHERE id = ?", [transaction.goal_id]);
       if (goal) {
-        const newAmount = Math.max(0, goal.current_amount - transaction.amount);
+        const contribution = transaction.amount * ((transaction.goal_percent ?? 100) / 100);
+        const newAmount = Math.max(0, goal.current_amount - contribution);
         await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [newAmount, transaction.goal_id]);
         await get().fetchGoals();
       }
