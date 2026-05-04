@@ -28,6 +28,8 @@ const Goals = () => {
   const [goalTransactions, setGoalTransactions] = useState<any[]>([]);
 
   const [incomeTransactions, setIncomeTransactions] = useState<any[]>([]);
+  const [linkingTx, setLinkingTx] = useState<number | null>(null);
+  const [linkingPercent, setLinkingPercent] = useState(100);
 
   // Form state
   const [name, setName] = useState("");
@@ -105,8 +107,10 @@ const Goals = () => {
 
   const handleLinkIncome = async (transactionId: number) => {
     if (!selectedGoal) return;
-    await linkTransactionToGoal(transactionId, selectedGoal.id);
+    await linkTransactionToGoal(transactionId, selectedGoal.id, linkingPercent);
     setIsUpdateModalVisible(false);
+    setLinkingTx(null);
+    setLinkingPercent(100);
   };
 
   const handleOpenGoalDetails = async (goal: Goal) => {
@@ -293,7 +297,7 @@ const Goals = () => {
                 <Text className="text-2xl font-black text-slate-900 dark:text-white">Add Savings</Text>
                 <Text className="text-slate-500 dark:text-slate-400 text-sm">{selectedGoal?.name}</Text>
               </View>
-              <TouchableOpacity onPress={() => setIsUpdateModalVisible(false)} className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full">
+              <TouchableOpacity onPress={() => { setIsUpdateModalVisible(false); setLinkingTx(null); }} className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full">
                 <X size={20} color="#94a3b8" />
               </TouchableOpacity>
             </View>
@@ -337,36 +341,68 @@ const Goals = () => {
                     <Text className="text-slate-400 text-center text-xs font-medium">No unlinked income found.</Text>
                   </View>
                 ) : (
-                  incomeTransactions.slice(0, 5).map((tx) => (
-                    <TouchableOpacity
-                      key={tx.id}
-                      onPress={() => handleLinkIncome(tx.id)}
-                      className="bg-white dark:bg-slate-800 p-4 rounded-2xl mb-3 border border-slate-100 dark:border-slate-700 flex-row justify-between items-center shadow-sm"
-                    >
-                      <View className="flex-row items-center flex-1 mr-4">
-                        <View
-                          className="w-10 h-10 rounded-xl items-center justify-center mr-3 border border-slate-200 dark:border-slate-700"
-                          style={{ backgroundColor: `${tx.category_color ?? "#3b82f6"}15` }}
+                  incomeTransactions.slice(0, 5).map((tx) => {
+                    const isSelected = linkingTx === tx.id;
+                    return (
+                      <View key={tx.id} className="mb-3">
+                        <TouchableOpacity
+                          onPress={() => setLinkingTx(isSelected ? null : tx.id)}
+                          className={`bg-white dark:bg-slate-800 p-4 rounded-2xl border ${isSelected ? 'border-indigo-500 shadow-md' : 'border-slate-100 dark:border-slate-700 shadow-sm'} flex-row justify-between items-center`}
                         >
-                          <IconLoader name={getTransactionDisplay(tx).icon} size={16} color={tx.category_color ?? "#3b82f6"} />
-                        </View>
-                        <View className="flex-1">
-                          <Text className="text-slate-900 dark:text-white font-bold text-sm" numberOfLines={1}>
-                            {tx.note || tx.category_name || "Income"}
-                          </Text>
-                          <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
-                            {new Date(tx.date).toLocaleDateString()}
-                          </Text>
-                        </View>
+                          <View className="flex-row items-center flex-1 mr-4">
+                            <View
+                              className="w-10 h-10 rounded-xl items-center justify-center mr-3 border border-slate-200 dark:border-slate-700"
+                              style={{ backgroundColor: `${tx.category_color ?? "#3b82f6"}15` }}
+                            >
+                              <IconLoader name={getTransactionDisplay(tx).icon} size={16} color={tx.category_color ?? "#3b82f6"} />
+                            </View>
+                            <View className="flex-1">
+                              <Text className="text-slate-900 dark:text-white font-bold text-sm" numberOfLines={1}>
+                                {tx.note || tx.category_name || "Income"}
+                              </Text>
+                              <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                                {new Date(tx.date).toLocaleDateString()}
+                              </Text>
+                            </View>
+                          </View>
+                          <View className="flex-row items-center bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 rounded-xl">
+                            <Text className="text-emerald-600 dark:text-emerald-400 font-black text-sm mr-2">
+                              +{getCurrencySymbol()}{tx.amount.toFixed(0)}
+                            </Text>
+                            <Plus size={14} color="#10b981" />
+                          </View>
+                        </TouchableOpacity>
+
+                        {isSelected && (
+                          <Animated.View entering={FadeInRight} className="mt-2 p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                            <View className="flex-row justify-between items-center mb-3">
+                              <Text className="text-indigo-600 dark:text-indigo-400 font-bold text-[10px] uppercase tracking-widest">Select Allocation</Text>
+                              <Text className="text-indigo-700 dark:text-indigo-300 font-black">
+                                {getCurrencySymbol()}{(tx.amount * linkingPercent / 100).toFixed(0)}
+                              </Text>
+                            </View>
+                            <View className="flex-row gap-2 mb-4">
+                              {[25, 50, 75, 100].map(p => (
+                                <TouchableOpacity
+                                  key={p}
+                                  onPress={() => setLinkingPercent(p)}
+                                  className={`flex-1 py-2 rounded-xl items-center border ${linkingPercent === p ? 'bg-indigo-600 border-indigo-500' : 'bg-white dark:bg-slate-800 border-indigo-100 dark:border-indigo-900/30'}`}
+                                >
+                                  <Text className={`font-bold text-xs ${linkingPercent === p ? 'text-white' : 'text-indigo-500'}`}>{p}%</Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                            <TouchableOpacity
+                              onPress={() => handleLinkIncome(tx.id)}
+                              className="bg-indigo-600 py-3 rounded-xl items-center shadow-md shadow-indigo-200"
+                            >
+                              <Text className="text-white font-black text-sm uppercase tracking-widest">Link This Portion</Text>
+                            </TouchableOpacity>
+                          </Animated.View>
+                        )}
                       </View>
-                      <View className="flex-row items-center bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 rounded-xl">
-                        <Text className="text-emerald-600 dark:text-emerald-400 font-black text-sm mr-2">
-                          +{getCurrencySymbol()}{tx.amount.toFixed(0)}
-                        </Text>
-                        <Plus size={14} color="#10b981" />
-                      </View>
-                    </TouchableOpacity>
-                  ))
+                    );
+                  })
                 )}
                 {incomeTransactions.length > 5 && (
                   <Text className="text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2">
@@ -400,32 +436,44 @@ const Goals = () => {
                   <Text className="text-slate-400 text-center font-medium">No savings added yet.</Text>
                 </View>
               ) : (
-                goalTransactions.map((tx, idx) => (
-                  <View
-                    key={tx.id}
-                    className={`flex-row items-center justify-between py-5 ${idx !== goalTransactions.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}
-                  >
-                    <View className="flex-row items-center flex-1">
-                      <View
-                        className="w-10 h-10 rounded-xl items-center justify-center mr-4 border border-slate-200 dark:border-slate-700"
-                        style={{ backgroundColor: `${tx.category_color ?? "#10b981"}15` }}
-                      >
-                        <IconLoader name={getTransactionDisplay(tx).icon} size={18} color={tx.category_color ?? "#10b981"} />
+                goalTransactions.map((tx, idx) => {
+                  const pct = tx.goal_percent ?? 100;
+                  const contribution = tx.amount * (pct / 100);
+                  const isPartial = pct !== 100;
+                  return (
+                    <View
+                      key={tx.id}
+                      className={`flex-row items-center justify-between py-5 ${idx !== goalTransactions.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}
+                    >
+                      <View className="flex-row items-center flex-1">
+                        <View
+                          className="w-10 h-10 rounded-xl items-center justify-center mr-4 border border-slate-200 dark:border-slate-700"
+                          style={{ backgroundColor: `${tx.category_color ?? "#10b981"}15` }}
+                        >
+                          <IconLoader name={getTransactionDisplay(tx).icon} size={18} color={tx.category_color ?? "#10b981"} />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-slate-900 dark:text-white font-bold text-base" numberOfLines={1}>
+                            {tx.note || "Savings Deposit"}
+                          </Text>
+                          <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                            {new Date(tx.date).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })} • {new Date(tx.date).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
+                          </Text>
+                        </View>
                       </View>
-                      <View>
-                        <Text className="text-slate-900 dark:text-white font-bold text-base">
-                          {tx.note || "Savings Deposit"}
+                      <View className="items-end ml-3">
+                        <Text className="text-emerald-600 dark:text-emerald-400 font-black text-base">
+                          +{getCurrencySymbol()}{contribution.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                         </Text>
-                        <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
-                          {new Date(tx.date).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })} • {new Date(tx.date).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
-                        </Text>
+                        {isPartial && (
+                          <Text className="text-slate-400 text-[10px] font-bold mt-0.5">
+                            {pct}% of {getCurrencySymbol()}{tx.amount.toLocaleString()}
+                          </Text>
+                        )}
                       </View>
                     </View>
-                    <Text className="text-emerald-600 dark:text-emerald-400 font-black text-lg">
-                      +{getCurrencySymbol()}{tx.amount.toLocaleString()}
-                    </Text>
-                  </View>
-                ))
+                  );
+                })
               )}
               <View className="h-10" />
             </ScrollView>

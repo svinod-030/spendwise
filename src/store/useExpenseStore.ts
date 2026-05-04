@@ -140,7 +140,7 @@ interface ExpenseState {
   deleteGoal: (id: number) => Promise<void>;
   getPredictiveAlert: () => Promise<PredictiveAlert | null>;
   getUnlinkedIncomes: () => Promise<Transaction[]>;
-  linkTransactionToGoal: (transactionId: number, goalId: number) => Promise<void>;
+  linkTransactionToGoal: (transactionId: number, goalId: number, percent?: number) => Promise<void>;
   getGoalTransactions: (goalId: number) => Promise<Transaction[]>;
   syncProgress: { current: number; total: number; message?: string } | null;
   monthlyExpense: number;
@@ -1061,18 +1061,24 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     return rows;
   },
 
-  linkTransactionToGoal: async (transactionId, goalId) => {
+  linkTransactionToGoal: async (transactionId, goalId, percent) => {
     const db = await getDb();
     const transaction = await db.getFirstAsync<Transaction>("SELECT * FROM transactions WHERE id = ?", [transactionId]);
     const goal = await db.getFirstAsync<Goal>("SELECT * FROM goals WHERE id = ?", [goalId]);
 
     if (!transaction || !goal) return;
 
-    // 1. Link transaction
-    await db.runAsync("UPDATE transactions SET goal_id = ? WHERE id = ?", [goalId, transactionId]);
+    // 1. Link transaction and update percent if provided
+    if (percent !== undefined) {
+      await db.runAsync("UPDATE transactions SET goal_id = ?, goal_percent = ? WHERE id = ?", [goalId, percent, transactionId]);
+    } else {
+      await db.runAsync("UPDATE transactions SET goal_id = ? WHERE id = ?", [goalId, transactionId]);
+    }
 
-    // 2. Update goal amount
-    const newAmount = goal.current_amount + transaction.amount;
+    // 2. Update goal amount (respects provided percent or existing goal_percent, defaults to 100)
+    const pct = percent ?? transaction.goal_percent ?? 100;
+    const contribution = transaction.amount * (pct / 100);
+    const newAmount = goal.current_amount + contribution;
     await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [newAmount, goalId]);
 
     await Promise.all([
