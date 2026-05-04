@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { Check, Landmark, ChevronRight } from "lucide-react-native";
+import { Check, Landmark, ChevronRight, Repeat } from "lucide-react-native";
 import { Bill } from "../../store/useExpenseStore";
 
 interface BillsSectionProps {
@@ -58,17 +58,26 @@ export const BillsSection = ({
                 activeOpacity={0.7}
                 className="flex-row items-center flex-1"
               >
-                <View className={`w-10 h-10 rounded-xl items-center justify-center ${bill.status === "paid" ? "bg-emerald-500/10" : "bg-slate-100 dark:bg-slate-800"}`}>
+                <View className={`w-10 h-10 rounded-xl items-center justify-center ${bill.status === "paid" ? "bg-emerald-500/10" : bill.is_recurring ? "bg-violet-500/10" : "bg-slate-100 dark:bg-slate-800"}`}>
                   {bill.status === "paid" ? (
                     <Check size={18} color="#10b981" />
+                  ) : bill.is_recurring ? (
+                    <Repeat size={18} color="#8b5cf6" />
                   ) : (
                     <Landmark size={18} color="#64748b" />
                   )}
                 </View>
                 <View className="ml-3 flex-1">
-                  <Text className={`text-slate-900 dark:text-white font-bold text-sm ${bill.status === "paid" ? "opacity-50" : ""}`} numberOfLines={1}>
-                    {bill.sender || "Bill Payment"}
-                  </Text>
+                  <View className="flex-row items-center">
+                    <Text className={`text-slate-900 dark:text-white font-bold text-sm ${bill.status === "paid" ? "opacity-50" : ""}`} numberOfLines={1}>
+                      {bill.sender || "Bill Payment"}
+                    </Text>
+                    {bill.is_recurring === 1 && (
+                      <View className="ml-2 bg-violet-100 dark:bg-violet-900/40 px-1.5 py-0.5 rounded-md">
+                        <Text className="text-[7px] text-violet-600 dark:text-violet-400 font-black uppercase tracking-widest">Recurring</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest mt-0.5">
                     {bill.status === "paid" ? "Paid on time" : `Due: ${new Date(bill.due_date).toLocaleDateString()}`}
                   </Text>

@@ -105,6 +105,7 @@ export default function App() {
           return;
         }
         await store.runInitialSmsImportIfNeeded();
+        await store.fetchBills();
       }
       setInitialSyncDone(true);
     }

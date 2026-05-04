@@ -95,6 +95,7 @@ export async function initDatabase() {
     await ensureColumn(db, "transactions", "sms_hash", "TEXT");
     await ensureColumn(db, "bills", "transaction_id", "INTEGER");
     await ensureColumn(db, "bills", "category_id", "INTEGER");
+    await ensureColumn(db, "bills", "is_recurring", "INTEGER DEFAULT 0");
 
     // Create indexes (after columns are ensured)
     await db.execAsync(`

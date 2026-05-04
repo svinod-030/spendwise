@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { getDb } from "../db/database";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import { parseSmsForTransaction, parseSmsForBill, buildHash, parseSmsForTransactionSync, parseSmsForBillSync } from "../utils/smsParser";
+import { parseSmsForTransaction, parseSmsForBill, buildHash, parseSmsForTransactionSync, parseSmsForBillSync, showTransactionNotification, showBillNotification } from "../utils/smsParser";
 import { checkSmsPermission, readInboxMessages, requestSmsPermission } from "../utils/smsReader";
 import { SmsMessage, TransactionKind } from "../types";
 
@@ -74,6 +74,7 @@ export interface Bill {
   status: "unpaid" | "paid";
   category_id?: number | null;
   transaction_id?: number | null;
+  is_recurring?: number;
 }
 
 export interface Goal {
@@ -95,6 +96,7 @@ export interface PredictiveAlert {
 
 
 interface ExpenseState {
+  syncRecurringBills: () => Promise<boolean>;
   transactions: Transaction[];
   categories: Category[];
   budgets: Budget[];
@@ -142,6 +144,7 @@ interface ExpenseState {
   getUnlinkedIncomes: () => Promise<Transaction[]>;
   linkTransactionToGoal: (transactionId: number, goalId: number, percent?: number) => Promise<void>;
   getGoalTransactions: (goalId: number) => Promise<Transaction[]>;
+  identifyRecurringPayments: () => Promise<Transaction[]>;
   syncProgress: { current: number; total: number; message?: string } | null;
   monthlyExpense: number;
   monthlyIncome: number;
@@ -1111,6 +1114,73 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const db = await getDb();
     await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('auto_transfer_threshold', ?)", [amount.toString()]);
     set({ autoTransferThreshold: amount });
+  },
+
+  identifyRecurringPayments: async () => {
+    const db = await getDb();
+    // Same amount on same day of month in past 3 months
+    const rows = await db.getAllAsync<Transaction>(`
+      WITH recent_txs AS (
+        SELECT *, strftime('%d', date) as day_of_month, strftime('%Y-%m', date) as month
+        FROM transactions
+        WHERE kind = 'expense' AND is_excluded = 0
+        AND date >= date('now', '-3 months')
+      )
+      SELECT t1.* 
+      FROM recent_txs t1
+      WHERE EXISTS (
+        SELECT 1 FROM recent_txs t2 
+        WHERE t2.amount = t1.amount 
+        AND t2.day_of_month = t1.day_of_month 
+        AND t2.month != t1.month
+      )
+      ORDER BY t1.amount DESC, t1.date DESC
+    `);
+    return rows;
+  },
+
+  syncRecurringBills: async () => {
+    const db = await getDb();
+    const recurring = await get().identifyRecurringPayments();
+    if (!recurring || recurring.length === 0) return false;
+
+    // Deduplicate recurring patterns
+    const patterns = recurring.reduce((acc: any[], curr) => {
+      const day = new Date(curr.date).getDate();
+      if (!acc.find(p => p.merchant === curr.merchant && p.amount === curr.amount && p.day === day)) {
+        acc.push({ merchant: curr.merchant, amount: curr.amount, day, category_id: curr.category_id });
+      }
+      return acc;
+    }, []);
+
+    const now = new Date();
+    const currentMonth = now.toISOString().substring(0, 7); // YYYY-MM
+    let addedAny = false;
+
+    for (const p of patterns) {
+      // Check if a bill or transaction already exists for this merchant/amount this month
+      const existingBill = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM bills WHERE sender = ? AND amount = ? AND strftime('%Y-%m', due_date) = ?",
+        [p.merchant, p.amount, currentMonth]
+      );
+
+      const existingTx = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM transactions WHERE merchant = ? AND amount = ? AND strftime('%Y-%m', date) = ? AND is_excluded = 0",
+        [p.merchant, p.amount, currentMonth]
+      );
+
+      if (!existingBill && !existingTx) {
+        // Create a predicted bill date
+        const dueDate = new Date(now.getFullYear(), now.getMonth(), p.day).toISOString();
+        await db.runAsync(
+          "INSERT INTO bills (sender, amount, due_date, status, is_recurring, category_id) VALUES (?, ?, ?, 'unpaid', 1, ?)",
+          [p.merchant, p.amount, dueDate, p.category_id]
+        );
+        addedAny = true;
+      }
+    }
+
+    return addedAny;
   },
 }));
 

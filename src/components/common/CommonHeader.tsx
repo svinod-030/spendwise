@@ -1,9 +1,10 @@
-import { Landmark, RefreshCw } from "lucide-react-native";
+import { Landmark, RefreshCw, Mail } from "lucide-react-native";
 import { useExpenseStore } from "../../store/useExpenseStore";
 import Animated, { useAnimatedStyle, withRepeat, withTiming, useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, Text } from "react-native";
+import { View, Text, TouchableOpacity, Linking } from "react-native";
 import { useEffect } from "react";
+import packageJson from "../../../package.json";
 
 export const CommonHeader = () => {
   const isSyncing = useExpenseStore((state) => state.isSyncing);
@@ -60,14 +61,23 @@ export const CommonHeader = () => {
             <Text className="text-slate-900 dark:text-white text-2xl font-black tracking-tighter">SpendWise</Text>
           </View>
 
-          {isSyncing && (
-            <View className="flex-row items-center bg-blue-50 dark:bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-500/20">
-              <Animated.View style={animatedStyle}>
-                <RefreshCw size={12} color="#2563eb" />
-              </Animated.View>
-              <Text className="text-blue-600 dark:text-blue-400 text-[10px] font-bold ml-2 uppercase tracking-wide">Syncing</Text>
-            </View>
-          )}
+          <View className="flex-row items-center">
+            <TouchableOpacity 
+              onPress={() => Linking.openURL(`mailto:vinod.sigadana.labs@gmail.com?subject=SpendWise Feedback - v${packageJson.version}`)}
+              className="p-2 mr-2 bg-slate-100 dark:bg-slate-900 rounded-full"
+            >
+              <Mail size={18} color="#64748b" />
+            </TouchableOpacity>
+
+            {isSyncing && (
+              <View className="flex-row items-center bg-blue-50 dark:bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-500/20">
+                <Animated.View style={animatedStyle}>
+                  <RefreshCw size={12} color="#2563eb" />
+                </Animated.View>
+                <Text className="text-blue-600 dark:text-blue-400 text-[10px] font-bold ml-2 uppercase tracking-wide">Syncing</Text>
+              </View>
+            )}
+          </View>
         </View>
         <View className="h-0.5 w-full bg-transparent overflow-hidden">
           <Animated.View 

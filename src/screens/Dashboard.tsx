@@ -114,11 +114,12 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
         fetchTransactions(10, selectedMonth),
         fetchBudgets(),
         fetchBills(selectedMonth),
-        fetchMonthlyStats(selectedMonth)
+        fetchMonthlyStats(selectedMonth),
+        fetchCurrency()
       ]);
     };
     if (isFocused) loadAll();
-  }, [fetchTransactions, fetchBudgets, fetchBills, fetchMonthlyStats, isFocused, selectedMonth]);
+  }, [fetchTransactions, fetchBudgets, fetchBills, fetchMonthlyStats, fetchCurrency, isFocused, selectedMonth]);
 
 
   const overallMonthlyBudget = useMemo(() => {
