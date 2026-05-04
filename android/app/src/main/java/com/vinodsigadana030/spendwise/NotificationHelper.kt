@@ -94,4 +94,59 @@ object NotificationHelper {
         val notificationId = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
         manager.notify(notificationId, notification)
     }
+
+    fun postBillNotification(
+        context: Context,
+        amount: Double,
+        dueDate: String?,
+        sender: String
+    ) {
+        ensureChannel(context)
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val formattedAmount = "₹%.2f".format(amount)
+        val title = "📄 Bill Reminder: $formattedAmount"
+        
+        // Pretty format the date if possible
+        val dateStr = try {
+            if (!dueDate.isNullOrBlank()) {
+                val inputFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US)
+                val outputFormat = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.US)
+                val date = inputFormat.parse(dueDate)
+                if (date != null) "Due on " + outputFormat.format(date) else "Due: $dueDate"
+            } else {
+                "Due: Unknown date"
+            }
+        } catch (e: Exception) {
+            "Due: $dueDate"
+        }
+
+        val body = "$dateStr  •  via $sender"
+
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            ?.apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK }
+
+        val pendingIntent = if (launchIntent != null) {
+            PendingIntent.getActivity(
+                context,
+                1,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        } else null
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .apply { if (pendingIntent != null) setContentIntent(pendingIntent) }
+            .build()
+
+        val notificationId = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
+        manager.notify(notificationId, notification)
+    }
 }

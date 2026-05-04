@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, Modal, TextInput, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { X, Plus, ChevronRight, Search } from "lucide-react-native";
+import { X, Plus, ChevronRight, Search, Check } from "lucide-react-native";
 import { Bill, Transaction } from "../../store/useExpenseStore";
 
 interface BillLinkingModalProps {
@@ -11,6 +11,7 @@ interface BillLinkingModalProps {
   billSearch: string;
   onSearchChange: (text: string) => void;
   onMarkPaidManually: () => void;
+  onMarkPaidWithoutLink?: () => void;
   onLinkTransaction: (transaction: Transaction) => void;
   transactions: Transaction[];
   currencySymbol: string;
@@ -23,6 +24,7 @@ export const BillLinkingModal = ({
   billSearch,
   onSearchChange,
   onMarkPaidManually,
+  onMarkPaidWithoutLink,
   onLinkTransaction,
   transactions,
   currencySymbol
@@ -66,7 +68,7 @@ export const BillLinkingModal = ({
             {/* Option 1: Create New */}
             <TouchableOpacity
               onPress={onMarkPaidManually}
-              className="bg-blue-600 p-5 rounded-3xl flex-row items-center justify-between mb-6 shadow-xl shadow-blue-500/20"
+              className="bg-blue-600 p-5 rounded-3xl flex-row items-center justify-between mb-4 shadow-xl shadow-blue-500/20"
             >
               <View className="flex-row items-center">
                 <View className="w-10 h-10 rounded-2xl bg-white/20 items-center justify-center mr-4">
@@ -79,6 +81,25 @@ export const BillLinkingModal = ({
               </View>
               <ChevronRight size={18} color="white" />
             </TouchableOpacity>
+
+            {/* Option 2: Mark without Transaction */}
+            {onMarkPaidWithoutLink && (
+              <TouchableOpacity
+                onPress={onMarkPaidWithoutLink}
+                className="bg-emerald-600 p-5 rounded-3xl flex-row items-center justify-between mb-6 shadow-xl shadow-emerald-500/20"
+              >
+                <View className="flex-row items-center">
+                  <View className="w-10 h-10 rounded-2xl bg-white/20 items-center justify-center mr-4">
+                    <Check size={20} color="white" />
+                  </View>
+                  <View>
+                    <Text className="text-white font-black text-sm">Mark as Paid Only</Text>
+                    <Text className="text-white/60 text-[10px] uppercase font-bold tracking-widest">No transaction created</Text>
+                  </View>
+                </View>
+                <ChevronRight size={18} color="white" />
+              </TouchableOpacity>
+            )}
 
             <View className="flex-row items-center bg-slate-50 dark:bg-slate-900 rounded-2xl px-4 py-3 mb-2">
               <Search size={18} color="#94a3b8" />

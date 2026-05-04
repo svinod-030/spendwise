@@ -197,6 +197,9 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
               setSelectedBill(bill);
               setIsBillModalOpen(true);
             }}
+            onRemoveBill={(bill) => {
+              deleteBill(bill.id);
+            }}
             onViewDetails={(bill) => {
               setSelectedBill(bill);
               setIsBillDetailOpen(true);
@@ -211,6 +214,9 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
             onMarkPaid={(bill) => {
               setSelectedBill(bill);
               setIsBillModalOpen(true);
+            }}
+            onRemoveBill={(bill) => {
+              deleteBill(bill.id);
             }}
             onViewDetails={(bill) => {
               setSelectedBill(bill);
@@ -232,6 +238,10 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
         onSearchChange={setBillSearch}
         onMarkPaidManually={async () => {
           if (selectedBill) await markBillAsPaid(selectedBill.id);
+          setIsBillModalOpen(false);
+        }}
+        onMarkPaidWithoutLink={async () => {
+          if (selectedBill) await markBillAsPaid(selectedBill.id, null);
           setIsBillModalOpen(false);
         }}
         onLinkTransaction={async (tx) => {

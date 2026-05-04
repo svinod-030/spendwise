@@ -120,7 +120,7 @@ interface ExpenseState {
   getMonthlyTrends: () => Promise<MonthlyTrend[]>;
   getMerchantSpending: () => Promise<MerchantSpending[]>;
   fetchBills: (month?: string) => Promise<void>;
-  markBillAsPaid: (billId: number, transactionId?: number) => Promise<void>;
+  markBillAsPaid: (billId: number, transactionId?: number | null) => Promise<void>;
   deleteBill: (billId: number) => Promise<void>;
   cleanupDuplicateBills: () => Promise<void>;
   importTransactionsFromSms: (limit?: number) => Promise<{ imported: number; skipped: number }>;
@@ -877,6 +877,9 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     // 1. Mark as paid & link transaction_id
     if (transactionId) {
       await db.runAsync("UPDATE bills SET status = 'paid', transaction_id = ? WHERE id = ?", [transactionId, billId]);
+    } else if (transactionId === null) {
+      // Mark as paid but explicitly without transaction
+      await db.runAsync("UPDATE bills SET status = 'paid' WHERE id = ?", [billId]);
     } else {
       // Create new transaction if none provided (manual payment)
       const txId = Date.now(); // In reality addTransaction should return the ID
@@ -1150,15 +1153,16 @@ async function ingestSmsMessages(
         // Try parsing as a bill
         const parsedBill = isBulk ? parseSmsForBillSync(message) : await parseSmsForBill(message);
         if (parsedBill && parsedBill.amount > 0) {
+          const parsedBillDateStr = parsedBill.dueDate || new Date().toISOString();
           const existingBill = await db.getFirstAsync<{ id: number }>(
-            "SELECT id FROM bills WHERE body = ? AND sender = ? AND ABS(strftime('%s', due_date) - ?) <= 3600",
-            [parsedBill.body, parsedBill.sender, Math.floor(new Date(parsedBill.dueDate || "").getTime() / 1000)]
+            "SELECT id FROM bills WHERE amount = ? AND date(due_date) = date(?)",
+            [parsedBill.amount, parsedBillDateStr]
           );
 
           if (!existingBill) {
             await db.runAsync(
               "INSERT INTO bills (sender, body, amount, due_date, status) VALUES (?, ?, ?, ?, 'unpaid')",
-              [parsedBill.sender, parsedBill.body, parsedBill.amount, parsedBill.dueDate || new Date().toISOString()]
+              [parsedBill.sender, parsedBill.body, parsedBill.amount, parsedBillDateStr]
             );
             imported += 1;
           }

@@ -476,3 +476,13 @@ export function showTransactionNotification(tx: ParsedSmsTransaction): void {
     tx.sender
   );
 }
+
+export function showBillNotification(bill: ParsedSmsBill): void {
+  if (Platform.OS !== 'android' || !SmsEventModule) return;
+
+  SmsEventModule.postBillNotification(
+    bill.amount,
+    bill.dueDate || null,
+    bill.sender
+  );
+}

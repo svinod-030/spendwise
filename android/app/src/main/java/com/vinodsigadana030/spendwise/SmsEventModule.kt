@@ -21,6 +21,16 @@ class SmsEventModule(reactContext: ReactApplicationContext) : ReactContextBaseJa
         )
     }
 
+    @ReactMethod
+    fun postBillNotification(amount: Double, dueDate: String?, sender: String) {
+        NotificationHelper.postBillNotification(
+            context = reactApplicationContext,
+            amount = amount,
+            dueDate = dueDate,
+            sender = sender
+        )
+    }
+
     companion object {
         private val contexts = Collections.newSetFromMap(WeakHashMap<ReactApplicationContext, Boolean>())
 
