@@ -6,14 +6,18 @@ import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/us
 import { TransactionKind } from "../types";
 import { IconLoader } from "../components/IconLoader";
 import { Alert } from "react-native";
+import { CategoryPickerModal } from "../components/CategoryPickerModal";
 
 const Transactions = ({ navigation, route }: { navigation: any; route: any }) => {
-  const { transactions, fetchTransactions, getCurrencySymbol, updateTransaction, deleteTransaction } = useExpenseStore();
+  const { transactions, fetchTransactions, fetchCategories, getCurrencySymbol, updateTransaction, deleteTransaction } = useExpenseStore();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | TransactionKind>("all");
   const [sortBy, setSortBy] = useState<"date" | "amount">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+
+  // Category picker state
+  const [categoryPickerTx, setCategoryPickerTx] = useState<Transaction | null>(null);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     if (route.params?.selectedMonth) return route.params.selectedMonth;
@@ -47,6 +51,13 @@ const Transactions = ({ navigation, route }: { navigation: any; route: any }) =>
 
   const handleEditTransaction = (tx: Transaction) => {
     navigation.navigate("AddTransaction", { editingTransaction: tx, returnTo: "Transactions", selectedMonth });
+  };
+
+  const handleCategorySelect = async (categoryId: number | null) => {
+    if (categoryPickerTx) {
+      await updateTransaction(categoryPickerTx.id, { category_id: categoryId });
+    }
+    setCategoryPickerTx(null);
   };
 
   const filtered = useMemo(() => {
@@ -108,12 +119,15 @@ const Transactions = ({ navigation, route }: { navigation: any; route: any }) =>
         className="flex-row items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl mb-3 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
       >
         <View className="flex-row items-center flex-1">
-          <View
+          {/* Category icon — tap to pick category inline */}
+          <TouchableOpacity
+            onPress={(e) => { e.stopPropagation(); setCategoryPickerTx(item); }}
+            activeOpacity={0.75}
             className="w-10 h-10 rounded-xl items-center justify-center mr-3 border border-slate-200 dark:border-slate-700"
             style={{ backgroundColor: `${item.category_color ?? "#3b82f6"}15` }}
           >
             <IconLoader name={display.icon} size={18} color={item.category_color ?? "#3b82f6"} />
-          </View>
+          </TouchableOpacity>
           <View className="flex-1">
             <View className="flex-row items-center">
               <Text className="text-slate-900 dark:text-white font-semibold leading-5 text-sm">
@@ -288,6 +302,14 @@ const Transactions = ({ navigation, route }: { navigation: any; route: any }) =>
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Inline Category Picker */}
+      <CategoryPickerModal
+        visible={categoryPickerTx !== null}
+        selectedCategoryId={categoryPickerTx?.category_id ?? null}
+        onSelect={handleCategorySelect}
+        onClose={() => setCategoryPickerTx(null)}
+      />
     </SafeAreaView>
   );
 };

@@ -4,6 +4,7 @@ import Animated, { FadeInRight } from "react-native-reanimated";
 import { RefreshCcw, Eye, EyeOff, Trash2 } from "lucide-react-native";
 import { IconLoader } from "../IconLoader";
 import { Transaction, getTransactionDisplay, useExpenseStore } from "../../store/useExpenseStore";
+import { CategoryPickerModal } from "../CategoryPickerModal";
 
 interface TransactionItemProps {
   item: Transaction;
@@ -22,6 +23,7 @@ export const TransactionItem = ({
 }: TransactionItemProps) => {
   const display = getTransactionDisplay(item);
   const { transactions, updateTransaction, deleteTransaction } = useExpenseStore();
+  const [isCategoryPickerOpen, setIsCategoryPickerOpen] = React.useState(false);
 
   const totalRefunded = React.useMemo(() => {
     return transactions
@@ -31,9 +33,8 @@ export const TransactionItem = ({
 
   const hasLinkedRefund = totalRefunded > 0;
   const remainingAmount = item.amount - totalRefunded;
-
   const isExcluded = item.is_excluded === 1;
-  
+
   const handleToggleVisibility = async (e: any) => {
     e.stopPropagation();
     await updateTransaction(item.id, { is_excluded: isExcluded ? 0 : 1 });
@@ -46,31 +47,34 @@ export const TransactionItem = ({
       "Are you sure you want to delete this transaction?",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive", 
-          onPress: () => deleteTransaction(item.id) 
-        }
+        { text: "Delete", style: "destructive", onPress: () => deleteTransaction(item.id) }
       ]
     );
   };
 
+  const handleCategorySelect = async (categoryId: number | null) => {
+    await updateTransaction(item.id, { category_id: categoryId });
+    setIsCategoryPickerOpen(false);
+  };
+
   return (
-    <Animated.View
-      entering={FadeInRight.delay(index * 50)}
-    >
+    <Animated.View entering={FadeInRight.delay(index * 50)}>
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => onPress(item)}
         className="flex-row items-center justify-between py-4 border-b border-slate-100 dark:border-slate-900/50"
       >
         <View className="flex-row items-center flex-1">
-          <View
+          {/* Category icon — tap to pick category inline */}
+          <TouchableOpacity
+            onPress={(e) => { e.stopPropagation(); setIsCategoryPickerOpen(true); }}
+            activeOpacity={0.75}
             className="w-12 h-12 rounded-2xl items-center justify-center border border-slate-200 dark:border-slate-800"
             style={{ backgroundColor: `${item.category_color ?? "#3b82f6"}15` }}
           >
             <IconLoader name={display.icon} size={20} color={item.category_color ?? "#3b82f6"} />
-          </View>
+          </TouchableOpacity>
+
           <View className="ml-4 flex-1">
             <View className="flex-row items-center">
               <Text className="text-slate-900 dark:text-slate-100 font-bold text-base leading-5">
@@ -84,13 +88,13 @@ export const TransactionItem = ({
                   </Text>
                 </View>
               )}
-              
             </View>
             <Text className="text-slate-500 text-[9px] font-bold uppercase tracking-widest mt-0.5">
               {new Date(item.date).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })} • {new Date(item.date).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: true })}
             </Text>
           </View>
         </View>
+
         <View className="flex-row items-center ml-2">
           <View className="items-end mr-3">
             <Text className={`font-black text-base ${isExcluded ? 'text-slate-400 line-through' : display.colorClass}`}>
@@ -108,21 +112,21 @@ export const TransactionItem = ({
               onPress={handleToggleVisibility}
               className={`p-2 rounded-xl mb-1 ${isExcluded ? 'bg-rose-500/10' : 'bg-slate-100 dark:bg-slate-800'}`}
             >
-              {isExcluded ? (
-                <EyeOff size={13} color="#f43f5e" />
-              ) : (
-                <Eye size={13} color="#64748b" />
-              )}
+              {isExcluded ? <EyeOff size={13} color="#f43f5e" /> : <Eye size={13} color="#64748b" />}
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleDelete}
-              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800"
-            >
+            <TouchableOpacity onPress={handleDelete} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">
               <Trash2 size={13} color="#f43f5e" />
             </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
+
+      <CategoryPickerModal
+        visible={isCategoryPickerOpen}
+        selectedCategoryId={item.category_id ?? null}
+        onSelect={handleCategorySelect}
+        onClose={() => setIsCategoryPickerOpen(false)}
+      />
     </Animated.View>
   );
 };
