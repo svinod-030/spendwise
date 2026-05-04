@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, ScrollView, Dimensions, TouchableOpacity, Modal, Pressable } from "react-native";
+import { View, Text, ScrollView, Dimensions, TouchableOpacity, Modal, Pressable, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore, MonthlyTrend } from "../store/useExpenseStore";
 import { LineChart, PieChart } from "react-native-gifted-charts";
@@ -209,13 +209,15 @@ const Analysis = ({ navigation }: { navigation: any }) => {
               <Text className="text-slate-500 text-center py-10">No category data for this month.</Text>
             )}
 
-            <View>
-              {categorySpending.map((item, index) => {
+            <FlatList
+              data={categorySpending}
+              keyExtractor={(item, index) => item.category_name + index}
+              scrollEnabled={false}
+              renderItem={({ item, index }) => {
                 const percentage = Math.round((item.total / Math.max(1, totalExpense)) * 100);
                 const color = item.category_color || fallbackColors[index % fallbackColors.length];
                 return (
                   <TouchableOpacity
-                    key={item.category_name + index}
                     className="my-1 last:mb-0 bg-white dark:bg-slate-900 p-4 rounded-2xl mb-3 border border-slate-100 dark:border-slate-800 shadow-sm dark:shadow-none"
                     onPress={() => navigation.navigate("Transactions", { searchQuery: item.category_name, selectedMonth: selectedMonth })}
                   >
@@ -243,8 +245,8 @@ const Analysis = ({ navigation }: { navigation: any }) => {
                     </View>
                   </TouchableOpacity>
                 );
-              })}
-            </View>
+              }}
+            />
           </View>
 
         </Animated.View>

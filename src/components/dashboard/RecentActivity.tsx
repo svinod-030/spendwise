@@ -1,5 +1,4 @@
-import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, FlatList } from "react-native";
 import { ChevronRight, Plus } from "lucide-react-native";
 import { Transaction } from "../../store/useExpenseStore";
 import { TransactionItem } from "./TransactionItem";
@@ -32,15 +31,19 @@ export const RecentActivity = ({
       </View>
       <View className="px-3 pb-2">
         {transactions.length > 0 ? (
-          transactions.map((item, index) => (
-            <TransactionItem
-              key={item.id}
-              item={item}
-              index={index}
-              onPress={onEditTransaction}
-              currencySymbol={currencySymbol}
-            />
-          ))
+          <FlatList
+            data={transactions}
+            keyExtractor={(item) => item.id.toString()}
+            scrollEnabled={false}
+            renderItem={({ item, index }) => (
+              <TransactionItem
+                item={item}
+                index={index}
+                onPress={onEditTransaction}
+                currencySymbol={currencySymbol}
+              />
+            )}
+          />
         ) : (
           <View className="py-10 items-center justify-center">
             <Text className="text-slate-400 dark:text-slate-600 font-bold text-[10px] uppercase tracking-widest">No activity recorded</Text>

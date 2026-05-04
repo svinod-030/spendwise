@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { View, ScrollView } from "react-native";
+import { View, ScrollView, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useExpenseStore, Transaction, Bill } from "../store/useExpenseStore";
 import Animated, { FadeInUp, useAnimatedStyle, withRepeat, withTiming, useSharedValue } from "react-native-reanimated";
@@ -155,19 +155,28 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
     return result;
   }, []);
 
-  return (
-    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['bottom', 'left', 'right']}>
-      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: 120 }}>
-        <Animated.View entering={FadeInUp}>
+  const sections = useMemo(() => [
+    { id: 'monthPicker' },
+    { id: 'predictiveAlert' },
+    { id: 'summary' },
+    { id: 'activity' },
+    { id: 'bills' },
+  ], []);
 
+  const renderSection = ({ item }: { item: any }) => {
+    switch (item.id) {
+      case 'monthPicker':
+        return (
           <MonthPicker
             months={months}
             selectedMonth={selectedMonth}
             onSelectMonth={setSelectedMonth}
           />
-
-          <PredictiveAlertCard />
-
+        );
+      case 'predictiveAlert':
+        return <PredictiveAlertCard />;
+      case 'summary':
+        return (
           <PerformanceSummary
             isCurrentMonth={isCurrentMonth}
             isEditingBudget={isEditingBudget}
@@ -182,7 +191,9 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
             onSaveBudget={handleSaveBudget}
             onPress={() => navigation.navigate("Analysis")}
           />
-
+        );
+      case 'activity':
+        return (
           <RecentActivity
             transactions={recentTransactions}
             onViewAll={() => navigation.navigate("Transactions", { selectedMonth })}
@@ -190,47 +201,65 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
             onEditTransaction={handleEditItem}
             currencySymbol={getCurrencySymbol()}
           />
+        );
+      case 'bills':
+        return (
+          <>
+            {billFilter === "unpaid" ? (
+              <BillsSection
+                bills={unpaidBills}
+                billFilter={billFilter}
+                setBillFilter={setBillFilter}
+                onMarkPaid={(bill) => {
+                  setSelectedBill(bill);
+                  setIsBillModalOpen(true);
+                }}
+                onRemoveBill={(bill) => {
+                  deleteBill(bill.id);
+                }}
+                onViewDetails={(bill) => {
+                  setSelectedBill(bill);
+                  setIsBillDetailOpen(true);
+                }}
+                currencySymbol={getCurrencySymbol()}
+              />
+            ) : (
+              <BillsSection
+                bills={bills}
+                billFilter={billFilter}
+                setBillFilter={setBillFilter}
+                onMarkPaid={(bill) => {
+                  setSelectedBill(bill);
+                  setIsBillModalOpen(true);
+                }}
+                onRemoveBill={(bill) => {
+                  deleteBill(bill.id);
+                }}
+                onViewDetails={(bill) => {
+                  setSelectedBill(bill);
+                  setIsBillDetailOpen(true);
+                }}
+                currencySymbol={getCurrencySymbol()}
+              />
+            )}
+          </>
+        );
+      default:
+        return null;
+    }
+  };
 
-          {billFilter === "unpaid" && <BillsSection
-            bills={unpaidBills}
-            billFilter={billFilter}
-            setBillFilter={setBillFilter}
-            onMarkPaid={(bill) => {
-              setSelectedBill(bill);
-              setIsBillModalOpen(true);
-            }}
-            onRemoveBill={(bill) => {
-              deleteBill(bill.id);
-            }}
-            onViewDetails={(bill) => {
-              setSelectedBill(bill);
-              setIsBillDetailOpen(true);
-            }}
-            currencySymbol={getCurrencySymbol()}
-          />}
+  return (
+    <SafeAreaView className="flex-1 bg-slate-50 dark:bg-slate-950" edges={['bottom', 'left', 'right']}>
+      <FlatList
+        data={sections}
+        renderItem={renderSection}
+        keyExtractor={(item) => item.id}
+        className="flex-1 px-5"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 120 }}
+      />
 
-          {billFilter === "paid" && <BillsSection
-            bills={bills}
-            billFilter={billFilter}
-            setBillFilter={setBillFilter}
-            onMarkPaid={(bill) => {
-              setSelectedBill(bill);
-              setIsBillModalOpen(true);
-            }}
-            onRemoveBill={(bill) => {
-              deleteBill(bill.id);
-            }}
-            onViewDetails={(bill) => {
-              setSelectedBill(bill);
-              setIsBillDetailOpen(true);
-            }}
-            currencySymbol={getCurrencySymbol()}
-          />}
-
-          <View className="h-10" />
-
-        </Animated.View>
-      </ScrollView>
 
       <BillLinkingModal
         isVisible={isBillModalOpen}
