@@ -653,8 +653,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         set({ syncProgress: { current, total, message: "Importing messages..." } });
       });
 
-      await get().fetchTransactions();
-      await get().fetchBills();
+      await Promise.all([
+        get().fetchTransactions(),
+        get().fetchBills(),
+      ]);
       return { imported, skipped };
     } finally {
       set({ isSyncing: false, syncProgress: null });
@@ -676,8 +678,11 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       const result = await ingestSmsMessages(db, messages, (current, total) => {
         set({ syncProgress: { current, total, message: "Syncing recent transactions..." } });
       });
-      await get().fetchTransactions();
-      await get().fetchBills();
+
+      await Promise.all([
+        get().fetchTransactions(),
+        get().fetchBills(),
+      ]);
       return result;
     } finally {
       set({ isSyncing: false, syncProgress: null });
@@ -691,8 +696,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       const db = await getDb();
       const result = await ingestSmsMessages(db, [message]);
       if (result.imported > 0) {
-        await get().fetchTransactions();
-        await get().fetchBills();
+        await Promise.all([
+          get().fetchTransactions(),
+          get().fetchBills(),
+        ]);
         return true;
       }
       return false;
@@ -728,10 +735,12 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   exportData: async () => {
     try {
       const db = await getDb();
-      const transactions = await db.getAllAsync("SELECT * FROM transactions");
-      const categories = await db.getAllAsync("SELECT * FROM categories");
-      const bills = await db.getAllAsync("SELECT * FROM bills");
-      const messages = await db.getAllAsync<any>("SELECT * FROM messages ORDER BY received_at DESC");
+      const [transactions, categories, bills, messages] = await Promise.all([
+        db.getAllAsync("SELECT * FROM transactions"),
+        db.getAllAsync("SELECT * FROM categories"),
+        db.getAllAsync("SELECT * FROM bills"),
+        db.getAllAsync<any>("SELECT * FROM messages ORDER BY received_at DESC"),
+      ]);
       const data = JSON.stringify({ transactions, categories, bills, messages }, null, 2);
 
       const dir = await FileSystem.Directory.pickDirectoryAsync();
@@ -757,9 +766,11 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   generateExportTxt: async () => {
     const db = await getDb();
-    const transactions = await db.getAllAsync<any>("SELECT * FROM transactions ORDER BY date DESC");
-    const bills = await db.getAllAsync<any>("SELECT * FROM bills ORDER BY due_date DESC");
-    const categories = await db.getAllAsync<any>("SELECT * FROM categories");
+    const [transactions, bills, categories] = await Promise.all([
+      db.getAllAsync<any>("SELECT * FROM transactions ORDER BY date DESC"),
+      db.getAllAsync<any>("SELECT * FROM bills ORDER BY due_date DESC"),
+      db.getAllAsync<any>("SELECT * FROM categories"),
+    ]);
 
     const categoryMap = categories.reduce((acc, cat) => {
       acc[cat.id] = cat.name;
@@ -820,8 +831,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       );
     }
 
-    await get().fetchCategories();
-    await get().fetchTransactions();
+    await Promise.all([
+      get().fetchCategories(),
+      get().fetchTransactions(),
+    ]);
   },
 
   clearAllData: async () => {
@@ -830,9 +843,11 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       const db = await getDb();
       await db.execAsync("DELETE FROM transactions; DELETE FROM categories; DELETE FROM budgets; DELETE from bills; DELETE FROM goals; DELETE FROM app_meta;");
       await db.runAsync("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('sms_initial_import_done', 'false')");
-      await get().fetchTransactions();
-      await get().fetchBudgets();
-      await get().fetchBills();
+      await Promise.all([
+        get().fetchTransactions(),
+        get().fetchBudgets(),
+        get().fetchBills(),
+      ]);
     } finally {
       set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
     }
@@ -1054,8 +1069,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     const newAmount = goal.current_amount + transaction.amount;
     await db.runAsync("UPDATE goals SET current_amount = ? WHERE id = ?", [newAmount, goalId]);
 
-    await get().fetchGoals();
-    await get().fetchTransactions();
+    await Promise.all([
+      get().fetchGoals(),
+      get().fetchTransactions(),
+    ]);
   },
 
   getGoalTransactions: async (goalId) => {

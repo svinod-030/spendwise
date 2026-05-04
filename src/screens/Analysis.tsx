@@ -71,8 +71,10 @@ const Analysis = ({ navigation }: { navigation: any }) => {
   // 1. Initial Load: Categories and budgets on focus
   useEffect(() => {
     const init = async () => {
-      await fetchCategories();
-      await fetchBudgets();
+      await Promise.all([
+        fetchCategories(),
+        fetchBudgets(),
+      ]);
     };
     if (isFocused) init();
   }, [fetchCategories, fetchBudgets, isFocused]);
@@ -89,9 +91,11 @@ const Analysis = ({ navigation }: { navigation: any }) => {
   // 3. Month-specific Data Refresh: refresh when month changes, transactions update or on focus
   useEffect(() => {
     const refreshMonthly = async () => {
-      const categoriesData = await getCurrentMonthCategorySpending(selectedMonth);
-      const total = await getCurrentMonthExpenseTotal(selectedMonth);
-      const income = await getCurrentMonthIncomeTotal(selectedMonth);
+      const [categoriesData, total, income] = await Promise.all([
+        getCurrentMonthCategorySpending(selectedMonth),
+        getCurrentMonthExpenseTotal(selectedMonth),
+        getCurrentMonthIncomeTotal(selectedMonth),
+      ]);
       setCategorySpending(categoriesData);
       setTotalExpense(total);
       setTotalIncome(income);
