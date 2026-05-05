@@ -1,10 +1,8 @@
 import { useMemo, useState, useEffect } from "react";
-import { View, ScrollView, FlatList } from "react-native";
+import { FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useExpenseStore, Transaction, Bill } from "../store/useExpenseStore";
-import Animated, { FadeInUp, useAnimatedStyle, withRepeat, withTiming, useSharedValue } from "react-native-reanimated";
-
-// Extracted Components
+import { useExpenseStore } from "../store/useExpenseStore";
+import { useAnimatedStyle, withRepeat, withTiming, useSharedValue } from "react-native-reanimated";
 import { MonthPicker } from "../components/dashboard/MonthPicker";
 import { PerformanceSummary } from "../components/dashboard/PerformanceSummary";
 import { RecentActivity } from "../components/dashboard/RecentActivity";
@@ -12,6 +10,7 @@ import { BillsSection } from "../components/dashboard/BillsSection";
 import { BillLinkingModal } from "../components/dashboard/BillLinkingModal";
 import { BillDetailModal } from "../components/dashboard/BillDetailModal";
 import { PredictiveAlertCard } from "../components/dashboard/PredictiveAlertCard";
+import { Bill, Transaction } from "../types/expense-store";
 
 
 const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
