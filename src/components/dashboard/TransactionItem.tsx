@@ -3,8 +3,9 @@ import { View, Text, TouchableOpacity, Alert } from "react-native";
 import Animated, { FadeInRight } from "react-native-reanimated";
 import { RefreshCcw, Eye, EyeOff, Trash2 } from "lucide-react-native";
 import { IconLoader } from "../IconLoader";
-import { Transaction, getTransactionDisplay, useExpenseStore } from "../../store/useExpenseStore";
+import { getTransactionDisplay, useExpenseStore } from "../../store/useExpenseStore";
 import { CategoryPickerModal } from "../CategoryPickerModal";
+import { Transaction } from "../../types/expense-store";
 
 interface TransactionItemProps {
   item: Transaction;

@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { FlatList, ScrollView, Text, TextInput, TouchableOpacity, View, Modal, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { RefreshCcw, Eye, EyeOff, Trash2, SlidersHorizontal, X } from "lucide-react-native";
-import { getTransactionDisplay, Transaction, useExpenseStore } from "../store/useExpenseStore";
+import { getTransactionDisplay, useExpenseStore } from "../store/useExpenseStore";
 import { TransactionKind } from "../types";
 import { IconLoader } from "../components/IconLoader";
 import { Alert } from "react-native";
 import { CategoryPickerModal } from "../components/CategoryPickerModal";
+import { Transaction } from "../types/expense-store";
 
 const Transactions = ({ navigation, route }: { navigation: any; route: any }) => {
   const { transactions, fetchTransactions, fetchCategories, getCurrencySymbol, updateTransaction, deleteTransaction } = useExpenseStore();

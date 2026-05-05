@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, Modal, ScrollView, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { X, Landmark, Calendar, DollarSign, FileText, MessageSquare, CheckCircle2, Clock, Trash2 } from "lucide-react-native";
-import { Bill } from "../../store/useExpenseStore";
+import { Bill } from "../../types/expense-store";
 
 interface BillDetailModalProps {
   isVisible: boolean;

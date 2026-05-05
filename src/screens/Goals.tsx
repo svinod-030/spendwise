@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useExpenseStore, Goal, getTransactionDisplay, Transaction } from "../store/useExpenseStore";
-import { Target, Plus, Pencil, Trash2, Calendar, Wallet, ChevronRight, X, Check, RefreshCcw } from "lucide-react-native";
+import { useExpenseStore, getTransactionDisplay } from "../store/useExpenseStore";
+import { Target, Plus, Pencil, Trash2, Calendar, Wallet, X, Check, RefreshCcw } from "lucide-react-native";
 import { IconLoader } from "../components/IconLoader";
-import Animated, { FadeInUp, FadeInRight, FadeOutLeft } from "react-native-reanimated";
-
-const screenWidth = Dimensions.get("window").width;
+import Animated, { FadeInUp, FadeInRight } from "react-native-reanimated";
+import { Goal } from "../types/expense-store";
 
 const Goals = () => {
   const {
@@ -89,7 +88,7 @@ const Goals = () => {
   const handleUpdateProgress = async () => {
     if (!selectedGoal || !updateValue) return;
     const amount = parseFloat(updateValue);
-    
+
     // Create Transaction for tracking (this will automatically update goal amount)
     await addTransaction({
       amount,
@@ -180,10 +179,10 @@ const Goals = () => {
           </View>
         ) : (
           goals.map((goal, index) => (
-            <GoalCard 
-              key={goal.id} 
-              goal={goal} 
-              index={index} 
+            <GoalCard
+              key={goal.id}
+              goal={goal}
+              index={index}
               onPress={() => handleOpenGoalDetails(goal)}
               onEdit={() => openEditModal(goal)}
               onDelete={() => handleDeleteGoal(goal.id)}
@@ -484,17 +483,17 @@ const Goals = () => {
   );
 };
 
-const GoalCard = ({ 
-  goal, 
-  index, 
-  onPress, 
-  onEdit, 
-  onDelete, 
-  onAddSavings, 
-  currencySymbol 
-}: { 
-  goal: Goal; 
-  index: number; 
+const GoalCard = ({
+  goal,
+  index,
+  onPress,
+  onEdit,
+  onDelete,
+  onAddSavings,
+  currencySymbol
+}: {
+  goal: Goal;
+  index: number;
   onPress: () => void;
   onEdit: () => void;
   onDelete: () => void;

@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, Modal, TextInput, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { X, Plus, ChevronRight, Search, Check } from "lucide-react-native";
-import { Bill, Transaction } from "../../store/useExpenseStore";
+import { Bill, Transaction } from "../../types/expense-store";
 
 interface BillLinkingModalProps {
   isVisible: boolean;

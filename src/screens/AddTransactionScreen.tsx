@@ -4,11 +4,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { Calendar as CalendarIcon, ChevronRight, ChevronDown, Check, TrendingUp, Clock as ClockIcon, Trash2, Eye, EyeOff, Link as LinkIcon, RefreshCcw, Search, X, ArrowLeft, MessageSquare } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useExpenseStore, Transaction } from "../store/useExpenseStore";
+import { useExpenseStore } from "../store/useExpenseStore";
 import { IconLoader } from "../components/IconLoader";
 import { useNavigation, useRoute, useIsFocused } from "@react-navigation/native";
 import { Alert } from "react-native";
 import { TransactionKind } from "../types";
+import { Transaction } from "../types/expense-store";
 
 const AddTransactionScreen = () => {
   const navigation = useNavigation<any>();
@@ -439,11 +440,10 @@ const AddTransactionScreen = () => {
                         <TouchableOpacity
                           key={pct}
                           onPress={() => setGoalPercent(pct)}
-                          className={`flex-1 py-2 rounded-xl items-center border ${
-                            goalPercent === pct
-                              ? 'bg-blue-600 border-blue-500'
-                              : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
-                          }`}
+                          className={`flex-1 py-2 rounded-xl items-center border ${goalPercent === pct
+                            ? 'bg-blue-600 border-blue-500'
+                            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                            }`}
                         >
                           <Text className={`font-black text-xs ${goalPercent === pct ? 'text-white' : 'text-slate-500'}`}>
                             {pct}%

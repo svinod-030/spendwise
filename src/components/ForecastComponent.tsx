@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, Dimensions } from "react-native";
-import { MonthlyTrend, useExpenseStore } from "../store/useExpenseStore";
+import { useExpenseStore } from "../store/useExpenseStore";
 import { BarChart } from "react-native-gifted-charts";
 import { TrendingUp, AlertCircle, TrendingDown, Lightbulb, AlertTriangle } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
+import { MonthlyTrend } from "../types/expense-store";
 
 const screenWidth = Dimensions.get("window").width;
 
