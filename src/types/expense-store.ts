@@ -118,8 +118,9 @@ export interface ExpenseState {
     getMerchantSpending: () => Promise<MerchantSpending[]>;
     fetchBills: (month?: string) => Promise<void>;
     markBillAsPaid: (billId: number, transactionId?: number | null) => Promise<void>;
-    deleteBill: (billId: number) => Promise<void>;
+    deleteBill: (billId: number, month?: string) => Promise<void>;
     cleanupDuplicateBills: () => Promise<void>;
+    fetchDashboardData: (month: string) => Promise<void>;
     importTransactionsFromSms: (limit?: number) => Promise<{ imported: number; skipped: number }>;
     syncRecentSmsTransactions: () => Promise<{ imported: number; skipped: number }>;
     processIncomingSmsMessage: (message: { address: string; body: string; date: number }) => Promise<boolean>;

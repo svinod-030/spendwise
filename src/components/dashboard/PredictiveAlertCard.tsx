@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { View, Text } from "react-native";
-import { useExpenseStore, PredictiveAlert } from "../../store/useExpenseStore";
+import { useExpenseStore } from "../../store/useExpenseStore";
 import { AlertTriangle, ShieldCheck, AlertCircle, TrendingUp } from "lucide-react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { PredictiveAlert } from "../../types/expense-store";
 
-export const PredictiveAlertCard = () => {
-  const { getPredictiveAlert, getCurrencySymbol, transactions } = useExpenseStore();
+export const PredictiveAlertCard = React.memo(() => {
+  const getPredictiveAlert = useExpenseStore(state => state.getPredictiveAlert);
+  const getCurrencySymbol = useExpenseStore(state => state.getCurrencySymbol);
+  const transactions = useExpenseStore(state => state.transactions);
+
   const [alert, setAlert] = useState<PredictiveAlert | null>(null);
 
   useEffect(() => {
@@ -14,7 +18,7 @@ export const PredictiveAlertCard = () => {
       setAlert(data);
     };
     fetchAlert();
-  }, [transactions]);
+  }, [getPredictiveAlert, transactions]);
 
   if (!alert) return null;
 
@@ -50,7 +54,7 @@ export const PredictiveAlertCard = () => {
   const colors = getColors();
 
   return (
-    <Animated.View 
+    <Animated.View
       entering={FadeInDown.delay(200)}
       className={`${colors.bg} ${colors.border} border rounded-2xl p-4 mb-6`}
     >
@@ -58,7 +62,7 @@ export const PredictiveAlertCard = () => {
         {colors.icon}
         <Text className={`${colors.text} font-bold ml-2`}>{colors.title}</Text>
       </View>
-      
+
       <Text className={`${colors.text} text-xs leading-relaxed opacity-90`}>
         {alert.message}
       </Text>
@@ -71,4 +75,4 @@ export const PredictiveAlertCard = () => {
       </View>
     </Animated.View>
   );
-};
+});

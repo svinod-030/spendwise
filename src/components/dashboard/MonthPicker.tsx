@@ -13,7 +13,7 @@ interface MonthPickerProps {
   onSelectMonth: (monthKey: string) => void;
 }
 
-export const MonthPicker = ({ months, selectedMonth, onSelectMonth }: MonthPickerProps) => {
+export const MonthPicker = React.memo(({ months, selectedMonth, onSelectMonth }: MonthPickerProps) => {
   return (
     <View className="mb-6 -mx-5 px-5">
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-2">
@@ -37,4 +37,4 @@ export const MonthPicker = ({ months, selectedMonth, onSelectMonth }: MonthPicke
       </ScrollView>
     </View>
   );
-};
+});

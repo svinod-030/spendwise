@@ -21,11 +21,20 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
     navigation.navigate("AddTransaction", { editingTransaction: tx, returnTo: "Overview", selectedMonth });
   };
 
-  const {
-    transactions, fetchTransactions, budgets, fetchBudgets,
-    getCurrencySymbol, fetchCurrency, bills, fetchBills, markBillAsPaid, deleteBill, isSyncing,
-    monthlyExpense, monthlyIncome, fetchMonthlyStats
-  } = useExpenseStore();
+  // Optimized selectors to prevent unnecessary re-renders
+  const transactions = useExpenseStore(state => state.transactions);
+  const budgets = useExpenseStore(state => state.budgets);
+  const bills = useExpenseStore(state => state.bills);
+  const monthlyExpense = useExpenseStore(state => state.monthlyExpense);
+  const monthlyIncome = useExpenseStore(state => state.monthlyIncome);
+  const isSyncing = useExpenseStore(state => state.isSyncing);
+
+  const fetchDashboardData = useExpenseStore(state => state.fetchDashboardData);
+  const fetchCurrency = useExpenseStore(state => state.fetchCurrency);
+  const getCurrencySymbol = useExpenseStore(state => state.getCurrencySymbol);
+  const deleteBill = useExpenseStore(state => state.deleteBill);
+  const upsertMonthlyBudget = useExpenseStore(state => state.upsertMonthlyBudget);
+  const markBillAsPaid = useExpenseStore(state => state.markBillAsPaid);
 
   const rotation = useSharedValue(0);
 
@@ -68,8 +77,6 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
   const [billSearch, setBillSearch] = useState("");
   const [billFilter, setBillFilter] = useState<"unpaid" | "paid">("unpaid");
 
-  const { upsertMonthlyBudget } = useExpenseStore();
-
   const handleSaveBudget = async () => {
     const amount = Number(budgetInput);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -108,17 +115,11 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
   // Fetches everything when screen focuses or month changes
   useEffect(() => {
     const loadAll = async () => {
-      // Fetch everything in parallel
-      await Promise.all([
-        fetchTransactions(10, selectedMonth),
-        fetchBudgets(),
-        fetchBills(selectedMonth),
-        fetchMonthlyStats(selectedMonth),
-        fetchCurrency()
-      ]);
+      // Batched fetch for better performance
+      await fetchDashboardData(selectedMonth);
     };
     if (isFocused) loadAll();
-  }, [fetchTransactions, fetchBudgets, fetchBills, fetchMonthlyStats, fetchCurrency, isFocused, selectedMonth]);
+  }, [fetchDashboardData, isFocused, selectedMonth]);
 
 
   const overallMonthlyBudget = useMemo(() => {
@@ -188,7 +189,7 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
             safeToSpend={safeToSpend}
             currencySymbol={getCurrencySymbol()}
             onSaveBudget={handleSaveBudget}
-            onPress={() => navigation.navigate("Analysis")}
+            onPress={() => navigation.navigate("Analysis", { selectedMonth })}
           />
         );
       case 'activity':
@@ -214,7 +215,7 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
                   setIsBillModalOpen(true);
                 }}
                 onRemoveBill={(bill) => {
-                  deleteBill(bill.id);
+                  deleteBill(bill.id, selectedMonth);
                 }}
                 onViewDetails={(bill) => {
                   setSelectedBill(bill);
@@ -232,7 +233,7 @@ const Dashboard = ({ navigation, route }: { navigation: any, route: any }) => {
                   setIsBillModalOpen(true);
                 }}
                 onRemoveBill={(bill) => {
-                  deleteBill(bill.id);
+                  deleteBill(bill.id, selectedMonth);
                 }}
                 onViewDetails={(bill) => {
                   setSelectedBill(bill);

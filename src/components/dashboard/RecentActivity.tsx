@@ -1,7 +1,8 @@
 import { View, Text, TouchableOpacity, FlatList } from "react-native";
 import { ChevronRight, Plus } from "lucide-react-native";
-import { Transaction } from "../../store/useExpenseStore";
+import { Transaction } from "../../types/expense-store";
 import { TransactionItem } from "./TransactionItem";
+import React from "react";
 
 interface RecentActivityProps {
   transactions: Transaction[];
@@ -11,7 +12,7 @@ interface RecentActivityProps {
   currencySymbol: string;
 }
 
-export const RecentActivity = ({
+export const RecentActivity = React.memo(({
   transactions,
   onViewAll,
   onAddTransaction,
@@ -62,4 +63,4 @@ export const RecentActivity = ({
       )}
     </View>
   );
-};
+});

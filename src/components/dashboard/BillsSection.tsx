@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, FlatList } from "react-native";
 import { Check, Landmark, ChevronRight, Repeat } from "lucide-react-native";
-import { Bill } from "../../store/useExpenseStore";
+import { Bill } from "../../types/expense-store";
 
 interface BillsSectionProps {
   bills: Bill[];
@@ -13,7 +13,7 @@ interface BillsSectionProps {
   currencySymbol: string;
 }
 
-export const BillsSection = ({
+export const BillsSection = React.memo(({
   bills,
   billFilter,
   setBillFilter,
@@ -30,20 +30,16 @@ export const BillsSection = ({
           <Text className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Manage your dues</Text>
         </View>
 
-        <View className="flex-row bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-          <TouchableOpacity
-            onPress={() => setBillFilter("unpaid")}
-            className={`px-3 py-1.5 rounded-lg ${billFilter === "unpaid" ? "bg-white dark:bg-slate-700 shadow-sm" : ""}`}
-          >
-            <Text className={`text-[9px] font-black uppercase tracking-tighter ${billFilter === "unpaid" ? "text-blue-600 dark:text-blue-400" : "text-slate-500"}`}>Unpaid</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setBillFilter("paid")}
-            className={`px-3 py-1.5 rounded-lg ${billFilter === "paid" ? "bg-white dark:bg-slate-700 shadow-sm" : ""}`}
-          >
-            <Text className={`text-[9px] font-black uppercase tracking-tighter ${billFilter === "paid" ? "text-blue-600 dark:text-blue-400" : "text-slate-500"}`}>All</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setBillFilter(billFilter === "unpaid" ? "paid" : "unpaid")}
+          className="flex-row items-center bg-slate-100 dark:bg-slate-800/50 pl-3 pr-1 py-1 rounded-full border border-slate-200 dark:border-slate-800"
+        >
+          <Text className="text-[9px] font-black uppercase tracking-widest text-slate-500 mr-2">Show All</Text>
+          <View className={`w-10 h-6 rounded-full p-1 ${billFilter === "paid" ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"}`}>
+            <View className={`w-4 h-4 bg-white rounded-full ${billFilter === "paid" ? "translate-x-4" : "translate-x-0"}`} />
+          </View>
+        </TouchableOpacity>
       </View>
 
       <View className="px-3 pb-2">
@@ -99,7 +95,7 @@ export const BillsSection = ({
                         <Check size={16} color="#10b981" />
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => onRemoveBill(bill)} className="bg-rose-50 dark:bg-rose-500/20 p-2 rounded-lg">
-                        <Text className="text-rose-500 font-bold text-xs" style={{marginTop:-2}}>✕</Text>
+                        <Text className="text-rose-500 font-bold text-xs" style={{ marginTop: -2 }}>✕</Text>
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -117,4 +113,4 @@ export const BillsSection = ({
       </View>
     </View>
   );
-};
+});

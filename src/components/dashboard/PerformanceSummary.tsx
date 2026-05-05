@@ -19,7 +19,7 @@ interface PerformanceSummaryProps {
   onPress?: () => void;
 }
 
-export const PerformanceSummary = ({
+export const PerformanceSummary = React.memo(({
   isCurrentMonth,
   isEditingBudget,
   setIsEditingBudget,
@@ -153,4 +153,4 @@ export const PerformanceSummary = ({
       )}
     </TouchableOpacity>
   );
-};
+});

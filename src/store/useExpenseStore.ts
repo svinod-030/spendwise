@@ -796,10 +796,68 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     await get().fetchBills();
   },
 
-  deleteBill: async (billId: number) => {
+  deleteBill: async (billId: number, month?: string) => {
     const db = await getDb();
     await db.runAsync("DELETE FROM bills WHERE id = ?", [billId]);
-    await get().fetchBills();
+    await get().fetchBills(month);
+  },
+
+  fetchDashboardData: async (month: string) => {
+    set((state) => ({ isLoading: state.isLoading + 1 }));
+    try {
+      const db = await getDb();
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const targetMonth = month || currentMonth;
+      const dateQuery = `date('${targetMonth}-01')`;
+
+      // 1. Fetch Transactions
+      const transactions = await db.getAllAsync<Transaction>(
+        `SELECT t.*, c.name as category_name, c.color as category_color, c.icon as category_icon 
+         FROM transactions t
+         LEFT JOIN categories c ON t.category_id = c.id
+         WHERE t.date LIKE ? AND t.is_excluded = 0
+         ORDER BY t.date DESC LIMIT 10`,
+        [`${targetMonth}%`]
+      );
+
+      // 2. Fetch Bills
+      const isCurrent = targetMonth === currentMonth;
+      const endBoundary = isCurrent ? `date(${dateQuery}, '+2 months')` : `date(${dateQuery}, '+1 month')`;
+      const bills = await db.getAllAsync<Bill>(
+        `SELECT * FROM bills 
+         WHERE due_date >= ${dateQuery} 
+         AND due_date < ${endBoundary}
+         AND NOT (amount = 0 AND due_date >= date('now', 'start of month', '+2 months'))
+         ORDER BY due_date ASC`
+      );
+
+      // 3. Fetch Monthly Stats
+      const [expenseRes, incomeRes] = await Promise.all([
+        db.getFirstAsync<{ total: number }>(
+          "SELECT SUM(amount) as total FROM transactions WHERE date LIKE ? AND type = 'expense' AND is_excluded = 0",
+          [`${targetMonth}%`]
+        ),
+        db.getFirstAsync<{ total: number }>(
+          "SELECT SUM(amount) as total FROM transactions WHERE date LIKE ? AND type = 'income' AND is_excluded = 0",
+          [`${targetMonth}%`]
+        )
+      ]);
+
+      // 4. Fetch Budgets
+      const budgets = await db.getAllAsync<Budget>("SELECT * FROM budgets");
+
+      // Single set call to avoid multiple re-renders
+      set({ 
+        transactions, 
+        bills, 
+        monthlyExpense: expenseRes?.total || 0,
+        monthlyIncome: incomeRes?.total || 0,
+        budgets
+      });
+    } finally {
+      set((state) => ({ isLoading: Math.max(0, state.isLoading - 1) }));
+    }
   },
 
   fetchGoals: async () => {
