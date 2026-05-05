@@ -1,19 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, ScrollView, Dimensions, TouchableOpacity, Modal, Pressable, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useExpenseStore, MonthlyTrend } from "../store/useExpenseStore";
+import { useExpenseStore } from "../store/useExpenseStore";
 import { LineChart, PieChart } from "react-native-gifted-charts";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { BarChart3, PieChart as PieIcon, ChevronDown, Check } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 import ForecastComponent from "../components/ForecastComponent";
 import { IconLoader } from "../components/IconLoader";
-import { CategorySpending } from "../store/useExpenseStore";
+import { CategorySpending, MonthlyTrend } from "../types/expense-store";
 
 const screenWidth = Dimensions.get("window").width;
 const fallbackColors = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4"];
 
-const Analysis = ({ navigation }: { navigation: any }) => {
+const Analysis = ({ navigation, route }: { navigation: any, route: any }) => {
   const [isFocused, setIsFocused] = useState(true);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -37,9 +37,16 @@ const Analysis = ({ navigation }: { navigation: any }) => {
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
+    if (route.params?.selectedMonth) return route.params.selectedMonth;
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
+
+  useEffect(() => {
+    if (route.params?.selectedMonth && route.params.selectedMonth !== selectedMonth) {
+      setSelectedMonth(route.params.selectedMonth);
+    }
+  }, [route.params?.selectedMonth]);
 
   const availableMonths = useMemo(() => {
     const result = [];
